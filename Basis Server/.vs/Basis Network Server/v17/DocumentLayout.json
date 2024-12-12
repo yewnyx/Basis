@@ -1,0 +1,173 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network server\\basisnetworking\\basissavedstate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|solutionrelative:basis network server\\basisnetworking\\basissavedstate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network server\\basisnetworking\\basisserverreductionsystem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|solutionrelative:basis network server\\basisnetworking\\basisserverreductionsystem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network server\\basisnetworkserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|solutionrelative:basis network server\\basisnetworkserver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E7342578-2EB7-4DC9-93B6-D00B52737D45}|Basis Network Core\\Basis.Network.Core.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network core\\compression\\basisnetworkprimitivecompression.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E7342578-2EB7-4DC9-93B6-D00B52737D45}|Basis Network Core\\Basis.Network.Core.csproj|solutionrelative:basis network core\\compression\\basisnetworkprimitivecompression.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E7342578-2EB7-4DC9-93B6-D00B52737D45}|Basis Network Core\\Basis.Network.Core.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network core\\compression\\basisnetworkcompressionextensions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E7342578-2EB7-4DC9-93B6-D00B52737D45}|Basis Network Core\\Basis.Network.Core.csproj|solutionrelative:basis network core\\compression\\basisnetworkcompressionextensions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4FF0B99D-5510-483F-83A1-AF42BA4B1928}|Basis Network Client\\Basis.Network.Client.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network client\\basisnetworkclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4FF0B99D-5510-483F-83A1-AF42BA4B1928}|Basis Network Client\\Basis.Network.Client.csproj|solutionrelative:basis network client\\basisnetworkclient.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3BFB9307-E78F-4277-ABE3-6762A2B69E19}|BasisServerConsole\\Basis.Network.Console.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basisserverconsole\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3BFB9307-E78F-4277-ABE3-6762A2B69E19}|BasisServerConsole\\Basis.Network.Console.csproj|solutionrelative:basisserverconsole\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E7342578-2EB7-4DC9-93B6-D00B52737D45}|Basis Network Core\\Basis.Network.Core.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network core\\basisnetworkversion.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E7342578-2EB7-4DC9-93B6-D00B52737D45}|Basis Network Core\\Basis.Network.Core.csproj|solutionrelative:basis network core\\basisnetworkversion.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|c:\\users\\doola\\onedrive\\documents\\github\\basisserver\\basis server standalone\\basis server\\basis network server\\basismessagereceivedeventargs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB9D8AA9-98B0-4279-8444-D36743878F7D}|Basis Network Server\\Basis.Network.Server.csproj|solutionrelative:basis network server\\basismessagereceivedeventargs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 262,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "BasisSavedState.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisNetworking\\BasisSavedState.cs",
+              "RelativeDocumentMoniker": "Basis Network Server\\BasisNetworking\\BasisSavedState.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisNetworking\\BasisSavedState.cs",
+              "RelativeToolTip": "Basis Network Server\\BasisNetworking\\BasisSavedState.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T18:48:28.274Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "BasisNetworkPrimitiveCompression.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Core\\Compression\\BasisNetworkPrimitiveCompression.cs",
+              "RelativeDocumentMoniker": "Basis Network Core\\Compression\\BasisNetworkPrimitiveCompression.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Core\\Compression\\BasisNetworkPrimitiveCompression.cs",
+              "RelativeToolTip": "Basis Network Core\\Compression\\BasisNetworkPrimitiveCompression.cs",
+              "ViewState": "AgIAABgAAAAAAAAAAAAowAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T18:23:30.651Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "BasisNetworkCompressionExtensions.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Core\\Compression\\BasisNetworkCompressionExtensions.cs",
+              "RelativeDocumentMoniker": "Basis Network Core\\Compression\\BasisNetworkCompressionExtensions.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Core\\Compression\\BasisNetworkCompressionExtensions.cs",
+              "RelativeToolTip": "Basis Network Core\\Compression\\BasisNetworkCompressionExtensions.cs",
+              "ViewState": "AgIAAMoAAAAAAAAAAAAUwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T18:23:24.203Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\BasisServerConsole\\Program.cs",
+              "RelativeDocumentMoniker": "BasisServerConsole\\Program.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\BasisServerConsole\\Program.cs",
+              "RelativeToolTip": "BasisServerConsole\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAABEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T18:05:00.079Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "BasisNetworkVersion.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Core\\BasisNetworkVersion.cs",
+              "RelativeDocumentMoniker": "Basis Network Core\\BasisNetworkVersion.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Core\\BasisNetworkVersion.cs",
+              "RelativeToolTip": "Basis Network Core\\BasisNetworkVersion.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T17:36:26.748Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "BasisNetworkClient.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Client\\BasisNetworkClient.cs",
+              "RelativeDocumentMoniker": "Basis Network Client\\BasisNetworkClient.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Client\\BasisNetworkClient.cs",
+              "RelativeToolTip": "Basis Network Client\\BasisNetworkClient.cs",
+              "ViewState": "AgIAAFkAAAAAAAAAAAAwwFIAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T17:35:20.58Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "BasisServerReductionSystem.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisNetworking\\BasisServerReductionSystem.cs",
+              "RelativeDocumentMoniker": "Basis Network Server\\BasisNetworking\\BasisServerReductionSystem.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisNetworking\\BasisServerReductionSystem.cs",
+              "RelativeToolTip": "Basis Network Server\\BasisNetworking\\BasisServerReductionSystem.cs",
+              "ViewState": "AgIAAGcAAAAAAAAAAAAqwHcAAABVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T17:34:50.621Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "BasisMessageReceivedEventArgs.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisMessageReceivedEventArgs.cs",
+              "RelativeDocumentMoniker": "Basis Network Server\\BasisMessageReceivedEventArgs.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisMessageReceivedEventArgs.cs",
+              "RelativeToolTip": "Basis Network Server\\BasisMessageReceivedEventArgs.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T17:34:36.344Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "BasisNetworkServer.cs",
+              "DocumentMoniker": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisNetworkServer.cs",
+              "RelativeDocumentMoniker": "Basis Network Server\\BasisNetworkServer.cs",
+              "ToolTip": "C:\\Users\\doola\\OneDrive\\Documents\\Github\\BasisServer\\Basis Server Standalone\\Basis Server\\Basis Network Server\\BasisNetworkServer.cs",
+              "RelativeToolTip": "Basis Network Server\\BasisNetworkServer.cs",
+              "ViewState": "AgIAAFYBAAAAAAAAAAAuwGIBAAA1AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-12-12T17:06:18.927Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

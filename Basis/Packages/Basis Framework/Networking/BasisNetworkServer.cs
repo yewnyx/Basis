@@ -33,7 +33,7 @@ namespace Basis.Scripts.Networking
             }
             Server = null;
             // Create spawn data from config
-            ServerConfiguration spawnData = new ServerConfiguration
+            ServerSpawnData spawnData = new ServerSpawnData
             {
                 // Allow only this thread to execute dispatcher tasks to enable deadlock protection
                 DispatcherExecutorThreadID = Thread.CurrentThread.ManagedThreadId,
@@ -41,7 +41,7 @@ namespace Basis.Scripts.Networking
                 // Inaccessible from XML, set from inspector
                 EventsFromDispatcher = eventsFromDispatcher,
 
-                Listeners = new ServerConfiguration.ListenersSettings()
+                Listeners = new ServerSpawnData.ListenersSettings()
 
             };
 
