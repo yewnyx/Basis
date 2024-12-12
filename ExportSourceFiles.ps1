@@ -1,6 +1,6 @@
 # Define source and destination directories
-$source = "C:\Users\doola\OneDrive\Documents\Github\BasisServer\Basis Server Standalone\Basis Server\"
-$destination = "C:\Users\doola\OneDrive\Documents\Github\BasisServer\Packages\Basis Server\"
+$source = "C:\Users\doola\OneDrive\Documents\Github\Basis New World\Basis Server\"
+$destination = "C:\Users\doola\OneDrive\Documents\Github\Basis New World\Packages\Basis Server\"
 
 # Remove the destination folder and recreate it
 Remove-Item -Recurse -Force $destination
