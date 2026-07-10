@@ -81,7 +81,10 @@ public static class BasisNetworkPreloadResourceManagement
         NetworkServer.ReturnWriter(writer);
 
         // Store in the main resource database too
-        BasisNetworkResourceManagement.UshortNetworkDatabase.TryAdd(netId, resource);
+        if (BasisNetworkResourceManagement.UshortNetworkDatabase.TryAdd(netId, resource) && resource.Mode == 1)
+        {
+            Basis.Network.Server.BasisServerEvents.RaiseWorldLoaded(netId, resource.CombinedURL, resource.Persist, resource.LoadStrategy);
+        }
 
         // No peers: complete immediately rather than waiting for the 5-minute timeout
         if (peerCount == 0)
