@@ -38,69 +38,150 @@ namespace BasisNetworkServer.Security
         // Core Ban Logic
         // =========================
 
+        /// <summary>
+        /// Fired after the ban store changes (ban, unban), from the mutating thread.
+        /// Exceptions from subscribers are logged and swallowed.
+        /// </summary>
+        public static event Action OnBansChanged;
+
         public static string Ban(string UUID, string reason)
         {
-            if (!ValidateTarget(UUID, reason, out var peer, out var error))
-                return error;
+            TryBan(UUID, reason, out string message);
+            return message;
+        }
+
+        /// <summary>Ban a connected player. Fails when they are offline — see <see cref="TryBanUuid"/>.</summary>
+        public static bool TryBan(string UUID, string reason, out string message)
+        {
+            if (!ValidateTarget(UUID, reason, out var peer, out message))
+                return false;
 
             if (IsProtected(UUID))
-                return "Target is protected";
+            {
+                message = "Target is protected";
+                return false;
+            }
 
             peer.Disconnect(Encoding.UTF8.GetBytes(reason));
+            RecordBan(UUID, string.Empty, reason, hasBannedIp: false);
+            message = $"Player {UUID} banned.";
+            return true;
+        }
 
-            BannedPlayer bannedPlayer = new()
+        /// <summary>
+        /// Ban a UUID whether or not the player is connected, disconnecting them
+        /// first when online. External managers need this — a central ban usually
+        /// targets someone who already left; the in-game path (<see cref="Ban"/>)
+        /// keeps requiring a live peer.
+        /// </summary>
+        public static bool TryBanUuid(string UUID, string reason, out string message)
+        {
+            if (string.IsNullOrEmpty(UUID))
             {
-                UUID = UUID,
-                Reason = reason,
-                HasBannedIp = false,
-                TimeOfBan = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
-                BannedIp = string.Empty
-            };
+                message = "UUID invalid";
+                return false;
+            }
 
-            BannedPlayers[UUID] = bannedPlayer;
-            BannedUUIDs[UUID] = 0;
-            SaveBannedPlayers();
+            if (string.IsNullOrEmpty(reason))
+            {
+                message = "Reason invalid";
+                return false;
+            }
 
-            return $"Player {UUID} banned.";
+            if (IsProtected(UUID))
+            {
+                message = "Target is protected";
+                return false;
+            }
+
+            if (NetworkServer.AuthIdentity != null &&
+                NetworkServer.AuthIdentity.UUIDToNetID(UUID, out int id) &&
+                NetworkServer.AuthenticatedPeers.TryGetValue(id, out var peer))
+            {
+                peer.Disconnect(Encoding.UTF8.GetBytes(reason));
+                message = $"Player {UUID} banned.";
+            }
+            else
+            {
+                message = $"Player {UUID} banned (offline).";
+            }
+
+            RecordBan(UUID, string.Empty, reason, hasBannedIp: false);
+            return true;
         }
 
         public static string IpBan(string UUID, string reason)
         {
-            if (!ValidateTarget(UUID, reason, out var peer, out var error))
-                return error;
+            TryIpBan(UUID, reason, out string message);
+            return message;
+        }
+
+        /// <summary>Ban a connected player and their current IP; the IP comes from the live peer.</summary>
+        public static bool TryIpBan(string UUID, string reason, out string message)
+        {
+            if (!ValidateTarget(UUID, reason, out var peer, out message))
+                return false;
 
             if (IsProtected(UUID))
-                return "Target is protected";
+            {
+                message = "Target is protected";
+                return false;
+            }
 
             string ip = peer.Address.ToString();
             peer.Disconnect(Encoding.UTF8.GetBytes(reason));
-
-            BannedPlayer bannedPlayer = new()
-            {
-                UUID = UUID,
-                BannedIp = ip,
-                Reason = reason,
-                HasBannedIp = true,
-                TimeOfBan = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
-            };
-
-            BannedPlayers[UUID] = bannedPlayer;
-            BannedUUIDs[UUID] = 0;
-            SaveBannedPlayers();
-
-            return $"Player {UUID} and IP {ip} banned.";
+            RecordBan(UUID, ip, reason, hasBannedIp: true);
+            message = $"Player {UUID} and IP {ip} banned.";
+            return true;
         }
 
         public static string Kick(string UUID, string reason)
         {
-            if (!ValidateTarget(UUID, reason, out var peer, out var error))
-                return error;
+            TryKick(UUID, reason, out string message);
+            return message;
+        }
+
+        public static bool TryKick(string UUID, string reason, out string message)
+        {
+            if (!ValidateTarget(UUID, reason, out var peer, out message))
+                return false;
 
             if (IsProtected(UUID))
-                return "Target is protected";
+            {
+                message = "Target is protected";
+                return false;
+            }
 
             peer.Disconnect(Encoding.UTF8.GetBytes(reason));
-            return $"Player {UUID} kicked.";
+            message = $"Player {UUID} kicked.";
+            return true;
+        }
+
+        private static void RecordBan(string UUID, string ip, string reason, bool hasBannedIp)
+        {
+            BannedPlayers[UUID] = new BannedPlayer
+            {
+                UUID = UUID,
+                BannedIp = ip,
+                Reason = reason,
+                HasBannedIp = hasBannedIp,
+                TimeOfBan = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+            BannedUUIDs[UUID] = 0;
+            SaveBannedPlayers();
+            RaiseBansChanged();
+        }
+
+        private static void RaiseBansChanged()
+        {
+            try
+            {
+                OnBansChanged?.Invoke();
+            }
+            catch (Exception e)
+            {
+                BNL.LogError($"OnBansChanged subscriber threw: {e}");
+            }
         }
 
         private static bool ValidateTarget(string UUID, string reason, out NetPeer peer, out string error)
@@ -184,6 +265,9 @@ namespace BasisNetworkServer.Security
 
         public static bool IsBanned(string UUID) => BannedUUIDs.ContainsKey(UUID);
 
+        /// <summary>Snapshot of every ban record, for external managers.</summary>
+        public static List<BannedPlayer> ListBanned() => BannedPlayers.Values.ToList();
+
         public static bool Unban(string UUID)
         {
             if (!BannedUUIDs.ContainsKey(UUID))
@@ -192,6 +276,7 @@ namespace BasisNetworkServer.Security
             BannedPlayers.TryRemove(UUID, out _);
             BannedUUIDs.TryRemove(UUID, out _);
             SaveBannedPlayers();
+            RaiseBansChanged();
             return true;
         }
 
@@ -207,6 +292,7 @@ namespace BasisNetworkServer.Security
             }
 
             SaveBannedPlayers();
+            RaiseBansChanged();
             return true;
         }
 

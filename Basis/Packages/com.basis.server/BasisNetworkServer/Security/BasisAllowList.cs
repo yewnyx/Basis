@@ -12,6 +12,12 @@ namespace BasisNetworkServer.Security
         private readonly ConcurrentDictionary<string, byte> allowlistedPlayers = new ConcurrentDictionary<string, byte>();
         private readonly string filePath;
 
+        /// <summary>
+        /// Fired after the in-memory allowlist changes (add, remove, reload).
+        /// Exceptions from subscribers are swallowed so they cannot break the mutation.
+        /// </summary>
+        public event Action OnChanged;
+
         public BasisAllowList(string path = "BasisAllowList.txt")
         {
             filePath = path;
@@ -37,9 +43,13 @@ namespace BasisNetworkServer.Security
 
         public bool IsAllowed(string playerId) => allowlistedPlayers.ContainsKey(playerId);
 
+        /// <summary>Snapshot of every allowlisted UUID, for external managers.</summary>
+        public IReadOnlyList<string> ListAllowed() => new List<string>(allowlistedPlayers.Keys);
+
         public async Task ReloadAllowlistAsync()
         {
             await LoadAllowlistAsync();
+            RaiseChanged();
             Console.WriteLine("Allowlist reloaded.");
         }
 
@@ -48,6 +58,7 @@ namespace BasisNetworkServer.Security
             if (!allowlistedPlayers.ContainsKey(playerId))
             {
                 allowlistedPlayers.TryAdd(playerId, 0);
+                RaiseChanged();
                 await File.AppendAllTextAsync(filePath, playerId + Environment.NewLine);
                 Console.WriteLine($"{playerId} added to allowlist.");
             }
@@ -57,8 +68,21 @@ namespace BasisNetworkServer.Security
         {
             if (allowlistedPlayers.TryRemove(playerId, out _))
             {
+                RaiseChanged();
                 await SaveAllowlistAsync();
                 Console.WriteLine($"{playerId} removed from allowlist.");
+            }
+        }
+
+        private void RaiseChanged()
+        {
+            try
+            {
+                OnChanged?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Allowlist OnChanged subscriber threw: {e}");
             }
         }
 
