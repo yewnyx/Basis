@@ -169,7 +169,7 @@ public static class BasisNetworkPreloadResourceManagement
         // race against the SpawnPreloaded signal on the client.
         if (session.Resource.Mode == 1)
         {
-            UnloadAllSceneResources(peerSnapshot, loadedNetId);
+            UnloadAllSceneResources(loadedNetId);
         }
 
         SpawnPreloadedMessage spawnMsg = new SpawnPreloadedMessage
@@ -187,9 +187,9 @@ public static class BasisNetworkPreloadResourceManagement
 
     /// <summary>
     /// Unloads all scene-type resources (Mode == 1) from the server database
-    /// and broadcasts unload messages to all clients through the normal unload channel.
+    /// and broadcasts unload messages to all clients through the normal unload path.
     /// </summary>
-    private static void UnloadAllSceneResources(NetPeer[] peerSnapshot, string excludeNetId = null)
+    private static void UnloadAllSceneResources(string excludeNetId = null)
     {
         var sceneResources = BasisNetworkResourceManagement.UshortNetworkDatabase.Values
             .Where(r => r.Mode == 1 && r.LoadedNetID != excludeNetId)
@@ -199,23 +199,14 @@ public static class BasisNetworkPreloadResourceManagement
 
         BNL.Log($"PreloadResourceManagement: Unloading {sceneResources.Length} existing scene(s) before synchronized spawn");
 
-        NetDataWriter writer = NetworkServer.RentWriter();
         foreach (var scene in sceneResources)
         {
-            BasisNetworkResourceManagement.UshortNetworkDatabase.TryRemove(scene.LoadedNetID, out _);
-
-            UnLoadResource unload = new UnLoadResource
+            BasisNetworkResourceManagement.UnloadResource(new UnLoadResource
             {
                 LoadedNetID = scene.LoadedNetID,
                 Mode = 1,
-            };
-            writer.Reset();
-            unload.Serialize(writer);
-            NetworkServer.BroadcastMessageToClients(writer, BasisNetworkCommons.UnloadResourceChannel, peerSnapshot, DeliveryMethod.ReliableOrdered);
-
-            BNL.Log($"PreloadResourceManagement: Unloaded scene {scene.LoadedNetID}");
+            });
         }
-        NetworkServer.ReturnWriter(writer);
     }
 
     /// <summary>
