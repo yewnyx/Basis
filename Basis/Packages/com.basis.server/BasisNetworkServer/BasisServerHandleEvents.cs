@@ -1,4 +1,5 @@
 using Basis.Network.Core;
+using Basis.Network.Server;
 using Basis.Network.Server.Generic;
 using Basis.Network.Server.Ownership;
 using BasisNetworkCore;
@@ -69,7 +70,10 @@ namespace BasisServerHandle
         /// </summary>
         private static bool CleanupPeerSubsystems(NetPeer peer, int id)
         {
-            if (NetworkServer.AuthIdentity.NetIDToUUID(peer, out string uuid))
+            // Resolve before RemoveConnection below tears down the mapping — the
+            // player-left event at the end needs the UUID.
+            bool hadUuid = NetworkServer.AuthIdentity.NetIDToUUID(peer, out string uuid);
+            if (hadUuid)
             {
                 PermissionIntegration.RemovePlayerMeta(uuid);
                 PermissionIntegration.EvictPermissionCache(uuid);
@@ -89,7 +93,14 @@ namespace BasisServerHandle
             BasisNetworkMessageProcessor.ClearPeerErrors(id);
             BasisServerMessageRegistry.ClearSubscription(id);
 
-            return NetworkServer.AuthenticatedPeers.TryRemove(id, out _);
+            bool removed = NetworkServer.AuthenticatedPeers.TryRemove(id, out _);
+            // Raise here rather than in HandlePeerDisconnected so reconnect-collision
+            // eviction (which never gets its own disconnect event) also reports a leave.
+            if (removed && hadUuid)
+            {
+                BasisServerEvents.RaisePlayerLeft(id, uuid);
+            }
+            return removed;
         }
 
         public static void HandlePeerDisconnected(NetPeer peer, DisconnectInfo info)
@@ -397,6 +408,8 @@ namespace BasisServerHandle
                 BasisNetworkServer.Security.BasisResourceLimitManager.SendStateToPeer(newPeer);
                 BasisNetworkServer.Security.BasisPlayerModeration.SendReductionSettingsToPeer(newPeer);
                 SendShoutStateToPeer(newPeer);
+
+                BasisServerEvents.RaisePlayerJoined(newPeer.Id, UUID, sanitizedDisplayName);
             }
             else
             {

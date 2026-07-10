@@ -19,7 +19,7 @@ public static class BasisNetworkResourceManagement
     /// </summary>
     private static bool RemoveAndBroadcastUnload(string loadedNetId, byte mode)
     {
-        if (!UshortNetworkDatabase.TryRemove(loadedNetId, out _))
+        if (!UshortNetworkDatabase.TryRemove(loadedNetId, out LocalLoadResource removed))
         {
             return false;
         }
@@ -38,6 +38,13 @@ public static class BasisNetworkResourceManagement
             DeliveryMethod.ReliableOrdered
         );
         NetworkServer.ReturnWriter(writer);
+
+        // Event uses the stored record's mode — the wire message keeps the
+        // caller-provided mode so client-visible behavior is unchanged.
+        if (removed.Mode == 1)
+        {
+            Basis.Network.Server.BasisServerEvents.RaiseWorldUnloaded(loadedNetId);
+        }
         return true;
     }
 
@@ -129,6 +136,10 @@ public static class BasisNetworkResourceManagement
             {
                 BNL.Log("Adding Object " + LocalLoadResource.LoadedNetID);
                 NetworkServer.BroadcastMessageToClients(Writer, BasisNetworkCommons.LoadResourceChannel, NetworkServer.PeerSnapshot, DeliveryMethod.ReliableOrdered);
+                if (LocalLoadResource.Mode == 1)
+                {
+                    Basis.Network.Server.BasisServerEvents.RaiseWorldLoaded(LocalLoadResource.LoadedNetID, LocalLoadResource.CombinedURL, LocalLoadResource.Persist, LocalLoadResource.LoadStrategy);
+                }
             }
             else
             {
