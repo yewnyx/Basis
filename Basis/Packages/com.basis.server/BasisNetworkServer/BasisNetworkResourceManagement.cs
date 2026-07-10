@@ -9,6 +9,38 @@ using static SerializableBasis;
 public static class BasisNetworkResourceManagement
 {
     public static ConcurrentDictionary<string, LocalLoadResource> UshortNetworkDatabase = new ConcurrentDictionary<string, LocalLoadResource>();
+
+    /// <summary>
+    /// Single exit point for loaded resources: atomically removes the entry from the
+    /// database and broadcasts the unload to every connected client. Every removal
+    /// path (client request, server control, peer cleanup, reset) funnels through
+    /// here so a resource can never leave the database without clients being told.
+    /// Returns false when the id was not loaded (already removed or never existed).
+    /// </summary>
+    private static bool RemoveAndBroadcastUnload(string loadedNetId, byte mode)
+    {
+        if (!UshortNetworkDatabase.TryRemove(loadedNetId, out _))
+        {
+            return false;
+        }
+
+        UnLoadResource unloadResource = new UnLoadResource
+        {
+            Mode = mode,
+            LoadedNetID = loadedNetId
+        };
+        NetDataWriter writer = NetworkServer.RentWriter();
+        unloadResource.Serialize(writer);
+        NetworkServer.BroadcastMessageToClients(
+            writer,
+            BasisNetworkCommons.UnloadResourceChannel,
+            NetworkServer.PeerSnapshot,
+            DeliveryMethod.ReliableOrdered
+        );
+        NetworkServer.ReturnWriter(writer);
+        return true;
+    }
+
     public static void Reset()
     {
         LocalLoadResource[] resourceArray = UshortNetworkDatabase.Values.ToArray();
@@ -20,25 +52,7 @@ public static class BasisNetworkResourceManagement
 
             if (!llr.Persist)
             {
-                // Prepare and send the unload resource message
-                UnLoadResource unloadResource = new UnLoadResource
-                {
-                    Mode = llr.Mode,
-                    LoadedNetID = llr.LoadedNetID
-                };
-
-                NetDataWriter writer = NetworkServer.RentWriter();
-                unloadResource.Serialize(writer);
-                NetworkServer.BroadcastMessageToClients(
-                    writer,
-                    BasisNetworkCommons.UnloadResourceChannel,
-                    NetworkServer.PeerSnapshot,
-                    DeliveryMethod.ReliableOrdered
-                );
-                NetworkServer.ReturnWriter(writer);
-
-                // Remove the non-persistent resource from the database
-                UshortNetworkDatabase.Remove(llr.LoadedNetID,out LocalLoadResource Resource);
+                RemoveAndBroadcastUnload(llr.LoadedNetID, llr.Mode);
             }
         }
     }
@@ -54,21 +68,7 @@ public static class BasisNetworkResourceManagement
             {
                 continue;
             }
-            UnLoadResource unloadResource = new UnLoadResource
-            {
-                Mode = llr.Mode,
-                LoadedNetID = llr.LoadedNetID
-            };
-            NetDataWriter writer = NetworkServer.RentWriter();
-            unloadResource.Serialize(writer);
-            NetworkServer.BroadcastMessageToClients(
-                writer,
-                BasisNetworkCommons.UnloadResourceChannel,
-                NetworkServer.PeerSnapshot,
-                DeliveryMethod.ReliableOrdered
-            );
-            NetworkServer.ReturnWriter(writer);
-            UshortNetworkDatabase.Remove(llr.LoadedNetID, out LocalLoadResource Resource);
+            RemoveAndBroadcastUnload(llr.LoadedNetID, llr.Mode);
         }
     }
     public static void SendOutAllResources(NetPeer NewConnection)
@@ -146,17 +146,13 @@ public static class BasisNetworkResourceManagement
     // Returns false if the resource was not found (TryRemove failed atomically).
     public static bool UnloadResource(UnLoadResource unLoadResource)
     {
-        if (!UshortNetworkDatabase.TryRemove(unLoadResource.LoadedNetID, out _))
+        if (!RemoveAndBroadcastUnload(unLoadResource.LoadedNetID, unLoadResource.Mode))
         {
             BNL.LogError($"[Server] Trying to unload an object that does not exist: {unLoadResource.LoadedNetID}");
             return false;
         }
 
-        NetDataWriter writer = NetworkServer.RentWriter();
-        unLoadResource.Serialize(writer);
         BNL.Log("Removing Object (server) " + unLoadResource.LoadedNetID);
-        NetworkServer.BroadcastMessageToClients(writer, BasisNetworkCommons.UnloadResourceChannel, NetworkServer.PeerSnapshot, DeliveryMethod.ReliableOrdered);
-        NetworkServer.ReturnWriter(writer);
         return true;
     }
 
@@ -175,24 +171,13 @@ public static class BasisNetworkResourceManagement
         }
 
         // Only remove AFTER validation
-        if (!UshortNetworkDatabase.TryRemove(unLoadResource.LoadedNetID, out _))
+        if (!RemoveAndBroadcastUnload(unLoadResource.LoadedNetID, unLoadResource.Mode))
         {
             BNL.LogError($"Failed to remove object [{unLoadResource.LoadedNetID}] after validation.");
             return;
         }
 
-        NetDataWriter writer = NetworkServer.RentWriter();
-        unLoadResource.Serialize(writer);
-
         BNL.Log("Removing Object " + unLoadResource.LoadedNetID);
-
-        NetworkServer.BroadcastMessageToClients(
-            writer,
-            BasisNetworkCommons.UnloadResourceChannel,
-            NetworkServer.PeerSnapshot,
-            DeliveryMethod.ReliableOrdered
-        );
-        NetworkServer.ReturnWriter(writer);
     }
 
     /// <summary>

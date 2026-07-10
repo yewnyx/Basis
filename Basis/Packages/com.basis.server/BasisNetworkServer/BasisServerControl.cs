@@ -86,24 +86,14 @@ namespace Basis.Network.Server
 
         public int ClearAllWorlds()
         {
-            var peers  = NetworkServer.PeerSnapshot;
-            var writer = NetworkServer.RentWriter();
-            int count  = 0;
-            try
+            int count = 0;
+            var scenes = BasisNetworkResourceManagement.UshortNetworkDatabase.Values
+                .Where(r => r.Mode == 1).ToArray();
+            foreach (var scene in scenes)
             {
-                var scenes = BasisNetworkResourceManagement.UshortNetworkDatabase.Values
-                    .Where(r => r.Mode == 1).ToArray();
-                foreach (var scene in scenes)
-                {
-                    BasisNetworkResourceManagement.UshortNetworkDatabase.TryRemove(scene.LoadedNetID, out _);
-                    var unload = new UnLoadResource { LoadedNetID = scene.LoadedNetID, Mode = 1 };
-                    writer.Reset();
-                    unload.Serialize(writer);
-                    NetworkServer.BroadcastMessageToClients(writer, BasisNetworkCommons.UnloadResourceChannel, peers, DeliveryMethod.ReliableOrdered);
+                if (BasisNetworkResourceManagement.UnloadResource(new UnLoadResource { LoadedNetID = scene.LoadedNetID, Mode = 1 }))
                     count++;
-                }
             }
-            finally { NetworkServer.ReturnWriter(writer); }
 
             // Reset after removal so any synchronized load that slipped in during the loop
             // has its session cleared rather than left pending.
@@ -113,7 +103,7 @@ namespace Basis.Network.Server
             try
             {
                 new AdminRequest().Serialize(clearWriter, AdminRequestMode.ClearAllScenes);
-                NetworkServer.BroadcastMessageToClients(clearWriter, BasisNetworkCommons.AdminChannel, peers, DeliveryMethod.ReliableOrdered);
+                NetworkServer.BroadcastMessageToClients(clearWriter, BasisNetworkCommons.AdminChannel, NetworkServer.PeerSnapshot, DeliveryMethod.ReliableOrdered);
             }
             finally { NetworkServer.ReturnWriter(clearWriter); }
 
