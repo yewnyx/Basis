@@ -11,6 +11,11 @@ WORKDIR "/src/Server/BasisServerConsole"
 RUN dotnet restore ./BasisNetworkConsole.csproj
 RUN dotnet publish -c Release --no-restore -o /app/publish
 
+# Bundled plugins (each stays inert until enabled in config/plugins/{id}.xml)
+WORKDIR "/src/Server/Plugins/BasisMqtt"
+RUN dotnet restore ./BasisMqtt.csproj
+RUN dotnet publish -c Release --no-restore -o /app/publish/plugins/mqtt
+
 # Stage 2: Create runtime image
 FROM mcr.microsoft.com/dotnet/runtime:10.0-noble
 
