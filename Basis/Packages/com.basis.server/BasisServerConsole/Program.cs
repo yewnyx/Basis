@@ -11,6 +11,7 @@ namespace Basis
         public static BasisNetworkHealthCheck Check;
 #if !UNITY_2017_1_OR_NEWER
         public static BasisRestApiHandler Api;
+        public static List<Basis.Network.Core.IBasisServerPlugin> Plugins = new();
 #endif
         public static bool isRunning = true;
         private static ManualResetEventSlim shutdownEvent = new ManualResetEventSlim(false);
@@ -49,7 +50,10 @@ namespace Basis
 #endif
 
             NetworkServer.StartServer(config);
-            
+#if !UNITY_2017_1_OR_NEWER
+            Plugins = BasisServerPluginLoader.StartAll(config, baseDir);
+#endif
+
             // Handle legacy resource directory name migrations and similar.
             // after a version bump or two this should be removed
             string[] legacyPaths = [
@@ -88,6 +92,7 @@ namespace Basis
                 isRunning = false;
                 shutdownEvent.Set(); // Signal the main thread to exit
 #if !UNITY_2017_1_OR_NEWER
+                BasisServerPluginLoader.DisposeAll(Plugins);
                 Api?.Dispose();
 #endif
                 BasisPersistentDatabase.Shutdown();
