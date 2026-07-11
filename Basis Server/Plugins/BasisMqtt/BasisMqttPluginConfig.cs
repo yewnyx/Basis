@@ -32,6 +32,8 @@ namespace Basis.Network.Server.Mqtt
         public int MqttQoS = 1;
         /// <summary>Seconds between retained status publishes. 0 disables the periodic timer; the broker's last-will still reports the server offline.</summary>
         public int MqttStatusIntervalSeconds = 30;
+        /// <summary>Expose permission, ban and allowlist management ("cmd/perm/…" commands, "evt/perm/…" events).</summary>
+        public bool MqttPermissionSyncEnabled = false;
     }
 }
 #endif
