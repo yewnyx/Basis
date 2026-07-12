@@ -23,6 +23,15 @@ namespace Basis.Network.Server
         /// <summary>A world left the resource database: (netId).</summary>
         public static event Action<string> OnWorldUnloaded;
 
+        /// <summary>
+        /// A connection was refused: (uuid, reason). uuid is null when the
+        /// rejection happened before an identity was established (banned IP,
+        /// malformed payload, version mismatch); moderation rejections
+        /// (allowlist, banlist, rejoin lock, auth timeout) carry the UUID so
+        /// a support desk can match a knock against a ticket binding.
+        /// </summary>
+        public static event Action<string, string> OnPlayerRejected;
+
         public static void RaisePlayerJoined(int netId, string uuid, string displayName)
         {
             try { OnPlayerJoined?.Invoke(netId, uuid, displayName); }
@@ -45,6 +54,12 @@ namespace Basis.Network.Server
         {
             try { OnWorldUnloaded?.Invoke(netId); }
             catch (Exception e) { BNL.LogError($"[ServerEvents] OnWorldUnloaded subscriber threw: {e}"); }
+        }
+
+        public static void RaisePlayerRejected(string uuid, string reason)
+        {
+            try { OnPlayerRejected?.Invoke(uuid, reason); }
+            catch (Exception e) { BNL.LogError($"[ServerEvents] OnPlayerRejected subscriber threw: {e}"); }
         }
     }
 }

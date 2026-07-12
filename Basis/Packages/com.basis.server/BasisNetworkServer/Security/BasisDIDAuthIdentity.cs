@@ -97,18 +97,18 @@ namespace BasisDidLink
                     {
                         if (BasisPlayerModeration.GetBannedReason(UUID, out string Reason))
                         {
-                            BasisServerHandleEvents.RejectWithReason(newPeer, "Banned User!  Reason " + Reason);
+                            BasisServerHandleEvents.RejectWithReason(newPeer, "Banned User!  Reason " + Reason, UUID);
 
                         }
                         else
                         {
-                            BasisServerHandleEvents.RejectWithReason(newPeer, " Banned User!");
+                            BasisServerHandleEvents.RejectWithReason(newPeer, " Banned User!", UUID);
                         }
                         return;
                     }
                     if (Configuration.HowManyDuplicateAuthCanExist <= CheckForDuplicates(playerDid))
                     {
-                        BasisServerHandleEvents.RejectWithReason(newPeer, "To Many Auths From this DID!");
+                        BasisServerHandleEvents.RejectWithReason(newPeer, "To Many Auths From this DID!", UUID);
                         return;
                     }
 
@@ -163,7 +163,7 @@ namespace BasisDidLink
                 _timeouts.TryRemove(newPeer.Id, out _);
                 cts.Dispose();
                 BNL.Log($"Authentication timeout for {UUID}.");
-                BasisServerHandleEvents.RejectWithReason(newPeer, "Authentication timeout");
+                BasisServerHandleEvents.RejectWithReason(newPeer, "Authentication timeout", UUID);
                 newPeer.Disconnect();
             }
             catch (TaskCanceledException) { }
@@ -216,7 +216,7 @@ namespace BasisDidLink
                     else
                     {
                         BNL.LogError($"Authentication failed for {authIdentity.Did.V}.");
-                        BasisServerHandleEvents.RejectWithReason(newPeer, "was unable to authenticate!");
+                        BasisServerHandleEvents.RejectWithReason(newPeer, "was unable to authenticate!", authIdentity.Did.V);
                     }
                 }
             }
