@@ -81,12 +81,18 @@ be `https://` and the password may ride the URL fragment
 | `evt/player/left` | `{"netId":N,"uuid":"…"}` |
 | `evt/world/loaded` | `{"netId":"…","url":"…","persistent":bool,"strategy":N}` |
 | `evt/world/unloaded` | `{"netId":"…"}` |
+| `evt/player/rejected` | `{"uuid":"…"\|null,"reason":"…"}` |
 | `evt/status` | **retained** `{"online":true,"serverName":"…","players":N,"worlds":N}` |
 
 `evt/status` is refreshed on every (re)connect and on the configured
 interval; graceful shutdown rewrites it to `{"online":false}` and the
 last will covers crashes. Other events are moments in time: if the broker
 is unreachable they are dropped, not replayed late.
+
+`evt/player/rejected` carries the UUID when the refusal happened at a gate
+that knows who knocked (allowlist, banlist, rejoin lock, auth); refusals
+before an identity exists (banned IP, malformed payload, version mismatch)
+carry `null`.
 
 ## Permission sync
 

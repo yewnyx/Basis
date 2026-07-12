@@ -208,6 +208,28 @@ namespace BasisMqttApi.Tests
         }
 
         [Fact]
+        public async Task PlayerRejected_PublishesEvent()
+        {
+            using var publisher = new BasisMqttEventPublisher(_handler, BuildConfig(_port), "Basis Server", _control);
+            var received = await CaptureEventAsync($"{_handler.TopicBase}/evt/player/rejected",
+                () => BasisServerEvents.RaisePlayerRejected("uuid-9", "You are not on the allowlist."));
+            var doc = JsonDocument.Parse(received.ConvertPayloadToString());
+            Assert.Equal("uuid-9", doc.RootElement.GetProperty("uuid").GetString());
+            Assert.Equal("You are not on the allowlist.", doc.RootElement.GetProperty("reason").GetString());
+        }
+
+        [Fact]
+        public async Task PlayerRejected_PreIdentity_PublishesNullUuid()
+        {
+            using var publisher = new BasisMqttEventPublisher(_handler, BuildConfig(_port), "Basis Server", _control);
+            var received = await CaptureEventAsync($"{_handler.TopicBase}/evt/player/rejected",
+                () => BasisServerEvents.RaisePlayerRejected(null, "Banned IP"));
+            var doc = JsonDocument.Parse(received.ConvertPayloadToString());
+            Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("uuid").ValueKind);
+            Assert.Equal("Banned IP", doc.RootElement.GetProperty("reason").GetString());
+        }
+
+        [Fact]
         public async Task Status_IsRetained_ForLateSubscribers()
         {
             using var publisher = new BasisMqttEventPublisher(_handler, BuildConfig(_port), "Basis Server", _control);

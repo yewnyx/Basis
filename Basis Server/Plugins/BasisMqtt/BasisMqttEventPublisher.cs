@@ -45,6 +45,7 @@ namespace Basis.Network.Server.Mqtt
             BasisServerEvents.OnPlayerLeft += HandlePlayerLeft;
             BasisServerEvents.OnWorldLoaded += HandleWorldLoaded;
             BasisServerEvents.OnWorldUnloaded += HandleWorldUnloaded;
+            BasisServerEvents.OnPlayerRejected += HandlePlayerRejected;
             _handler.Connected += HandleConnected;
 
             _ = Task.Run(() => PumpAsync(_cts.Token));
@@ -72,6 +73,10 @@ namespace Basis.Network.Server.Mqtt
         private void HandleWorldUnloaded(string netId) =>
             Enqueue("evt/world/unloaded",
                 $$"""{"netId":{{JsonSerializer.Serialize(netId)}}}""");
+
+        private void HandlePlayerRejected(string uuid, string reason) =>
+            Enqueue("evt/player/rejected",
+                $$"""{"uuid":{{JsonSerializer.Serialize(uuid)}},"reason":{{JsonSerializer.Serialize(reason)}}}""");
 
         private void HandleConnected() => EnqueueStatus();
 
@@ -139,6 +144,7 @@ namespace Basis.Network.Server.Mqtt
             BasisServerEvents.OnPlayerLeft -= HandlePlayerLeft;
             BasisServerEvents.OnWorldLoaded -= HandleWorldLoaded;
             BasisServerEvents.OnWorldUnloaded -= HandleWorldUnloaded;
+            BasisServerEvents.OnPlayerRejected -= HandlePlayerRejected;
             _handler.Connected -= HandleConnected;
             _cts.Cancel();
             _queue.Writer.TryComplete();
