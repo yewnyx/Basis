@@ -488,6 +488,14 @@ namespace BasisMqttApi.Tests
                 return new(true, $"Removed {uuid} from allowlist.");
             }
 
+            public ModerationResult SetAllowlist(IReadOnlyCollection<string> uuids)
+            {
+                Allowlist.Clear();
+                Allowlist.AddRange(uuids);
+                OnAllowlistChanged?.Invoke();
+                return new(true, $"Allowlist replaced ({uuids.Count} entries).");
+            }
+
             public IReadOnlyList<string> ListAllowlist() => Allowlist;
 
             public void Dispose() { }

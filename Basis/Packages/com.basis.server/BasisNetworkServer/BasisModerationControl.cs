@@ -48,6 +48,8 @@ namespace Basis.Network.Server
 
         ModerationResult AddToAllowlist(string uuid);
         ModerationResult RemoveFromAllowlist(string uuid);
+        /// <summary>Replaces the entire allowlist — the bulk-provisioning primitive for fleets and ticketed events.</summary>
+        ModerationResult SetAllowlist(IReadOnlyCollection<string> uuids);
         IReadOnlyList<string> ListAllowlist();
     }
 
@@ -129,6 +131,16 @@ namespace Basis.Network.Server
             if (_allowList == null) return new(false, "AllowList not initialized");
             _ = _allowList.RemoveFromAllowlistAsync(uuid);
             return new(true, $"Removed {uuid} from allowlist.");
+        }
+
+        public ModerationResult SetAllowlist(IReadOnlyCollection<string> uuids)
+        {
+            if (uuids == null) return new(false, "uuids was null");
+            if (_allowList == null) return new(false, "AllowList not initialized");
+            // Same fire-and-forget shape as add/remove: the in-memory swap is
+            // synchronous inside the call; only the file write is deferred.
+            _ = _allowList.SetAllowlistAsync(uuids);
+            return new(true, $"Allowlist replaced ({uuids.Count} entries).");
         }
 
         public IReadOnlyList<string> ListAllowlist() =>

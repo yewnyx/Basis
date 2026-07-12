@@ -9,7 +9,10 @@ namespace BasisNetworkServer.Security
 {
     public class BasisAllowList
     {
-        private readonly ConcurrentDictionary<string, byte> allowlistedPlayers = new ConcurrentDictionary<string, byte>();
+        // Non-readonly so SetAllowlistAsync can swap the whole set atomically
+        // (reference assignment) instead of clearing in place, which would open
+        // a window where every connecting player looks unlisted.
+        private ConcurrentDictionary<string, byte> allowlistedPlayers = new ConcurrentDictionary<string, byte>();
         private readonly string filePath;
 
         /// <summary>
@@ -72,6 +75,33 @@ namespace BasisNetworkServer.Security
                 await SaveAllowlistAsync();
                 Console.WriteLine($"{playerId} removed from allowlist.");
             }
+        }
+
+        /// <summary>
+        /// Replaces the entire allowlist in one operation: one in-memory swap,
+        /// one change notification, one file write. This is the primitive for
+        /// provisioning a fresh server or syncing a large list (event
+        /// ticketing) — per-entry adds would cost a file append each.
+        /// </summary>
+        public async Task SetAllowlistAsync(IReadOnlyCollection<string> playerIds)
+        {
+            var replacement = new ConcurrentDictionary<string, byte>();
+            if (playerIds != null)
+            {
+                foreach (string playerId in playerIds)
+                {
+                    string trimmed = playerId?.Trim();
+                    if (!string.IsNullOrEmpty(trimmed))
+                    {
+                        replacement.TryAdd(trimmed, 0);
+                    }
+                }
+            }
+
+            allowlistedPlayers = replacement;
+            RaiseChanged();
+            await SaveAllowlistAsync();
+            Console.WriteLine($"Allowlist replaced ({replacement.Count} entries).");
         }
 
         private void RaiseChanged()
