@@ -155,15 +155,19 @@ namespace BasisServerHandle
         #endregion
 
         #region Utility Methods
-        public static void RejectWithReason(ConnectionRequest request, string reason)
+        // Both overloads are the single choke point for refusing a connection;
+        // uuid rides along when the caller has one (moderation gates) so the
+        // rejected event can name who knocked. Pre-identity rejections pass null.
+        public static void RejectWithReason(ConnectionRequest request, string reason, string uuid = null)
         {
             NetDataWriter writer = NetworkServer.RentWriter();
             writer.Put(reason);
             request.Reject(writer);
             NetworkServer.ReturnWriter(writer);
+            BasisServerEvents.RaisePlayerRejected(uuid, reason);
             BNL.LogError($"Rejected for reason: {reason}");
         }
-        public static void RejectWithReason(NetPeer request, string reason)
+        public static void RejectWithReason(NetPeer request, string reason, string uuid = null)
         {
             int id = request.Id;
             NetDataWriter writer = NetworkServer.RentWriter();
@@ -179,6 +183,7 @@ namespace BasisServerHandle
                 NetworkServer.RebuildPeerSnapshot();
             }
             request.Disconnect(reasonBytes);
+            BasisServerEvents.RaisePlayerRejected(uuid, reason);
             BNL.LogError($"Rejected after accept with reason: {reason}");
         }
 
@@ -292,7 +297,7 @@ namespace BasisServerHandle
                 && !NetworkServer.AllowList.IsAllowed(UUID))
             {
                 BNL.Log($"Rejecting peer {PeerId} (UUID {UUID}) — not on allowlist.");
-                RejectWithReason(newPeer, "You are not on the allowlist.");
+                RejectWithReason(newPeer, "You are not on the allowlist.", UUID);
                 return;
             }
 
@@ -301,7 +306,7 @@ namespace BasisServerHandle
                 && NetworkServer.BanList.IsBanned(UUID))
             {
                 BNL.Log($"Rejecting peer {PeerId} (UUID {UUID}) — on banlist.");
-                RejectWithReason(newPeer, "You are not permitted on this server.");
+                RejectWithReason(newPeer, "You are not permitted on this server.", UUID);
                 return;
             }
 
@@ -312,7 +317,7 @@ namespace BasisServerHandle
                 && !PermissionIntegration.HasValidRequirement(UUID, PermNodes.ConfigurationEditor))
             {
                 BNL.Log($"Rejecting peer {PeerId} (UUID {UUID}) — server locked to current players (rejoin-only).");
-                RejectWithReason(newPeer, "The server is locked — only players already here may rejoin.");
+                RejectWithReason(newPeer, "The server is locked — only players already here may rejoin.", UUID);
                 return;
             }
 
@@ -320,7 +325,7 @@ namespace BasisServerHandle
             if (string.IsNullOrEmpty(sanitizedDisplayName))
             {
                 BNL.Log($"Rejecting peer {PeerId} (UUID {UUID}) — empty or invisible display name.");
-                RejectWithReason(newPeer, "Choose a non-empty username.");
+                RejectWithReason(newPeer, "Choose a non-empty username.", UUID);
                 return;
             }
             ReadyMessage.playerMetaDataMessage.playerDisplayName = sanitizedDisplayName;
@@ -413,7 +418,7 @@ namespace BasisServerHandle
             }
             else
             {
-                RejectWithReason(newPeer, "Peer already exists.");
+                RejectWithReason(newPeer, "Peer already exists.", UUID);
             }
         }
         #endregion
