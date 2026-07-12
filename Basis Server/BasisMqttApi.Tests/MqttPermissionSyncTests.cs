@@ -194,6 +194,28 @@ namespace BasisMqttApi.Tests
             Assert.Contains("did:key:friend", _control.Allowlist);
         }
 
+        [Fact]
+        public async Task AllowlistSet_ReplacesList_WithOneChangedEvent()
+        {
+            _control.Allowlist.Add("did:key:stale");
+            CreateSync();
+            var received = await CaptureEventAsync($"{_handler.TopicBase}/evt/perm/changed",
+                () => _ = SendCommandAsync("perm/allowlist/set", """{"uuids":["did:key:a","did:key:b","did:key:c"]}"""));
+            var doc = JsonDocument.Parse(received.ConvertPayloadToString());
+            Assert.Equal("allowlist", doc.RootElement.GetProperty("scope").GetString());
+            Assert.Equal(1, doc.RootElement.GetProperty("rev").GetInt64());
+            Assert.Equal(new[] { "did:key:a", "did:key:b", "did:key:c" }, _control.Allowlist);
+        }
+
+        [Fact]
+        public async Task AllowlistSet_MissingArray_ReturnsValidationError()
+        {
+            CreateSync();
+            var doc = await SendCommandAsync("perm/allowlist/set", """{"uuids":"not-an-array"}""");
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Equal("missing uuids array", doc.RootElement.GetProperty("error").GetString());
+        }
+
         // ── Snapshot ───────────────────────────────────────────────────────────
 
         [Fact]

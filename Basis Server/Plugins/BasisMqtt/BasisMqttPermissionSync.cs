@@ -86,6 +86,7 @@ namespace Basis.Network.Server.Mqtt
             handler.RegisterCommandHandler("perm/unban-ip", b => ModerateSingle(b, "ip", _control.UnbanIp));
             handler.RegisterCommandHandler("perm/allowlist/add", b => ModerateSingle(b, "uuid", _control.AddToAllowlist));
             handler.RegisterCommandHandler("perm/allowlist/remove", b => ModerateSingle(b, "uuid", _control.RemoveFromAllowlist));
+            handler.RegisterCommandHandler("perm/allowlist/set", SetAllowlist);
             handler.RegisterCommandHandler("perm/snapshot", Snapshot);
         }
 
@@ -124,6 +125,21 @@ namespace Basis.Network.Server.Mqtt
         {
             if (!TryGetString(body, field, out string value, out string error)) return Fail(error);
             return Finish(op(value));
+        }
+
+        private string SetAllowlist(JsonElement body)
+        {
+            if (!body.TryGetProperty("uuids", out JsonElement uuidsProperty) || uuidsProperty.ValueKind != JsonValueKind.Array)
+                return Fail("missing uuids array");
+
+            var uuids = new List<string>(uuidsProperty.GetArrayLength());
+            foreach (JsonElement entry in uuidsProperty.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(entry.GetString()))
+                    return Fail("uuids must be non-empty strings");
+                uuids.Add(entry.GetString()!);
+            }
+            return Finish(_control.SetAllowlist(uuids));
         }
 
         private string Snapshot(JsonElement _) => BuildSnapshotJson(includeOk: true);

@@ -143,6 +143,7 @@ errors are `{"ok":false,"error":"…"}`.
 | `cmd/perm/unban-ip` | `{"ip":"…"}` | |
 | `cmd/perm/allowlist/add` | `{"uuid":"…"}` | Enforced when `BasisUserRestrictionMode` is `AllowList`. |
 | `cmd/perm/allowlist/remove` | `{"uuid":"…"}` | |
+| `cmd/perm/allowlist/set` | `{"uuids":["…", …]}` | Replaces the whole list in one operation (one revision bump, one file write) — the bulk-provisioning primitive for fleets and ticketed events. ~10k DIDs fit the 1 MiB payload cap. |
 | `cmd/perm/snapshot` | — | Replies with the full snapshot document plus `"ok":true`. |
 
 ### Events — `{base}/evt/perm/…`
