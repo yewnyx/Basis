@@ -19,8 +19,7 @@ namespace Basis.Network.Server.Mqtt
         public void Start(BasisServerPluginContext context)
         {
             string configPath = Path.Combine(context.PluginConfigDirectory, $"{Id}.xml");
-            BasisMqttPluginConfig config = BasisMqttPluginConfig.LoadOrCreate(configPath);
-            config.ApplyEnvironmentalOverrides();
+            BasisMqttPluginConfig config = BasisPluginConfigFile.LoadOrCreate<BasisMqttPluginConfig>(configPath);
 
             if (!config.MqttEnabled || string.IsNullOrEmpty(config.MqttBrokerHost))
             {
