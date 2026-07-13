@@ -44,6 +44,7 @@ an environment variable of the same name (core `config.xml` is not involved):
 | `MqttServerId` | `""` | Second topic segment. Empty derives from the machine name. |
 | `MqttQoS` | `1` | QoS for command subscriptions and event publishes. |
 | `MqttStatusIntervalSeconds` | `30` | Retained-status refresh period; `0` disables the timer. |
+| `MqttPermissionSyncEnabled` | `false` | Expose permission/ban/allowlist management (see below). |
 
 ## Topic scheme
 
@@ -93,6 +94,71 @@ that knows who knocked (allowlist, banlist, rejoin lock, auth); refusals
 before an identity exists (banned IP, malformed payload, version mismatch)
 carry `null`.
 
+## Permission sync
+
+With `MqttPermissionSyncEnabled` set in the sidecar config, the API
+additionally manages the three stores that govern who may connect and what
+they may do: the permission store (`config/permissions.xml`, LuckPerms-style
+nodes and groups), the moderation bans (`config/banned_players.xml`) and the
+connect allowlist (`config/BasisAllowList.txt`). The `BasisBanList.txt`
+consulted only in the `BanList` restriction mode is not covered.
+
+The protocol is **push-state with reconciliation**, not remote enforcement.
+Mutations land in the server's local stores, which keep enforcing through
+broker outages; the connect path never waits on the network. A remote
+manager mirrors the server instead of replacing it:
+
+- Every change — whether it came over MQTT, from an in-game admin or from
+  the server console — bumps a monotonic **revision** and publishes
+  `evt/perm/changed`.
+- Command acks carry the revision their mutation produced, so the manager
+  can attribute the matching `changed` events to itself.
+- A `changed` revision the manager cannot attribute means another writer
+  acted: pull `cmd/perm/snapshot` and diff.
+- The full snapshot is also published on every broker (re)connect, healing
+  any `changed` events dropped while the broker was unreachable.
+- The revision counter lives in memory and restarts at 0 with the server;
+  treat every `evt/perm/snapshot` as a new baseline, not a continuation.
+
+Payloads carry a schema version `"v"` (currently `1`); reject majors you do
+not understand. Node strings pass through verbatim — deny entries keep their
+`-` prefix and wildcard semantics are the server's business, so a manager
+never needs to interpret them.
+
+### Commands — `{base}/cmd/perm/…`
+
+Acks are `{"ok":true,"rev":N}` (moderation commands add `"message"`);
+errors are `{"ok":false,"error":"…"}`.
+
+| Topic | Payload | Notes |
+|---|---|---|
+| `cmd/perm/user/add-node` | `{"uuid":"…","node":"…"}` | Node may carry a `-` deny prefix. |
+| `cmd/perm/user/remove-node` | `{"uuid":"…","node":"…"}` | |
+| `cmd/perm/user/add-group` | `{"uuid":"…","group":"…"}` | |
+| `cmd/perm/user/remove-group` | `{"uuid":"…","group":"…"}` | |
+| `cmd/perm/group/create` | `{"group":"…"}` | Creating an empty group changes no effective permission, so it does not bump the revision; it appears in snapshots. |
+| `cmd/perm/group/delete` | `{"group":"…"}` | Also detaches the group from all users and parents. |
+| `cmd/perm/group/add-node` | `{"group":"…","node":"…"}` | |
+| `cmd/perm/group/remove-node` | `{"group":"…","node":"…"}` | |
+| `cmd/perm/group/add-parent` | `{"group":"…","parent":"…"}` | |
+| `cmd/perm/group/remove-parent` | `{"group":"…","parent":"…"}` | |
+| `cmd/perm/ban` | `{"uuid":"…","reason":"…"}` | Works whether or not the player is online; disconnects them when they are. |
+| `cmd/perm/ipban` | `{"uuid":"…","reason":"…"}` | Requires the player online — the IP comes from the live peer. |
+| `cmd/perm/kick` | `{"uuid":"…","reason":"…"}` | Changes no store, so the revision stays put. |
+| `cmd/perm/unban` | `{"uuid":"…"}` | |
+| `cmd/perm/unban-ip` | `{"ip":"…"}` | |
+| `cmd/perm/allowlist/add` | `{"uuid":"…"}` | Enforced when `BasisUserRestrictionMode` is `AllowList`. |
+| `cmd/perm/allowlist/remove` | `{"uuid":"…"}` | |
+| `cmd/perm/allowlist/set` | `{"uuids":["…", …]}` | Replaces the whole list in one operation (one revision bump, one file write) — the bulk-provisioning primitive for fleets and ticketed events. ~10k DIDs fit the 1 MiB payload cap. |
+| `cmd/perm/snapshot` | — | Replies with the full snapshot document plus `"ok":true`. |
+
+### Events — `{base}/evt/perm/…`
+
+| Topic | Payload |
+|---|---|
+| `evt/perm/changed` | `{"v":1,"rev":N,"scope":"permissions"\|"bans"\|"allowlist","uuid":"…"\|null}` — `uuid` names the affected user for user-level permission changes; group-level and list changes affect everyone and carry `null`. |
+| `evt/perm/snapshot` | `{"v":1,"rev":N,"users":{"<uuid>":{"nodes":[…],"groups":[…]}},"groups":{"<name>":{"nodes":[…],"parents":[…]}},"allowlist":[…],"bans":[{"uuid","reason","ip","time"}]}` — published on every (re)connect. Not retained: a stale retained copy would masquerade as current state. |
+
 ## Broker ACL guidance
 
 The MQTT API has no application-level authentication — treating the broker
@@ -104,8 +170,9 @@ as the security boundary is the design. Lock it down there:
 - Give management tooling publish rights on `{prefix}/+/cmd/#` and subscribe
   rights on `{prefix}/+/evt/#` and its own response-topic subtree.
 - Anyone who can publish to a server's `cmd/` subtree can load worlds and
-  message players — do not run the production topic tree on a broker with
-  anonymous write access.
+  message players — and with permission sync enabled, grant themselves
+  admin and ban players. Do not run the production topic tree on a broker
+  with anonymous write access.
 - Keep `MqttUseTls` on for anything that leaves the machine.
 
 ## Trying it out

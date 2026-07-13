@@ -30,6 +30,7 @@ namespace Basis.Network.Server.Mqtt
         private readonly MqttClientOptions _options;
         private readonly MqttClientSubscribeOptions _subscription;
         private readonly ConcurrentDictionary<string, Func<JsonElement, string>> _handlers = new(StringComparer.Ordinal);
+        private readonly BasisMqttPermissionSync _permissionSync;
         private readonly CancellationTokenSource _cts = new();
         private readonly string _commandBase;
         private readonly MqttQualityOfServiceLevel _qos;
@@ -89,6 +90,9 @@ namespace Basis.Network.Server.Mqtt
             _client = new MqttClientFactory().CreateMqttClient();
             _client.ApplicationMessageReceivedAsync += OnApplicationMessageReceived;
             _ = Task.Run(() => ConnectionLoopAsync(_cts.Token));
+
+            if (config.MqttPermissionSyncEnabled)
+                _permissionSync = new BasisMqttPermissionSync(this);
         }
 
         /// <summary>
@@ -235,6 +239,7 @@ namespace Basis.Network.Server.Mqtt
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            _permissionSync?.Dispose();
             _cts.Cancel();
             try
             {
