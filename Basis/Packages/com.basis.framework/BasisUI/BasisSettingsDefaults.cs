@@ -2416,7 +2416,7 @@ namespace Basis.BasisUI
         /// We’ll initialize the language settings elsewhere.
         /// see <see cref="BasisLocalization.Initialize"/>
         /// </summary>
-        public static BasisSettingsBinding<string> Language = new("language", new BasisPlatformDefault<string>(string.Empty));
+        public static BasisSettingsBinding<string> Language = new("basislanguage", new BasisPlatformDefault<string>(string.Empty));
 
         public static void LoadAll()
         {
