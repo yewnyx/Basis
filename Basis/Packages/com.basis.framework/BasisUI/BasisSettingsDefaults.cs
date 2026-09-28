@@ -1237,6 +1237,20 @@ namespace Basis.BasisUI
         public const string TrackerVisuals_DeviceModels = "Device Models";
 
         // ---------------- INTERACTIONS ----------------
+
+        public static BasisSettingsBinding<float> DepthOfFieldThreshold = new("DepthOfFieldThreshold", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> LookAtPointerTriggerThreshold = new("LookAtPointerTriggerThreshold", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> FlyPitchTriggerThreshold = new("FlyPitchTriggerThreshold", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> SnapInteractableThreshold = new("SnapInteractableThreshold", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> TriggerDownThreshold = new("TriggerDownThreshold", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> TriggerDownJiggleThreshold = new("TriggerDownJiggleThreshold", new BasisPlatformDefault<float>(0.5f));
+        public static BasisSettingsBinding<float> InteractableObject = new("InteractableObject", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> InteractableObjectIsTriggered = new("InteractableObjectIsTriggered", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> InteractableObjectIsSecondaryTriggered = new("InteractableObjectIsSecondaryTriggered", new BasisPlatformDefault<float>(0.9f));
+
+        public static BasisSettingsBinding<float> PlaySpaceTriggerThreshold = new("PlaySpaceTriggerThreshold", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> Calibrationtrigger = new("Calibrationtrigger", new BasisPlatformDefault<float>(0.9f));
+
         public static BasisSettingsBinding<bool> DisableSeats = new("disableseats", new BasisPlatformDefault<bool>(false));
 
         // Hide remote players' handheld camera pucks (and their owner tags) locally.
@@ -2883,6 +2897,22 @@ namespace Basis.BasisUI
             //TrueBinding.LoadBindingValue();
             LimitThreshold.LoadBindingValue();
             LimitKnee.LoadBindingValue();
+
+
+
+          DepthOfFieldThreshold.LoadBindingValue();
+            FlyPitchTriggerThreshold.LoadBindingValue();
+            SnapInteractableThreshold.LoadBindingValue();
+            TriggerDownThreshold.LoadBindingValue();
+            TriggerDownJiggleThreshold.LoadBindingValue();
+            InteractableObject.LoadBindingValue();
+            InteractableObjectIsTriggered.LoadBindingValue();
+            InteractableObjectIsSecondaryTriggered.LoadBindingValue();
+
+            PlaySpaceTriggerThreshold.LoadBindingValue();
+            Calibrationtrigger.LoadBindingValue();
+
+
             DisableSeats.LoadBindingValue();
             HideRemoteCameraPucks.LoadBindingValue();
             BasisNetworkPIPCameraDriver.SetHideRemoteCameraPucks(HideRemoteCameraPucks.RawValue);
