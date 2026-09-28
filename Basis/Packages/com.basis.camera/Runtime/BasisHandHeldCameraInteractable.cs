@@ -2082,7 +2082,7 @@ public abstract partial class BasisHandHeldCameraInteractable : BasisPickupInter
             if (planar.magnitude > 1f)
                 planar.Normalize();
 
-            float climb = TryGetFlyTurnInput(out BasisInputState turnState) && turnState.Trigger < BasisTriggerPressure.FlyPitchTriggerThreshold
+            float climb = TryGetFlyTurnInput(out BasisInputState turnState) && turnState.Trigger <= BasisTriggerPressure.FlyPitchTriggerThreshold
                 ? turnState.Primary2DAxisDeadZoned.y
                 : 0f;
 

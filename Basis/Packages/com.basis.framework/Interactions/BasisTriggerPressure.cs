@@ -13,4 +13,8 @@ public static class BasisTriggerPressure
     public static float InteractableObjectIsSecondaryTriggered => BasisSettingsDefaults.InteractableObjectIsSecondaryTriggered.RawValue;
     public static float PlaySpaceTriggerThreshold => BasisSettingsDefaults.PlaySpaceTriggerThreshold.RawValue;
     public static float Calibrationtrigger => BasisSettingsDefaults.Calibrationtrigger.RawValue;
+    public static float TriggerUpThreshold => BasisSettingsDefaults.triggerUpThreshold.RawValue;
+    public static float UIClickPressThreshold => BasisSettingsDefaults.UIClickPressThreshold.RawValue;
+    public static float UIClickReleaseThreshold => BasisSettingsDefaults.UIClickReleaseThreshold.RawValue;
+    public static float IsHoldDropTriggeredThreshold => BasisSettingsDefaults.IsHoldDropTriggeredThreshold.RawValue;
 }

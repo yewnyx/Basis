@@ -1247,9 +1247,10 @@ namespace Basis.BasisUI
         public static BasisSettingsBinding<float> InteractableObject = new("InteractableObject", new BasisPlatformDefault<float>(0.9f));
         public static BasisSettingsBinding<float> InteractableObjectIsTriggered = new("InteractableObjectIsTriggered", new BasisPlatformDefault<float>(0.9f));
         public static BasisSettingsBinding<float> InteractableObjectIsSecondaryTriggered = new("InteractableObjectIsSecondaryTriggered", new BasisPlatformDefault<float>(0.9f));
-
+        public static BasisSettingsBinding<float> IsHoldDropTriggeredThreshold = new("IsHoldDropTriggeredThreshold", new BasisPlatformDefault<float>(0.8f));
         public static BasisSettingsBinding<float> PlaySpaceTriggerThreshold = new("PlaySpaceTriggerThreshold", new BasisPlatformDefault<float>(0.9f));
         public static BasisSettingsBinding<float> Calibrationtrigger = new("Calibrationtrigger", new BasisPlatformDefault<float>(0.9f));
+        public static BasisSettingsBinding<float> triggerUpThreshold = new("triggerUpThreshold", new BasisPlatformDefault<float>(0.20f));
 
         public static BasisSettingsBinding<bool> DisableSeats = new("disableseats", new BasisPlatformDefault<bool>(false));
 
@@ -2911,7 +2912,8 @@ namespace Basis.BasisUI
 
             PlaySpaceTriggerThreshold.LoadBindingValue();
             Calibrationtrigger.LoadBindingValue();
-
+            IsHoldDropTriggeredThreshold.LoadBindingValue();
+            triggerUpThreshold.LoadBindingValue();
 
             DisableSeats.LoadBindingValue();
             HideRemoteCameraPucks.LoadBindingValue();

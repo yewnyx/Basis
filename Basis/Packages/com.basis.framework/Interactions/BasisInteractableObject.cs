@@ -568,7 +568,7 @@ namespace Basis.Scripts.BasisSdk.Interactions
             return input.CurrentInputState.GripButton ||
                 input.TryGetRole(out var role) &&
                 role == Basis.Scripts.TransformBinders.BoneControl.BasisBoneTrackedRole.CenterEye &&
-                input.CurrentInputState.Trigger == BasisTriggerPressure.InteractableObject;
+                input.CurrentInputState.Trigger >= BasisTriggerPressure.InteractableObject;
         }
 
         /// <summary>
