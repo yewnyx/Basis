@@ -27,7 +27,9 @@ public class BasisAdaptiveCircle : MonoBehaviour
     private void OnRender()
     {
         var Position = BasisLocalCameraDriver.Position;
-        this.transform.position = new Vector3(Position.x, 0.02f, Position.z);
+
+        float Yheight = BasisLocalPlayer.Instance.transform.position.y;
+        this.transform.position = new Vector3(Position.x, Yheight + 0.02f, Position.z);
     }
     public void Apply(float radius, Color color)
     {
