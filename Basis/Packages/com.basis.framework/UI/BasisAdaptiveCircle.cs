@@ -1,3 +1,5 @@
+using Basis.Scripts.BasisSdk.Players;
+using Basis.Scripts.Drivers;
 using UnityEngine;
 
 [RequireComponent(typeof(MeshRenderer))]
@@ -11,9 +13,22 @@ public class BasisAdaptiveCircle : MonoBehaviour
 
     const float PLANE_SIZE = 10f;    // Unity default plane
     const float MIN_SCALE = 0.1f;
-
+    private const int RenderPriority = 2;
     MaterialPropertyBlock _mpb;
 
+    public void Start()
+    {
+        BasisLocalPlayer.AfterSimulateOnRender.AddAction(RenderPriority, OnRender);
+    }
+    public void OnDestroy()
+    {
+        BasisLocalPlayer.AfterSimulateOnRender.RemoveAction(RenderPriority, OnRender);
+    }
+    private void OnRender()
+    {
+        var Position = BasisLocalCameraDriver.Position;
+        this.transform.position = new Vector3(Position.x, 0.02f, Position.z);
+    }
     public void Apply(float radius, Color color)
     {
         _mpb ??= new MaterialPropertyBlock();
