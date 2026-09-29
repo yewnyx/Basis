@@ -69,7 +69,7 @@ GraphicsSettings:
   m_FogStripping: 0
   m_InstancingStripping: 0
   m_BrgStripping: 2
-  m_DefaultLightBaker: 0
+  m_DefaultLightBaker: 1
   m_LightmapKeepPlain: 1
   m_LightmapKeepDirCombined: 1
   m_LightmapKeepDynamicPlain: 1
@@ -94,4 +94,4 @@ GraphicsSettings:
   m_LightProbeOutsideHullStrategy: 1
   m_CameraRelativeLightCulling: 1
   m_CameraRelativeShadowCulling: 1
-  m_DefaultMeshBufferTarget: 0
+  m_DefaultMeshBufferTarget: 1

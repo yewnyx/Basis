@@ -394,7 +394,7 @@ MonoBehaviour:
         m_Generators:
         - rid: 8580723549207527433
         - rid: 8580723549207527434
-        m_GeometryVersion: 0
+        m_GeometryVersion: 1
     - rid: 8580723549207527425
       type: {class: MipGenRenderPipelineRuntimeResources, ns: UnityEngine.Rendering, asm: Unity.RenderPipelines.Universal.Runtime}
       data:
@@ -405,7 +405,7 @@ MonoBehaviour:
       type: {class: URPShadowBiasSettings, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.Runtime}
       data:
         m_Version: 1
-        m_DepthBiasMode: 0
+        m_DepthBiasMode: 1
     - rid: 8580723549207527427
       type: {class: RenderingCapabilitiesSettings, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.Runtime}
       data:
@@ -447,7 +447,7 @@ MonoBehaviour:
       type: {class: URPExposureSettings, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.Runtime}
       data:
         version: 1
-        m_UseExposure: 0
+        m_UseExposure: 1
     - rid: 8580723549207527432
       type: {class: SurfaceCacheRenderPipelineResourceSet, ns: UnityEngine.Rendering, asm: Unity.SurfaceCache.Runtime}
       data:
