@@ -273,7 +273,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8406b95d18054752ac25ef8eb7ac2d41, type: 3}
   m_Name: SurfaceCacheGIRendererFeature
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.SurfaceCacheGIRendererFeature
-  m_Active: 1
+  m_Active: 0
 --- !u!114 &5657200492266326881
 MonoBehaviour:
   m_ObjectHideFlags: 1

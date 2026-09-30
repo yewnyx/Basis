@@ -643,6 +643,8 @@ namespace Basis.Tests.GlobalIllumination
             BasisGlobalIlluminationRayTracer.SkyBinding sky = BasisGlobalIlluminationRayTracer.ResolveSky(BasisGlobalIlluminationFallback.None, 1f);
             Assert.IsFalse(sky.IsValid);
             Assert.AreEqual(0f, sky.Intensity);
+            Assert.NotNull(sky.Cube, "The ray tracing shader still requires a bound cubemap when sky sampling is disabled.");
+            Assert.AreEqual(TextureDimension.Cube, sky.Cube.dimension);
         }
 
         [Test]

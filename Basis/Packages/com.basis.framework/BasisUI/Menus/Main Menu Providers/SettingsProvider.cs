@@ -2994,6 +2994,10 @@ namespace Basis.BasisUI
             PanelToggle toggleVrsVr = null;
             PanelSlider sliderVrsInner = null;
             PanelSlider sliderVrsOuter = null;
+            void RebuildVrsLayout() =>
+                PanelElementDescriptor.RebuildLayoutChain(
+                    toggleVrsVr != null ? toggleVrsVr.transform.parent as RectTransform : null,
+                    container);
             if (BasisVariableRateShadingFeature.IsSupported)
             {
                 PanelSectionToggleHelpers.CreateCollapsibleBoxedSection(container,
@@ -3026,7 +3030,7 @@ namespace Basis.BasisUI
                     {
                         sliderVrsInner.Descriptor.SetActive(val);
                         sliderVrsOuter.Descriptor.SetActive(val);
-                        descriptor.ForceRebuild();
+                        RebuildVrsLayout();
                     };
                 }, false, visible =>
                 {
@@ -3035,7 +3039,7 @@ namespace Basis.BasisUI
                         sliderVrsInner.Descriptor.SetActive(toggleVrsVr.Value);
                         sliderVrsOuter.Descriptor.SetActive(toggleVrsVr.Value);
                     }
-                    descriptor.ForceRebuild();
+                    RebuildVrsLayout();
                 });
             }
 

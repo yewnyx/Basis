@@ -721,7 +721,9 @@ public sealed partial class BasisGlobalIlluminationPass : ScriptableRenderPass
         // half is off still gets the other half's target bound to it. The enables are what stop the write.
         shader.SetTextureParam(cmd, idRtResultTex, data.diffuseEnabled ? data.result : data.specular);
         shader.SetTextureParam(cmd, idRtSpecularTex, data.specularEnabled ? data.specular : data.result);
-        if (data.skyCube != null) { shader.SetTextureParam(cmd, idRtSkyCube, data.skyCube); }
+        // A declared ray tracing resource must be bound even when its sampling branch is disabled. ResolveSky
+        // supplies CoreUtils.blackCubeTexture when the scene has no environment reflection.
+        shader.SetTextureParam(cmd, idRtSkyCube, data.skyCube);
 
         shader.SetBufferParam(cmd, idRtInstances, scene.InstanceBuffer);
         shader.SetBufferParam(cmd, idRtIndices, scene.IndexBuffer);
