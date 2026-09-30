@@ -24,8 +24,8 @@ MonoBehaviour:
   m_RequireOpaqueTexture: 1
   m_OpaqueDownsampling: 1
   m_SupportsTerrainHoles: 0
-  m_SupportsHDR: 0
-  m_HDRColorBufferPrecision: 0
+  m_SupportsHDR: 1
+  m_HDRColorBufferPrecision: 1
   m_MSAA: 2
   m_RenderScale: 1
   m_UpscalingFilter: 0
@@ -109,13 +109,13 @@ MonoBehaviour:
   m_PrefilteringModeForwardPlus: 2
   m_PrefilteringModeDeferredRendering: 0
   m_PrefilteringModeScreenSpaceOcclusion: 0
-  m_PrefilteringModeScreenSpaceReflection: 1
+  m_PrefilteringModeScreenSpaceReflection: 0
   m_PrefilterWriteSmoothness: 1
   m_PrefilterDebugKeywords: 1
   m_PrefilterWriteRenderingLayers: 1
-  m_PrefilterHDROutput: 1
+  m_PrefilterHDROutput: 0
   m_PrefilterAlphaOutput: 1
-  m_PrefilterSSAOKeywords: 0
+  m_PrefilterSSAOKeywords: 1
   m_PrefilterDBufferMRT1: 1
   m_PrefilterDBufferMRT2: 1
   m_PrefilterDBufferMRT3: 1
@@ -124,7 +124,7 @@ MonoBehaviour:
   m_PrefilterSoftShadowsQualityHigh: 1
   m_PrefilterSoftShadows: 0
   m_PrefilterScreenCoord: 1
-  m_PrefilterScreenSpaceIrradiance: 1
+  m_PrefilterScreenSpaceIrradiance: 0
   m_PrefilterNativeRenderPass: 1
   m_PrefilterUseLegacyLightmaps: 1
   m_PrefilterBicubicLightmapSampling: 0
@@ -134,7 +134,7 @@ MonoBehaviour:
   m_PrefilterReflectionProbeAtlas: 0
   m_PrefilterPointSamplingUpsampling: 1
   m_PrefilterExposure: 0
-  m_PrefilterVolumetricFog: 0
+  m_PrefilterVolumetricFog: 1
   m_Light2DPrefilteringMode: 0
   m_Light2DKeptVariantCombos: []
   m_ShaderVariantLogLevel: 0
