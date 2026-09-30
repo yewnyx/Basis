@@ -10,6 +10,7 @@ namespace Basis.Network.Core
         // 54: CompactMerged mixed framing adds raw Ack/Channeled entries (wire-format change).
         // 55: connection request carries the client's company and product name after the
         // protocol version; the server rejects any pair it does not support (wire-format change).
-        public static ushort ServerVersion = 55;
+        // 56: server metadata carries the server UUID after the join is accepted (wire-format change).
+        public static ushort ServerVersion = 56;
     }
 }

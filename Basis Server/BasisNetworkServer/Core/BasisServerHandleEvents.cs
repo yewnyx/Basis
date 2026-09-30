@@ -793,6 +793,7 @@ namespace BasisServerHandle
                     UplinkDeltaEnabled = Config.EnableUplinkAvatarDelta,
                     ImageShareEgressMegabitsPerSecond = Config.ImageShareEgressMegabitsPerSecond,
                     ImagePickupRangeMeters = Math.Max(0f, Config.ImagePickupRangeMeters),
+                    ServerUUID = Config.ServerUUID,
                 };
                 ServerMetaDataMessage.SetPermissions(PermissionIntegration.Manager.GetAllAllowedRules(UUID), PermissionIntegration.Manager.GetAllDeniedRules(UUID));
                 NetDataWriter Writer = NetworkServer.RentWriter();

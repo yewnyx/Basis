@@ -515,6 +515,7 @@ public class ControlAndResourceMessageRoundTripTests
             UplinkDeltaEnabled = true,
             ImageShareEgressMegabitsPerSecond = 321,
             ImagePickupRangeMeters = 72.5f,
+            ServerUUID = "server-uuid-Ω-123",
         };
         msg.SetPermissions(new[] { "basis.moderation", "basis.moderation.kick", "custom.perm.alpha", "custom.perm.beta" });
 
@@ -534,6 +535,7 @@ public class ControlAndResourceMessageRoundTripTests
         Assert.True(back.UplinkDeltaEnabled);
         Assert.Equal(321, back.ImageShareEgressMegabitsPerSecond);
         Assert.Equal(72.5f, back.ImagePickupRangeMeters);
+        Assert.Equal("server-uuid-Ω-123", back.ServerUUID);
         Assert.Equal(msg.PermissionsBitset, back.PermissionsBitset);
         Assert.Equal(new[] { "custom.perm.alpha", "custom.perm.beta" }, back.ExtraPermissions);
         Assert.True(back.GetPermissions().SetEquals(

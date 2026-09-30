@@ -34,7 +34,8 @@ public class Configuration
     //     a constant fitted on one machine. Bumped so existing files gain it with its doc comment.
     // 13: LogConnectionHandshake added - the per-connection auth chatter is now off by default.
     // 14: CompanyName and ProductName added - the client company and product name a connection must report.
-    public const int CurrentConfigVersion = 14;
+    // 15: ServerUUID added - the stable application-level identity sent to clients when they join.
+    public const int CurrentConfigVersion = 15;
     /// <summary>Schema version stamped into config.xml; 0 = a pre-versioning file that is upgraded on load.</summary>
     public int ConfigVersion = 0;
 
@@ -44,6 +45,12 @@ public class Configuration
     public string ServerName = "Basis Server";
     /// <summary>Short MOTD returned alongside the server name in the info query response. Two short lines render cleanly in the list UI.</summary>
     public string ServerMotd = "";
+    /// <summary>
+    /// Stable application-level identity for this server. It is deliberately independent of bind
+    /// addresses and transport details, and may be set explicitly (for example by an embedded host).
+    /// A new value is generated once when a new or upgraded config file is written.
+    /// </summary>
+    public string ServerUUID = Guid.NewGuid().ToString("N");
     public string CompanyName = BasisNetworkApplication.DefaultCompanyName;
     public string ProductName = BasisNetworkApplication.DefaultProductName;
     public bool EnableStatistics = true;
@@ -554,6 +561,7 @@ public class Configuration
         nameof(IPv6Address),
         nameof(OverrideAutoDiscoveryOfIpv),
         nameof(NetworkStackId),
+        nameof(ServerUUID),
         nameof(HasFileSupport),
         nameof(EnableStatistics),
         nameof(EnableConsole),

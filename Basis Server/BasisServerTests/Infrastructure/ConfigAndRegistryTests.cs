@@ -82,6 +82,7 @@ public class ServerConfigurationDefaultsTests
         Assert.Equal(4296, cfg.SetPort);
         Assert.Equal("Basis Server", cfg.ServerName);
         Assert.Equal("", cfg.ServerMotd);
+        Assert.True(Guid.TryParseExact(cfg.ServerUUID, "N", out _));
         Assert.True(cfg.EnableStatistics);
         Assert.True(cfg.HasFileSupport);
         Assert.Equal("localhost", cfg.HealthCheckHost);
@@ -183,7 +184,8 @@ public class ServerConfigurationDefaultsTests
         // 12: added BSRSendPhaseBudgetPercent, the send pass's share of the reduction tick.
         // 13: added LogConnectionHandshake; the per-connection auth chatter is now off by default.
         // 14: added CompanyName and ProductName, the client identity a connection must report.
-        Assert.Equal(14, Configuration.CurrentConfigVersion);
+        // 15: added the persistent application-level ServerUUID.
+        Assert.Equal(15, Configuration.CurrentConfigVersion);
         Assert.Equal(0, new Configuration().ConfigVersion);
         Assert.Equal("config", Configuration.ConfigFolderName);
         Assert.Equal("logs", Configuration.LogsFolderName);
@@ -216,8 +218,10 @@ public class ConfigurationPersistenceTests
         Configuration loaded = Configuration.LoadFromXml(path);
 
         Assert.True(File.Exists(path));
-        ConfigTestSupport.AssertFieldsEqual(new Configuration(), loaded, nameof(Configuration.ConfigVersion));
+        ConfigTestSupport.AssertFieldsEqual(new Configuration(), loaded,
+            nameof(Configuration.ConfigVersion), nameof(Configuration.ServerUUID));
         Assert.Equal(Configuration.CurrentConfigVersion, loaded.ConfigVersion);
+        Assert.True(Guid.TryParseExact(loaded.ServerUUID, "N", out _));
 
         string xml = File.ReadAllText(path);
         Assert.Contains("<!--", xml);
@@ -227,6 +231,19 @@ public class ConfigurationPersistenceTests
         string sidecar = Path.Combine(dir.Path, BasisTransportConfigStore.TransportsFolderName,
             BasisNetworkStackRegistry.LiteNetLibId + ".xml");
         Assert.True(File.Exists(sidecar));
+    }
+
+    [Fact]
+    public void LoadFromXml_GeneratedServerUuid_PersistsAcrossRestarts()
+    {
+        using var dir = new ConfigTestSupport.TempDir();
+        string path = dir.File("config.xml");
+
+        Configuration first = Configuration.LoadFromXml(path);
+        Configuration second = Configuration.LoadFromXml(path);
+
+        Assert.True(Guid.TryParseExact(first.ServerUUID, "N", out _));
+        Assert.Equal(first.ServerUUID, second.ServerUUID);
     }
 
     [Fact]

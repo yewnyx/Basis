@@ -58,6 +58,12 @@ namespace Basis.Scripts.Networking
 
         public static string HostServerMotd = string.Empty;
 
+        /// <summary>
+        /// Optional application-level identity for an embedded host. Leave empty to generate a
+        /// fresh server UUID; set it explicitly when the hosted server should use a known identity.
+        /// </summary>
+        public static string HostServerUUID = string.Empty;
+
         public static int HostPeerLimit = ushort.MaxValue;
 
         public static bool HostUseAuth = true;
@@ -105,6 +111,12 @@ namespace Basis.Scripts.Networking
         /// Metadata message received from the server at connect.
         /// </summary>
         public static ServerMetaDataMessage ServerMetaDataMessage = new ServerMetaDataMessage();
+
+        /// <summary>
+        /// Application-level identity advertised by the currently connected server. Empty until
+        /// the join metadata arrives or when disconnected.
+        /// </summary>
+        public static string ServerUUID => ServerMetaDataMessage.ServerUUID ?? string.Empty;
 
         /// <summary>
         /// Local player's effective permissions decoded from the server metadata.
