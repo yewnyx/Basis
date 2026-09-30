@@ -28,8 +28,9 @@ public static partial class SerializableBasis
         // server said nothing - an older server that does not provide the trailing field included -
         // and replication stays unlimited the way it was before this field existed.
         public float ImagePickupRangeMeters;
-        // Stable application-level identity of the connected server. This is not an address and
-        // remains the same when a server is reached through different transports or interfaces.
+        // Stable application-level identity of the connected server. This optional field stays at
+        // the very end of the protocol-55 message: old clients stop before it, and new clients use
+        // AvailableBytes to accept metadata from old servers that do not send it.
         public string ServerUUID;
         //want to include what permissions this player has to the client
         public byte[] PermissionsBitset;     // fast, fixed — known nodes as bits

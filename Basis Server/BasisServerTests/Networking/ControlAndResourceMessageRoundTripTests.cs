@@ -543,6 +543,39 @@ public class ControlAndResourceMessageRoundTripTests
     }
 
     [Fact]
+    public void ServerMetaDataMessage_Protocol55PayloadWithoutServerUuid_RemainsReadable()
+    {
+        var client = new ClientMetaDataMessage
+        {
+            playerUUID = "legacy-client",
+            playerDisplayName = "Protocol 55",
+            playerPlatform = "Desktop",
+        };
+        var writer = new NetDataWriter();
+        client.Serialize(writer);
+        writer.Put(50);
+        writer.Put(1);
+        writer.Put(0.005f);
+        writer.Put(2.55f);
+        writer.Put(32);
+        writer.PutBytesWithLength(Array.Empty<byte>());
+        writer.Put((ushort)0);
+        writer.Put((byte)1);
+        writer.Put(200);
+        writer.Put(64f);
+
+        var back = new ServerMetaDataMessage();
+        back.Deserialize(ReaderFor(writer));
+
+        Assert.Equal("legacy-client", back.ClientMetaDataMessage.playerUUID);
+        Assert.Equal(32, back.PeerLimit);
+        Assert.True(back.UplinkDeltaEnabled);
+        Assert.Equal(200, back.ImageShareEgressMegabitsPerSecond);
+        Assert.Equal(64f, back.ImagePickupRangeMeters);
+        Assert.Equal(string.Empty, back.ServerUUID);
+    }
+
+    [Fact]
     public void ServerMetaDataMessage_ZeroTuningValues_SerializeAsDefaults()
     {
         var msg = new ServerMetaDataMessage
