@@ -157,7 +157,12 @@ namespace Basis.Scripts.Drivers
             BasisLocalEyeDriverData.PersonalityDirty = true;
             BasisDebug.Log($"Eye Personality - Liveliness: {BasisLocalEyeDriverData.Liveliness:F1} | Attentiveness: {BasisLocalEyeDriverData.Attentiveness:F1} | Max Look Angle: {(BasisLocalEyeDriverData.MaxLookAngleEnabled ? $"{BasisLocalEyeDriverData.MaxLookAngleDeg:F0} deg" : "default")}", BasisDebug.LogTag.Avatar);
             BasisLocalEyeDriver.Initialize();
-            LocalRenderMeshSettings(BasisLayerMapper.LocalAvatarLayer, SkinnedMeshRendererLength, SkinnedMeshRenderer, player.BasisAvatar.FaceVisemeMesh);
+            LocalRenderMeshSettings(
+                BasisLayerMapper.LocalAvatarLayer,
+                SkinnedMeshRendererLength,
+                SkinnedMeshRenderer,
+                player.BasisAvatar.FaceVisemeMesh,
+                Mapping.Hashead ? Mapping.head : null);
 
             if (Mapping.Hashead)
             {

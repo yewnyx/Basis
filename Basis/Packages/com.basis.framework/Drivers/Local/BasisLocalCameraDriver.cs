@@ -521,7 +521,7 @@ namespace Basis.Scripts.Drivers
         {
             if (mode == BasisConstants.Desktop)
             {
-                Camera.fieldOfView = DefaultCameraFov;
+                Camera.fieldOfView = BasisSettingsDefaults.FieldOfView.RawValue;
             }
             else
             {
@@ -794,7 +794,7 @@ namespace Basis.Scripts.Drivers
                 if (_wasThirdPerson)
                 {
                     SelfTransform.SetLocalPose(Vector3.zero, Quaternion.identity);
-                    CameraInstance.fieldOfView = DefaultCameraFov;
+                    CameraInstance.fieldOfView = BasisSettingsDefaults.FieldOfView.RawValue;
                     _wasThirdPerson = false;
                 }
                 return;

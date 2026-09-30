@@ -2898,10 +2898,8 @@ namespace Basis.BasisUI
             //TrueBinding.LoadBindingValue();
             LimitThreshold.LoadBindingValue();
             LimitKnee.LoadBindingValue();
-
-
-
-          DepthOfFieldThreshold.LoadBindingValue();
+            DepthOfFieldThreshold.LoadBindingValue();
+            LookAtPointerTriggerThreshold.LoadBindingValue();
             FlyPitchTriggerThreshold.LoadBindingValue();
             SnapInteractableThreshold.LoadBindingValue();
             TriggerDownThreshold.LoadBindingValue();
@@ -2914,7 +2912,6 @@ namespace Basis.BasisUI
             Calibrationtrigger.LoadBindingValue();
             IsHoldDropTriggeredThreshold.LoadBindingValue();
             triggerUpThreshold.LoadBindingValue();
-
             DisableSeats.LoadBindingValue();
             HideRemoteCameraPucks.LoadBindingValue();
             BasisNetworkPIPCameraDriver.SetHideRemoteCameraPucks(HideRemoteCameraPucks.RawValue);

@@ -9539,6 +9539,118 @@
       "value": "How far the trigger must be released before the click ends."
     },
     {
+      "key": "settings.controls.triggerPressure.title",
+      "value": "Trigger Presses"
+    },
+    {
+      "key": "settings.controls.triggerPressure.description",
+      "value": "Choose how far the trigger must be pulled for VR interactions."
+    },
+    {
+      "key": "settings.controls.triggerPressure.depthOfField",
+      "value": "Camera Focus"
+    },
+    {
+      "key": "settings.controls.triggerPressure.depthOfField.tooltip",
+      "value": "Trigger pressure required to select a depth-of-field focus point."
+    },
+    {
+      "key": "settings.controls.triggerPressure.lookAtPointer",
+      "value": "Camera Look-at Pointer"
+    },
+    {
+      "key": "settings.controls.triggerPressure.lookAtPointer.tooltip",
+      "value": "Trigger pressure required to use the handheld camera look-at pointer."
+    },
+    {
+      "key": "settings.controls.triggerPressure.flyPitch",
+      "value": "Flying Camera Pitch"
+    },
+    {
+      "key": "settings.controls.triggerPressure.flyPitch.tooltip",
+      "value": "Trigger pressure required before the flying camera stick controls pitch."
+    },
+    {
+      "key": "settings.controls.triggerPressure.snapInteractable",
+      "value": "Snap Controls"
+    },
+    {
+      "key": "settings.controls.triggerPressure.snapInteractable.tooltip",
+      "value": "Trigger pressure required to operate snap-control interactables."
+    },
+    {
+      "key": "settings.controls.triggerPressure.grab",
+      "value": "Grab and Place"
+    },
+    {
+      "key": "settings.controls.triggerPressure.grab.tooltip",
+      "value": "Trigger pressure required to grab an object or confirm its placement."
+    },
+    {
+      "key": "settings.controls.triggerPressure.jiggleGrab",
+      "value": "Jiggle Grab"
+    },
+    {
+      "key": "settings.controls.triggerPressure.jiggleGrab.tooltip",
+      "value": "Trigger pressure required to keep a jiggle grab held."
+    },
+    {
+      "key": "settings.controls.triggerPressure.heldInteraction",
+      "value": "Held Interaction"
+    },
+    {
+      "key": "settings.controls.triggerPressure.heldInteraction.tooltip",
+      "value": "Trigger pressure required to keep an interactable object active while held."
+    },
+    {
+      "key": "settings.controls.triggerPressure.primaryActivation",
+      "value": "Primary Activation"
+    },
+    {
+      "key": "settings.controls.triggerPressure.primaryActivation.tooltip",
+      "value": "Primary-trigger pressure required to activate an interactable object."
+    },
+    {
+      "key": "settings.controls.triggerPressure.secondaryActivation",
+      "value": "Secondary Activation"
+    },
+    {
+      "key": "settings.controls.triggerPressure.secondaryActivation.tooltip",
+      "value": "Secondary-trigger pressure required to activate an interactable object."
+    },
+    {
+      "key": "settings.controls.triggerPressure.autoHoldDrop",
+      "value": "Auto-hold Drop"
+    },
+    {
+      "key": "settings.controls.triggerPressure.autoHoldDrop.tooltip",
+      "value": "Secondary-trigger pressure required to drop an auto-held object."
+    },
+    {
+      "key": "settings.controls.triggerPressure.playspaceMover",
+      "value": "Playspace Mover"
+    },
+    {
+      "key": "settings.controls.triggerPressure.playspaceMover.tooltip",
+      "value": "Trigger pressure required when a playspace mover action uses a trigger."
+    },
+    {
+      "key": "settings.controls.triggerPressure.calibration",
+      "value": "Calibration"
+    },
+    {
+      "key": "settings.controls.triggerPressure.calibration.tooltip",
+      "value": "Trigger pressure required to confirm a VR calibration step."
+    },
+    {
+      "key": "settings.controls.triggerPressure.release",
+      "value": "Placement Trigger Release"
+    },
+    {
+      "key": "settings.controls.triggerPressure.release.tooltip",
+      "value": "Trigger level below which object placement is ready for another press."
+    },
+    {
       "key": "settings.controls.joystickBind.title",
       "value": "Slider on a Thumbstick"
     },
