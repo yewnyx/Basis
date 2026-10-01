@@ -18,11 +18,10 @@ public static class BasisLegacyMaterialCompatibility
 
     public static int UpgradeEmission(IList<Renderer> renderers, string builtWithUnityVersion)
     {
-        if (renderers == null)
+        if (renderers == null || !RequiresLegacyEmissionUpgrade(builtWithUnityVersion))
             return 0;
 
         HashSet<Material> visited = new HashSet<Material>();
-        bool forceLegacyMaterials = RequiresLegacyEmissionUpgrade(builtWithUnityVersion);
         int upgraded = 0;
         int legacyCandidates = 0;
         string firstUpgrade = null;
@@ -44,15 +43,14 @@ public static class BasisLegacyMaterialCompatibility
                     (flags & MaterialGlobalIlluminationFlags.EmissiveIsBlack) == 0)
                     continue;
 
+                bool emissiveIsBlack =
+                    (flags & MaterialGlobalIlluminationFlags.EmissiveIsBlack) != 0;
                 bool hadLegacyEmissionIntent = material.IsKeywordEnabled(EmissionKeyword) ||
-                    (flags & (MaterialGlobalIlluminationFlags.BakedEmission |
-                              MaterialGlobalIlluminationFlags.RealtimeIndirectEmission)) != 0;
-                // AssetBundleStripUnityVersion writes "5.x.x" into the UnityFS header and old
-                // bundles can deserialize with both the keyword and the old emission bits lost.
-                // For an unquestionably legacy/unknown bundle, normalize every material. A black
-                // or absent emission input remains visually black; the flags merely make the
-                // direct-emission shader path available again.
-                if (!forceLegacyMaterials && !hadLegacyEmissionIntent)
+                    (!emissiveIsBlack && (flags & AllEmissionFlags) != 0);
+                // EmissiveIsBlack is Unity's explicit "emission disabled" state, even when a
+                // stale BakedEmission bit is also present. Only an existing _EMISSION keyword
+                // is strong enough to override it.
+                if (!hadLegacyEmissionIntent)
                     continue;
 
                 legacyCandidates++;

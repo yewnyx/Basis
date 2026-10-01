@@ -14,19 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Basis.ImagePickup::Basis.ImagePickup.BasisImageDepthVisibilityFeature
   m_Active: 1
   computeShader: {fileID: 7200000, guid: 4c8a6bd4307f45d9aaa4e7483e8f2650, type: 3}
---- !u!114 &-6299755737048945040
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8406b95d18054752ac25ef8eb7ac2d41, type: 3}
-  m_Name: SurfaceCacheGIRendererFeature
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.SurfaceCacheGIRendererFeature
-  m_Active: 0
 --- !u!114 &-6138350381377972815
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -105,7 +92,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cfcf90f6612a6c64f9c689c5557c4a0c, type: 3}
   m_Name: BasisRTAOFeature
   m_EditorClassIdentifier: Basis.RTAO::Basis.Rendering.RTAO.BasisRTAOFeature
-  m_Active: 0
+  m_Active: 1
   resources: {fileID: 11400000, guid: d8c73d1f224d1aa4731366a9d7678bfc, type: 2}
   quality: 1
   overrideQualityPreset: 0
@@ -216,10 +203,7 @@ MonoBehaviour:
   - {fileID: -7061326814219087741}
   - {fileID: 5657200492266326881}
   - {fileID: -4926890712473137604}
-  - {fileID: -6299755737048945040}
-  - {fileID: 2190886180521499258}
-  - {fileID: 3079077556818738183}
-  m_RendererFeatureMap: 55b0addaf1e53e732c1a306845c91e69b11515bbd932d0aa9378a8b27ba967e783d087cbac20019e610bb3e4df69824e3c0ede33002ba0bb70ee77e188c592a87ada4b955f97671e07fc0e6ab914bb2al
+  m_RendererFeatureMap: 55b0addaf1e53e732c1a306845c91e69b11515bbd932d0aa9378a8b27ba967e783d087cbac20019e610bb3e4df69824e3c0ede33002ba0bbl
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3
@@ -276,55 +260,6 @@ MonoBehaviour:
   bakeUseAsyncCompute: 0
   froxelComputeShader: {fileID: 7200000, guid: e00244de118fd544e9d0c7dff913e49b, type: 3}
   froxelColumnComputeShader: {fileID: 7200000, guid: 1688d4f4b3ab4787b0581e351d96b57b, type: 3}
---- !u!114 &2190886180521499258
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f62c9c65cf3354c93be831c8bc075510, type: 3}
-  m_Name: ScreenSpaceAmbientOcclusion
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.ScreenSpaceAmbientOcclusion
-  m_Active: 1
-  m_Settings:
-    AOMethod: 0
-    Downsample: 0
-    AfterOpaque: 0
-    Source: 1
-    NormalSamples: 1
-    Intensity: 3
-    DirectLightingStrength: 0.25
-    Radius: 0.035
-    Samples: 1
-    BlurQuality: 0
-    Falloff: 100
-    SampleCount: -1
-    Mode: 0
-    GTAOMinimumRadiusInPixels: 40
-    UseComputeShader: 0
-    GTAOTemporalFilterEnabled: 0
-    GTAOGhostingMitigation: 0.5
-    GTAOHistoryLength: 0.9
-    GTAODirectionCount: 2
-    GTAOStepCount: 4
-    GTAOSpatialFilter: 0
---- !u!114 &3079077556818738183
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fb9f2fe3baf0e8c46bf390df937e6187, type: 3}
-  m_Name: ScreenSpaceReflectionRendererFeature
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.ScreenSpaceReflectionRendererFeature
-  m_Active: 1
-  afterOpaque: 1
 --- !u!114 &5657200492266326881
 MonoBehaviour:
   m_ObjectHideFlags: 1
