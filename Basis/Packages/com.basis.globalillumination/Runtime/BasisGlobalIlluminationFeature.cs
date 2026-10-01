@@ -13,6 +13,12 @@ public sealed class BasisGlobalIlluminationFeature : ScriptableRendererFeature
     public const string ShaderRoot = "Packages/com.basis.globalillumination/Shaders/";
 
     public static Func<Camera, bool> CameraFilter;
+    /// <summary>
+    /// Reports that another renderer feature is publishing the camera's ambient-occlusion term. The GI
+    /// gather still traces radiance, but stops deriving a second obscurance value from those rays so the
+    /// two effects cannot darken the same transport twice.
+    /// </summary>
+    public static Func<Camera, bool> ExternalAmbientOcclusionActive;
     public static bool KeepRenderingWithDebugger;
 
     [SerializeField, HideInInspector] private Shader m_Shader;

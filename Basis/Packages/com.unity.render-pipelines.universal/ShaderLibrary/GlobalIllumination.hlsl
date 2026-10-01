@@ -645,11 +645,15 @@ URP_LIGHT_ACCUM3 SubtractDirectMainLightFromLightmap(Light mainLight, half3 norm
 // multi_compile on every lit target. See BasisGlobalIlluminationSpecularPass.SpecularPass and
 // BasisRTAOPass.RecordGlobal.
 TEXTURE2D_X(_BasisGISpecularTexture);
+TEXTURE2D_X(_BasisGISpecHitDistance);
 // x: 1 while global illumination is publishing a reflection for this camera this frame, else 0 - the
 // pass writes zero from OnCameraCleanup so a camera that stops rendering it does not keep the last frame's
 // texture bound forever. y: reciprocal of BasisGlobalIlluminationSettings.specularMaxRoughness, so the
 // roughness blend below is a multiply rather than a per-pixel divide.
 half4 _BasisGISpecularParams;
+// x: contact hardening scale, y: hit-distance bias. Mip count and hit-distance validity live in zw of
+// _BasisGISpecularParams so the hot sampling path stays at two constant loads.
+half4 _BasisGISpecularFilterParams;
 
 // Lagarde's Frostbite approximation (== HDRP's GetSpecularOcclusionFromAmbientOcclusion). Exact at two
 // ends: at roughness >= ~0.35 it returns ao unchanged (a rough lobe samples close to the whole hemisphere,
@@ -666,7 +670,7 @@ half GetSpecularOcclusion(half NoV, half ao, half roughness)
 // ordinarily), weighted by how much of this surface's roughness the trace is still a fair stand-in for.
 // The trace itself carries no roughness - see BasisGlobalIlluminationSpecularPass for why there is no
 // GBuffer here to have read one from - so the lit shader, which does know its own, is what decides.
-half3 BasisSampleTracedReflection(half3 probeIrradiance, half perceptualRoughness, float2 normalizedScreenSpaceUV)
+half3 BasisSampleTracedReflection(half3 probeIrradiance, half perceptualRoughness, float3 positionWS, float2 normalizedScreenSpaceUV)
 {
     // The reflection buffer contains opaque depth only, including when the material keyword is dynamic.
 #if defined(_SURFACE_TYPE_TRANSPARENT_KEYWORD_DECLARED)
@@ -677,7 +681,19 @@ half3 BasisSampleTracedReflection(half3 probeIrradiance, half perceptualRoughnes
     UNITY_BRANCH
     if (_BasisGISpecularParams.x <= 0.0h) { return probeIrradiance; }
 
-    half4 traced = SAMPLE_TEXTURE2D_X(_BasisGISpecularTexture, sampler_LinearClamp, UnityStereoTransformScreenSpaceTex(normalizedScreenSpaceUV));
+    float2 reflectionUV = UnityStereoTransformScreenSpaceTex(normalizedScreenSpaceUV);
+    half roughnessFraction = saturate(perceptualRoughness * _BasisGISpecularParams.y);
+    half mipFraction = roughnessFraction;
+    if (_BasisGISpecularParams.w > 0.5h)
+    {
+        float hitDistance = SAMPLE_TEXTURE2D_X_LOD(_BasisGISpecHitDistance, sampler_PointClamp, reflectionUV, 0).r;
+        float distanceToReflector = distance(positionWS, _WorldSpaceCameraPos);
+        half contactFactor = saturate((hitDistance + _BasisGISpecularFilterParams.y) /
+            max(distanceToReflector * _BasisGISpecularFilterParams.x, 0.01));
+        mipFraction *= contactFactor;
+    }
+    half reflectionMip = sqrt(mipFraction) * _BasisGISpecularParams.z;
+    half4 traced = SAMPLE_TEXTURE2D_X_LOD(_BasisGISpecularTexture, sampler_TrilinearClamp, reflectionUV, reflectionMip);
     // traced.a is the trace's own confidence (0 on a miss with no sky bound to answer with instead), so a
     // pixel the trace could not answer keeps the probe regardless of how smooth the surface is.
     half weight = saturate(1.0h - perceptualRoughness * _BasisGISpecularParams.y) * traced.a;
@@ -707,7 +723,7 @@ URP_LIGHT_ACCUM3 GlobalIllumination(BRDFData brdfData, BRDFData brdfDataClearCoa
     URP_LIGHT_ACCUM3 indirectDiffuse = bakedGI * occlusion;
     half3 indirectSpecular = GlossyEnvironmentReflection(reflectVector, positionWS, brdfData.perceptualRoughness, specularOcclusion, normalizedScreenSpaceUV, useEnvironmentReflections);
     if (useEnvironmentReflections)
-        indirectSpecular = BasisSampleTracedReflection(indirectSpecular, brdfData.perceptualRoughness, normalizedScreenSpaceUV);
+        indirectSpecular = BasisSampleTracedReflection(indirectSpecular, brdfData.perceptualRoughness, positionWS, normalizedScreenSpaceUV);
 
     URP_LIGHT_ACCUM3 color = EnvironmentBRDF(brdfData, indirectDiffuse, indirectSpecular, fresnelTerm);
 
@@ -721,7 +737,7 @@ URP_LIGHT_ACCUM3 GlobalIllumination(BRDFData brdfData, BRDFData brdfDataClearCoa
         half coatSpecularOcclusion = lerp(half(1.0), GetSpecularOcclusion(NoV, occlusion, brdfDataClearCoat.perceptualRoughness), _AmbientOcclusionParam.y);
         half3 coatIndirectSpecular = GlossyEnvironmentReflection(reflectVector, positionWS, brdfDataClearCoat.perceptualRoughness, coatSpecularOcclusion, normalizedScreenSpaceUV, useEnvironmentReflections);
         if (useEnvironmentReflections)
-            coatIndirectSpecular = BasisSampleTracedReflection(coatIndirectSpecular, brdfDataClearCoat.perceptualRoughness, normalizedScreenSpaceUV);
+            coatIndirectSpecular = BasisSampleTracedReflection(coatIndirectSpecular, brdfDataClearCoat.perceptualRoughness, positionWS, normalizedScreenSpaceUV);
         // TODO: "grazing term" causes problems on full roughness
         half3 coatColor = EnvironmentBRDFClearCoat(brdfDataClearCoat, clearCoatMask, coatIndirectSpecular, fresnelTerm);
 
