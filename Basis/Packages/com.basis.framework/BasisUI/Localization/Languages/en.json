@@ -12044,7 +12044,7 @@
     },
     {
       "key": "settings.developer.graphicsStatePrewarm.description",
-      "value": "Trace and persist full GPU pipeline states (PSOs), then pre-create them ahead of first draw. Only does anything on DX12, Vulkan, and Metal, where the driver cannot build pipeline state lazily. A seed shipped with the app covers the base game on first launch; your own traced cache covers content you have loaded before."
+      "value": "Trace and persist full GPU pipeline states (PSOs), then pre-create them ahead of first draw. Only does anything on DX12 and Vulkan. A seed shipped with the app covers the base game on first launch; your own traced cache covers content you have loaded before."
     },
     {
       "key": "settings.developer.gridSnap.title",

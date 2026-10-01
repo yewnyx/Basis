@@ -791,7 +791,7 @@ namespace Basis.BasisUI
         public static BasisSettingsBinding<bool> EnableMaterialCorrection = new("enablematerialcorrection", new BasisPlatformDefault<bool>(false));
         public static BasisSettingsBinding<bool> EnableShaderBlocklist = new("enableshaderblocklist", new BasisPlatformDefault<bool>(false));
         public static BasisSettingsBinding<string> ShaderBlocklistPatterns = new("shaderblocklistpatterns", new BasisPlatformDefault<string>(string.Empty));
-        public static BasisSettingsBinding<bool> EnableGraphicsStatePrewarm = new("enablegraphicsstateprewarm_v2", new BasisPlatformDefault<bool> { windows = true, android = false, ios = false, linux = false, other = false });
+        public static BasisSettingsBinding<bool> EnableGraphicsStatePrewarm = new("enablegraphicsstateprewarm_v2", new BasisPlatformDefault<bool> { windows = true, android = false, ios = false, linux = true, other = false });
         // Default OFF everywhere, unlike EnableGraphicsStatePrewarm above: staggering renderer
         // visibility let avatars read as nude while loading (BasisAvatarPsoReveal.BeginStagedReveal
         // is hard-disabled regardless of this value now). Key bumped _v2 so installs that already

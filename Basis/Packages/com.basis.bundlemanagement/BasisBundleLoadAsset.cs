@@ -93,12 +93,24 @@ public static class BasisBundleLoadAsset
             await Task.Yield();
             await BasisLoadFrameBudget.WaitForBudgetAsync();
             double walkStart = BasisLoadFrameBudget.BeginStep();
-            CreatedCopy = ContentPoliceControl.FinishContentControl(scrubState);
+            CreatedCopy = ContentPoliceControl.PrepareContentControl(scrubState, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
             BasisLoadFrameBudget.EndStep(walkStart);
+            while (!warmup.IsCompleted)
+            {
+                await Task.Yield();
+            }
+            warmup.CompleteAndDispose();
+            ContentPoliceControl.ActivateContentControl(scrubState, CreatedCopy);
         }
         else
         {
-            CreatedCopy = ContentPoliceControl.FinishContentControl(scrubState);
+            CreatedCopy = ContentPoliceControl.PrepareContentControl(scrubState, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
+            while (!warmup.IsCompleted)
+            {
+                await Task.Yield();
+            }
+            warmup.CompleteAndDispose();
+            ContentPoliceControl.ActivateContentControl(scrubState, CreatedCopy);
         }
         if (CreatedCopy == null)
         {
@@ -154,7 +166,28 @@ public static class BasisBundleLoadAsset
                 ChecksRequired ChecksRequired = new ChecksRequired();
                 ChecksRequired.UseContentRemoval = true;
                 ChecksRequired.ScrubPersistentUnityEvents = true;
-                ContentPoliceControl.ContentControl(ChecksRequired, Selector.World, loadedScene, true);
+                List<GameObject> roots = new List<GameObject>();
+                loadedScene.GetRootGameObjects(roots);
+                bool[] activeRoots = new bool[roots.Count];
+                for (int i = 0; i < roots.Count; i++)
+                {
+                    activeRoots[i] = roots[i].activeSelf;
+                    roots[i].SetActive(false);
+                }
+
+                BasisGraphicsStatePrewarm.WarmupRequest warmup = ContentPoliceControl.ContentControl(ChecksRequired, Selector.World, loadedScene, true);
+                while (!warmup.IsCompleted)
+                {
+                    await Task.Yield();
+                }
+                warmup.CompleteAndDispose();
+                for (int i = 0; i < roots.Count; i++)
+                {
+                    if (roots[i] != null)
+                    {
+                        roots[i].SetActive(activeRoots[i]);
+                    }
+                }
                 AssignedIncrement = bundle.Increment();
                 if (MakeActiveScene)
                 {

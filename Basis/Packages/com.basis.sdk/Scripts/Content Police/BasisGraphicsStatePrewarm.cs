@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 /// <summary>
 /// Record-then-replay PSO cache layered on top of <see cref="BasisShaderPrewarm"/>.
 /// ShaderVariantCollection.WarmUp only compiles the shader variant; on the explicit-pipeline
-/// backends (D3D12 / Vulkan / Metal) the first-draw hitch is the full Pipeline State Object —
+/// backends used by Basis (D3D12 / Vulkan) the first-draw hitch is the full Pipeline State Object —
 /// variant + vertex layout + blend/depth/stencil + render-target formats — which the legacy
 /// path can't know ahead of time. GraphicsStateCollection traces the real PSOs that render and
 /// persists them, so a later session can pre-create them.
@@ -34,7 +34,17 @@ public static class BasisGraphicsStatePrewarm
 {
     // Developer toggle, default off. Set from BasisSettingsDefaults.EnableGraphicsStatePrewarm.
     // Gated at init so flipping it off keeps the subsystem dormant (no trace, no warm, no file).
-    public static bool Enabled = false;
+    private static bool _enabled;
+    public static bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            if (_enabled == value) return;
+            _enabled = value;
+            if (!value) ReleaseScopedWarmupWaiters();
+        }
+    }
 
     // PSO caches are graphics-API + engine-version specific; a file traced on one is meaningless
     // on another. Encoding both in the filename means a driver/API/Unity change simply finds no
@@ -81,11 +91,14 @@ public static class BasisGraphicsStatePrewarm
     // for "does this backend pay a synchronous first-draw PSO cost at all".
     public static bool BackendBenefits()
     {
+        if (!SystemInfo.supportsParallelPSOCreation)
+        {
+            return false;
+        }
         switch (SystemInfo.graphicsDeviceType)
         {
             case GraphicsDeviceType.Direct3D12:
             case GraphicsDeviceType.Vulkan:
-            case GraphicsDeviceType.Metal:
                 return true;
             default:
                 return false;
@@ -243,6 +256,322 @@ public static class BasisGraphicsStatePrewarm
         Drain(MaxWarmupPerCall, label);
     }
 
+    /// <summary>
+    /// A content-scoped asynchronous warm-up. The caller must keep the content hidden until
+    /// <see cref="CompleteAndDispose"/> has been called; doing so is what prevents first draw from
+    /// racing DX12/Vulkan pipeline creation. Requests without cached states enter the bounded cold
+    /// reveal queue so a mass join cannot trigger thousands of first-draw compiles in one frame.
+    /// </summary>
+    public sealed class WarmupRequest
+    {
+        internal readonly HashSet<Shader> Shaders;
+        internal readonly IList<Renderer> Renderers;
+        internal readonly string Label;
+        internal bool Completed;
+
+        internal WarmupRequest(HashSet<Shader> shaders, IList<Renderer> renderers, string label, bool completed)
+        {
+            Shaders = shaders;
+            Renderers = renderers;
+            Label = label;
+            Completed = completed;
+        }
+
+        public bool IsCompleted => Completed;
+
+        public void CompleteAndDispose()
+        {
+            if (Completed)
+            {
+                return;
+            }
+            CompleteScopedWarmupsSynchronously();
+        }
+    }
+
+    private sealed class WarmupBatch
+    {
+        public GraphicsStateCollection Collection;
+        public JobHandle Handle;
+        public readonly List<WarmupRequest> Requests = new List<WarmupRequest>();
+        public readonly HashSet<Shader> MatchedShaders = new HashSet<Shader>();
+    }
+
+    // Thousands of concurrent avatar loads must not each read the same cache and submit duplicate
+    // PSO jobs. Requests arriving during a frame are coalesced into one shader set, one cache read,
+    // and one warm-up job. A single active batch also bounds driver-side pipeline creation pressure.
+    private static readonly List<WarmupRequest> _pendingScopedWarmups = new List<WarmupRequest>();
+    private static readonly HashSet<EntityId> _scopedWarmedShaderIds = new HashSet<EntityId>();
+    private static readonly Queue<WarmupRequest> _coldRevealQueue = new Queue<WarmupRequest>();
+    private static WarmupBatch _activeScopedBatch;
+    // Never expose a mass join's uncached avatars in one frame: each could independently trigger a
+    // large first-draw compile. Cached content is still released as a batch after async warm-up.
+    public static int MaxColdRevealsPerFrame = 1;
+
+    /// <summary>
+    /// Copies cached graphics states for the shaders used by <paramref name="renderers"/> into a
+    /// short-lived collection and warms all of them asynchronously. Reloading the user cache here
+    /// is intentional: AssetBundle shaders are resident now, whereas the boot-time load can leave
+    /// their serialized shader references unresolved.
+    /// </summary>
+    public static WarmupRequest ScheduleResident(IList<Renderer> renderers, string label)
+    {
+        if (!Enabled || renderers == null || renderers.Count == 0)
+        {
+            return new WarmupRequest(null, null, label, true);
+        }
+        EnsureInitialized();
+        if (!_supported)
+        {
+            return new WarmupRequest(null, null, label, true);
+        }
+
+        HashSet<Shader> shaders = CollectShaders(renderers);
+        shaders.RemoveWhere(shader => shader == null || _scopedWarmedShaderIds.Contains(shader.GetEntityId()));
+        if (shaders.Count == 0)
+        {
+            return new WarmupRequest(null, null, label, true);
+        }
+
+        WarmupRequest request = new WarmupRequest(shaders, renderers, label, false);
+        _pendingScopedWarmups.Add(request);
+        return request;
+    }
+
+    private static bool PumpScopedWarmups(bool completeSynchronously)
+    {
+        int coldBudget = completeSynchronously ? int.MaxValue : System.Math.Max(1, MaxColdRevealsPerFrame);
+        while (coldBudget-- > 0 && _coldRevealQueue.Count > 0)
+        {
+            WarmupRequest cold = _coldRevealQueue.Dequeue();
+            WarmColdShaders(cold);
+            cold.Completed = true;
+        }
+
+        if (_activeScopedBatch != null)
+        {
+            if (!completeSynchronously && !_activeScopedBatch.Handle.IsCompleted)
+            {
+                return true;
+            }
+            _activeScopedBatch.Handle.Complete();
+            for (int i = 0; i < _activeScopedBatch.Requests.Count; i++)
+            {
+                CompleteOrThrottleCold(_activeScopedBatch.Requests[i], _activeScopedBatch.MatchedShaders, completeSynchronously);
+            }
+            foreach (Shader shader in _activeScopedBatch.MatchedShaders)
+            {
+                if (shader != null) _scopedWarmedShaderIds.Add(shader.GetEntityId());
+            }
+            Object.Destroy(_activeScopedBatch.Collection);
+            _activeScopedBatch = null;
+        }
+
+        if (_pendingScopedWarmups.Count == 0)
+        {
+            return false;
+        }
+
+        WarmupBatch batch = new WarmupBatch();
+        HashSet<Shader> shaders = new HashSet<Shader>();
+        for (int i = 0; i < _pendingScopedWarmups.Count; i++)
+        {
+            WarmupRequest request = _pendingScopedWarmups[i];
+            request.Shaders.RemoveWhere(shader => shader == null || _scopedWarmedShaderIds.Contains(shader.GetEntityId()));
+            if (request.Shaders.Count == 0)
+            {
+                request.Completed = true;
+                continue;
+            }
+            batch.Requests.Add(request);
+            shaders.UnionWith(request.Shaders);
+        }
+        _pendingScopedWarmups.Clear();
+
+        if (batch.Requests.Count == 0)
+        {
+            return false;
+        }
+
+        GraphicsStateCollection residentUserCache = null;
+        try
+        {
+            batch.Collection = new GraphicsStateCollection();
+            CopyMatchingStates(_seed, batch.Collection, shaders, batch.MatchedShaders);
+            if (_filePath != null && System.IO.File.Exists(_filePath))
+            {
+                // One reload per coalesced batch, after its AssetBundle shaders are resident.
+                residentUserCache = LoadCollection(true);
+                CopyMatchingStates(residentUserCache, batch.Collection, shaders, batch.MatchedShaders);
+            }
+            else
+            {
+                CopyMatchingStates(_warm, batch.Collection, shaders, batch.MatchedShaders);
+            }
+
+            if (batch.Collection.totalGraphicsStateCount == 0)
+            {
+                // This is first-seen content, not a failure. Let one cold draw trace the real PSO;
+                // later loads can use it after the trace has been persisted.
+                Object.Destroy(batch.Collection);
+                for (int i = 0; i < batch.Requests.Count; i++)
+                {
+                    CompleteOrThrottleCold(batch.Requests[i], batch.MatchedShaders, completeSynchronously);
+                }
+                return false;
+            }
+
+            batch.Handle = batch.Collection.WarmUp(default);
+            _activeScopedBatch = batch;
+            if (VerboseWarmupLogging)
+            {
+                BasisDebug.Log($"BasisGraphicsStatePrewarm: coalesced {batch.Requests.Count} load(s), {shaders.Count} shader(s), and {batch.Collection.totalGraphicsStateCount} graphics state(s)", BasisDebug.LogTag.Event);
+            }
+            if (completeSynchronously)
+            {
+                return PumpScopedWarmups(true);
+            }
+            return true;
+        }
+        catch (System.Exception e)
+        {
+            if (batch.Collection != null) Object.Destroy(batch.Collection);
+            for (int i = 0; i < batch.Requests.Count; i++) batch.Requests[i].Completed = true;
+            BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: coalesced warm-up failed ({e.Message})", BasisDebug.LogTag.Event);
+            return false;
+        }
+        finally
+        {
+            if (residentUserCache != null) Object.Destroy(residentUserCache);
+        }
+    }
+
+    private static void CompleteScopedWarmupsSynchronously()
+    {
+        while (PumpScopedWarmups(true))
+        {
+        }
+    }
+
+    private static void ReleaseScopedWarmupWaiters()
+    {
+        if (_activeScopedBatch != null)
+        {
+            _activeScopedBatch.Handle.Complete();
+            for (int i = 0; i < _activeScopedBatch.Requests.Count; i++)
+            {
+                _activeScopedBatch.Requests[i].Completed = true;
+            }
+            Object.Destroy(_activeScopedBatch.Collection);
+            _activeScopedBatch = null;
+        }
+        for (int i = 0; i < _pendingScopedWarmups.Count; i++)
+        {
+            _pendingScopedWarmups[i].Completed = true;
+        }
+        _pendingScopedWarmups.Clear();
+        while (_coldRevealQueue.Count > 0)
+        {
+            _coldRevealQueue.Dequeue().Completed = true;
+        }
+    }
+
+    private static void CompleteOrThrottleCold(WarmupRequest request, HashSet<Shader> matchedShaders, bool completeSynchronously)
+    {
+        bool hasColdShader = false;
+        foreach (Shader shader in request.Shaders)
+        {
+            if (shader != null && !matchedShaders.Contains(shader))
+            {
+                hasColdShader = true;
+                break;
+            }
+        }
+
+        if (!hasColdShader || completeSynchronously)
+        {
+            if (hasColdShader)
+            {
+                WarmColdShaders(request);
+            }
+            request.Completed = true;
+        }
+        else
+        {
+            _coldRevealQueue.Enqueue(request);
+        }
+    }
+
+    private static void WarmColdShaders(WarmupRequest request)
+    {
+        // ShaderVariantCollection has no asynchronous API. Running it here keeps the object hidden
+        // and, critically, serializes never-seen UGC so a mass join cannot make many compilers peak
+        // memory at once. The remaining first-draw graphics state is then captured by the trace.
+        try
+        {
+            BasisShaderPrewarm.Warm(request.Renderers, request.Label);
+        }
+        catch (System.Exception e)
+        {
+            BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: cold shader warm '{request.Label}' failed ({e.Message})", BasisDebug.LogTag.Event);
+        }
+    }
+
+    public static bool VerboseWarmupLogging = false;
+
+    private static HashSet<Shader> CollectShaders(IList<Renderer> renderers)
+    {
+        HashSet<Shader> shaders = new HashSet<Shader>();
+        for (int i = 0; i < renderers.Count; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null) continue;
+            Material[] materials = renderer.sharedMaterials;
+            for (int j = 0; j < materials.Length; j++)
+            {
+                Material material = materials[j];
+                if (material != null && material.shader != null)
+                {
+                    shaders.Add(material.shader);
+                }
+            }
+        }
+        return shaders;
+    }
+
+    private static void CopyMatchingStates(GraphicsStateCollection source, GraphicsStateCollection destination, HashSet<Shader> shaders, HashSet<Shader> matchedShaders)
+    {
+        if (source == null || source.variantCount == 0)
+        {
+            return;
+        }
+
+        List<GraphicsStateCollection.ShaderVariant> variants = new List<GraphicsStateCollection.ShaderVariant>();
+        List<GraphicsStateCollection.GraphicsState> states = new List<GraphicsStateCollection.GraphicsState>();
+        source.GetVariants(variants);
+        for (int i = 0; i < variants.Count; i++)
+        {
+            GraphicsStateCollection.ShaderVariant variant = variants[i];
+            if (variant.shader == null || !shaders.Contains(variant.shader))
+            {
+                continue;
+            }
+
+            states.Clear();
+            source.GetGraphicsStatesForVariant(variant, states);
+            if (states.Count == 0)
+            {
+                continue;
+            }
+            destination.AddVariant(variant.shader, variant.passId, variant.keywords);
+            matchedShaders.Add(variant.shader);
+            for (int stateIndex = 0; stateIndex < states.Count; stateIndex++)
+            {
+                destination.AddGraphicsStateForVariant(variant, states[stateIndex]);
+            }
+        }
+    }
+
     public static void Pump()
     {
         if (!Enabled)
@@ -254,7 +583,11 @@ public static class BasisGraphicsStatePrewarm
         {
             return;
         }
-        Drain(MaxWarmupPerPump, null);
+        bool scopedBusy = PumpScopedWarmups(false);
+        if (!scopedBusy)
+        {
+            Drain(MaxWarmupPerPump, null);
+        }
         MaybeFlush();
     }
 

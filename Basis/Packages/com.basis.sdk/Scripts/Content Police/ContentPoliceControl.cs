@@ -17,9 +17,6 @@ public static class ContentPoliceControl
     public static bool ShaderBlocklistEnabled = false;
     public static bool VerboseLogging = false;
 
-    // Reused renderer buffer for the no-content-removal path when no harvest is
-    // supplied. Main-thread only; consumed synchronously by prewarm/correction.
-    private static readonly List<Renderer> NoRemovalRendererScratch = new List<Renderer>(64);
     private static readonly List<Component> UnapprovedRemovalScratch = new List<Component>(16);
     private const string MediaPlayerStreamingAssemblyQualifiedTypeName = "BasisMediaPlayerStreaming, BasisMediaPlayer";
     private const string MediaPlayerStreamingTypeName = "BasisMediaPlayerStreaming";
@@ -118,7 +115,10 @@ public static class ContentPoliceControl
     public static GameObject ContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null,int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null)
     {
         ContentControlState state = BeginContentControl(DisabledGameobject, SearchAndDestroy, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, colliderlayer, HarvestedHeadChop, harvest);
-        return FinishContentControl(state);
+        GameObject result = PrepareContentControl(state, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
+        warmup.CompleteAndDispose();
+        ActivateContentControl(state, result);
+        return result;
     }
 
     // Phase one of the content walk: the atomic GameObject.Instantiate (the single largest cost,
@@ -174,6 +174,9 @@ public static class ContentPoliceControl
             {
                 SearchAndDestroy = GameObject.Instantiate(SearchAndDestroy, Position, Rotation, Parent);
             }
+            // Do not let the first visible frame race the scoped DX12 PSO warm-up. This also keeps
+            // the no-removal path consistent with the inactive-host path used above.
+            SearchAndDestroy.SetActive(false);
             // Avatar/prop media streaming must not auto-start from authored data. This path skips
             // the normal component-removal walk, so apply the content-specific rewrite explicitly
             // immediately after Instantiate; Unity Start has not run yet.
@@ -191,7 +194,7 @@ public static class ContentPoliceControl
             }
             else
             {
-                rawRenderers = NoRemovalRendererScratch;
+                rawRenderers = new List<Renderer>(64);
             }
             SearchAndDestroy.GetComponentsInChildren(true, rawRenderers);
             bool blockShaders = ShaderBlocklistEnabled && BasisShaderFallback.HasBlocklist;
@@ -199,13 +202,13 @@ public static class ContentPoliceControl
             {
                 BasisShaderFallback.MaterialCorrection(rawRenderers, BundledContentHolder.Instance.UrpShader, MaterialCorrectionEnabled, blockShaders);
             }
-            if (ShaderPrewarmEnabled)
+            if (ShaderPrewarmEnabled && !(BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits()))
             {
                 BasisShaderPrewarm.Warm(rawRenderers, SearchAndDestroy.name);
             }
-            BasisGraphicsStatePrewarm.WarmResident(SearchAndDestroy.name);
             state.Clone = SearchAndDestroy;
             state.Harvest = harvest;
+            state.RenderersForPrewarm = rawRenderers;
         }
         return state;
     }
@@ -214,7 +217,17 @@ public static class ContentPoliceControl
     // final reparent + SetActive. Every security strip still completes before the clone goes active.
     public static GameObject FinishContentControl(ContentControlState state)
     {
+        GameObject result = PrepareContentControl(state, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
+        warmup.CompleteAndDispose();
+        ActivateContentControl(state, result);
+        return result;
+    }
+
+    /// <summary>Scrubs content and schedules cached PSOs, but deliberately leaves it inactive.</summary>
+    public static GameObject PrepareContentControl(ContentControlState state, out BasisGraphicsStatePrewarm.WarmupRequest warmup)
+    {
         GameObject SearchAndDestroy = state.Clone;
+        warmup = null;
         if (state.RemovalWalkPending)
         {
             // The clone is parked under the inactive host; if the load was torn down during the
@@ -410,11 +423,11 @@ public static class ContentPoliceControl
 
                 // Compile shader variants for everything we just walked before we set the clone
                 // active, so the first frame it's visible doesn't stall on a hitch.
-                if (ShaderPrewarmEnabled)
+                if (ShaderPrewarmEnabled && !(BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits()))
                 {
                     BasisShaderPrewarm.Warm(renderersForPrewarm, SearchAndDestroy.name);
                 }
-                BasisGraphicsStatePrewarm.WarmResident(SearchAndDestroy.name);
+                warmup = BasisGraphicsStatePrewarm.ScheduleResident(renderersForPrewarm, SearchAndDestroy.name);
 
                 // Persistent UnityEvent listeners are the second attack surface:
                 // a Button.onClick wired in the editor to Application.OpenURL /
@@ -430,20 +443,32 @@ public static class ContentPoliceControl
                 if (Parent == null)
                 {
                     SearchAndDestroy.transform.parent = null;
-                    SearchAndDestroy.SetActive(true);
                 }
                 else
                 {
                     SearchAndDestroy.transform.parent = Parent;
-                    SearchAndDestroy.SetActive(true);
                 }
             }
         }
+        else if (SearchAndDestroy != null)
+        {
+            warmup = BasisGraphicsStatePrewarm.ScheduleResident(state.RenderersForPrewarm, SearchAndDestroy.name);
+        }
+        warmup ??= BasisGraphicsStatePrewarm.ScheduleResident(null, SearchAndDestroy != null ? SearchAndDestroy.name : "destroyed content");
         if (state.Harvest != null && SearchAndDestroy != null && SearchAndDestroy.TryGetComponent(out BasisContentBase contentBase))
         {
             contentBase.Harvest = state.Harvest;
         }
         return SearchAndDestroy;
+    }
+
+    /// <summary>Reveals a fully scrubbed content root atomically after its PSO request completes.</summary>
+    public static void ActivateContentControl(ContentControlState state, GameObject content)
+    {
+        if (content != null)
+        {
+            content.SetActive(true);
+        }
     }
 
     private static void DestroyUnapprovedComponents()
@@ -472,26 +497,27 @@ public static class ContentPoliceControl
         public int ColliderLayer;
         public List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop;
         public BasisContentHarvest Harvest;
+        public List<Renderer> RenderersForPrewarm;
     }
     /// <summary>
     /// Scrubs a scene by removing any unapproved MonoBehaviours and applying optional safety checks.
     /// </summary>
-    public static void ContentControl(ChecksRequired checks, BundledContentHolder.Selector selector, Scene targetScene, bool includeInactive = true)
+    public static BasisGraphicsStatePrewarm.WarmupRequest ContentControl(ChecksRequired checks, BundledContentHolder.Selector selector, Scene targetScene, bool includeInactive = true)
     {
         if (!checks.UseContentRemoval)
         {
-            return;
+            return BasisGraphicsStatePrewarm.ScheduleResident(null, targetScene.name);
         }
 
         if (!BundledContentHolder.Instance.GetSelector(selector, out ContentPoliceSelector policeCheck))
         {
             BasisDebug.LogError("Can't find Police check for " + selector, BasisDebug.LogTag.Event);
-            return;
+            return BasisGraphicsStatePrewarm.ScheduleResident(null, targetScene.name);
         }
         if (!targetScene.IsValid() || !targetScene.isLoaded)
         {
             BasisDebug.LogError("Target scene is not valid or not loaded.");
-            return;
+            return BasisGraphicsStatePrewarm.ScheduleResident(null, targetScene.name);
         }
 
         List<GameObject> roots = new List<GameObject>();
@@ -612,11 +638,11 @@ public static class ContentPoliceControl
         }
 
         // Warm shaders for every renderer we just collected. One call per scene scrub.
-        if (ShaderPrewarmEnabled)
+        if (ShaderPrewarmEnabled && !(BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits()))
         {
             BasisShaderPrewarm.Warm(renderersForPrewarm, targetScene.name);
         }
-        BasisGraphicsStatePrewarm.WarmResident(targetScene.name);
+        return BasisGraphicsStatePrewarm.ScheduleResident(renderersForPrewarm, targetScene.name);
     }
 
     // ------------------------------------------------------------------

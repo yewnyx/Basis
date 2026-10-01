@@ -5,7 +5,7 @@ namespace Basis.Scripts.Rendering
     /// <summary>
     /// Formerly staggered a freshly-installed avatar's Renderers back on a few per frame (skinned
     /// "body" renderers first, plain "accessory" renderers after) to spread the explicit-PSO
-    /// backends' (D3D12/Vulkan/Metal) synchronous first-draw Pipeline State Object creation cost
+    /// backends' (D3D12/Vulkan) synchronous first-draw Pipeline State Object creation cost
     /// across several frames instead of one hitch.
     ///
     /// <b>DISABLED 2026-08-30 — safety regression, not a perf tuning knob.</b> The reveal order was
