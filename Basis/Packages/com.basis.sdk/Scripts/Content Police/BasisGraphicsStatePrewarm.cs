@@ -323,17 +323,13 @@ public static class BasisGraphicsStatePrewarm
         public GraphicsStateCollection Collection;
         public JobHandle Handle;
         public readonly List<WarmupRequest> Requests = new List<WarmupRequest>();
-        public readonly HashSet<Shader> MatchedShaders = new HashSet<Shader>();
     }
 
-    // Requests arriving during a frame are coalesced into one shader set and one warm-up job. A
-    // single active batch bounds driver-side pipeline creation pressure.
+    // Requests arriving during a frame are coalesced into one shader set and one warm-up job.
+    // Completed batches release all of their content together; later batches start immediately
+    // instead of waiting behind earlier PSO work.
     private static readonly List<WarmupRequest> _pendingScopedWarmups = new List<WarmupRequest>();
-    private static readonly Queue<WarmupRequest> _coldRevealQueue = new Queue<WarmupRequest>();
-    private static WarmupBatch _activeScopedBatch;
-    // Never expose a mass join's uncached avatars in one frame: each could independently trigger a
-    // large first-draw compile. Cached content is still released as a batch after async warm-up.
-    public static int MaxColdRevealsPerFrame = 1;
+    private static readonly List<WarmupBatch> _activeScopedBatches = new List<WarmupBatch>();
 
     /// <summary>
     /// Copies cached graphics states for the shaders used by <paramref name="renderers"/> into a
@@ -366,31 +362,25 @@ public static class BasisGraphicsStatePrewarm
 
     private static bool PumpScopedWarmups(bool completeSynchronously)
     {
-        int coldBudget = completeSynchronously ? int.MaxValue : System.Math.Max(1, MaxColdRevealsPerFrame);
-        while (coldBudget-- > 0 && _coldRevealQueue.Count > 0)
+        for (int batchIndex = _activeScopedBatches.Count - 1; batchIndex >= 0; batchIndex--)
         {
-            WarmupRequest cold = _coldRevealQueue.Dequeue();
-            cold.Completed = true;
-        }
-
-        if (_activeScopedBatch != null)
-        {
-            if (!completeSynchronously && !_activeScopedBatch.Handle.IsCompleted)
+            WarmupBatch activeBatch = _activeScopedBatches[batchIndex];
+            if (!completeSynchronously && !activeBatch.Handle.IsCompleted)
             {
-                return true;
+                continue;
             }
-            _activeScopedBatch.Handle.Complete();
-            for (int i = 0; i < _activeScopedBatch.Requests.Count; i++)
+            activeBatch.Handle.Complete();
+            for (int i = 0; i < activeBatch.Requests.Count; i++)
             {
-                CompleteOrThrottleCold(_activeScopedBatch.Requests[i], _activeScopedBatch.MatchedShaders, completeSynchronously);
+                activeBatch.Requests[i].Completed = true;
             }
-            Object.Destroy(_activeScopedBatch.Collection);
-            _activeScopedBatch = null;
+            Object.Destroy(activeBatch.Collection);
+            _activeScopedBatches.RemoveAt(batchIndex);
         }
 
         if (_pendingScopedWarmups.Count == 0)
         {
-            return false;
+            return _activeScopedBatches.Count != 0;
         }
 
         WarmupBatch batch = new WarmupBatch();
@@ -422,25 +412,23 @@ public static class BasisGraphicsStatePrewarm
             {
                 GraphicsStateCollection contentCollection = batch.Requests[i].ContentCollection;
                 if (contentCollection != null && copiedContentCollections.Add(contentCollection))
-                    CopyMatchingStates(contentCollection, batch.Collection, shaders, batch.MatchedShaders);
+                    CopyMatchingStates(contentCollection, batch.Collection, shaders);
             }
-            CopyMatchingStates(_seed, batch.Collection, shaders, batch.MatchedShaders);
-            CopyMatchingStates(_warm, batch.Collection, shaders, batch.MatchedShaders);
+            CopyMatchingStates(_seed, batch.Collection, shaders);
+            CopyMatchingStates(_warm, batch.Collection, shaders);
 
             if (batch.Collection.totalGraphicsStateCount == 0)
             {
-                // This is first-seen content, not a failure. Let one cold draw trace the real PSO;
-                // later loads can use it after the trace has been persisted.
                 Object.Destroy(batch.Collection);
                 for (int i = 0; i < batch.Requests.Count; i++)
                 {
-                    CompleteOrThrottleCold(batch.Requests[i], batch.MatchedShaders, completeSynchronously);
+                    batch.Requests[i].Completed = true;
                 }
                 return false;
             }
 
             batch.Handle = batch.Collection.WarmUp(default);
-            _activeScopedBatch = batch;
+            _activeScopedBatches.Add(batch);
             if (VerboseWarmupLogging)
             {
                 BasisDebug.Log($"BasisGraphicsStatePrewarm: coalesced {batch.Requests.Count} load(s), {shaders.Count} shader(s), and {batch.Collection.totalGraphicsStateCount} graphics state(s)", BasisDebug.LogTag.Event);
@@ -469,47 +457,22 @@ public static class BasisGraphicsStatePrewarm
 
     private static void ReleaseScopedWarmupWaiters()
     {
-        if (_activeScopedBatch != null)
+        for (int batchIndex = 0; batchIndex < _activeScopedBatches.Count; batchIndex++)
         {
-            _activeScopedBatch.Handle.Complete();
-            for (int i = 0; i < _activeScopedBatch.Requests.Count; i++)
+            WarmupBatch activeBatch = _activeScopedBatches[batchIndex];
+            activeBatch.Handle.Complete();
+            for (int i = 0; i < activeBatch.Requests.Count; i++)
             {
-                _activeScopedBatch.Requests[i].Completed = true;
+                activeBatch.Requests[i].Completed = true;
             }
-            Object.Destroy(_activeScopedBatch.Collection);
-            _activeScopedBatch = null;
+            Object.Destroy(activeBatch.Collection);
         }
+        _activeScopedBatches.Clear();
         for (int i = 0; i < _pendingScopedWarmups.Count; i++)
         {
             _pendingScopedWarmups[i].Completed = true;
         }
         _pendingScopedWarmups.Clear();
-        while (_coldRevealQueue.Count > 0)
-        {
-            _coldRevealQueue.Dequeue().Completed = true;
-        }
-    }
-
-    private static void CompleteOrThrottleCold(WarmupRequest request, HashSet<Shader> matchedShaders, bool completeSynchronously)
-    {
-        bool hasColdShader = false;
-        foreach (Shader shader in request.Shaders)
-        {
-            if (shader != null && !matchedShaders.Contains(shader))
-            {
-                hasColdShader = true;
-                break;
-            }
-        }
-
-        if (!hasColdShader || completeSynchronously)
-        {
-            request.Completed = true;
-        }
-        else
-        {
-            _coldRevealQueue.Enqueue(request);
-        }
     }
 
     public static bool VerboseWarmupLogging = false;
@@ -534,7 +497,7 @@ public static class BasisGraphicsStatePrewarm
         return shaders;
     }
 
-    private static void CopyMatchingStates(GraphicsStateCollection source, GraphicsStateCollection destination, HashSet<Shader> shaders, HashSet<Shader> matchedShaders)
+    private static void CopyMatchingStates(GraphicsStateCollection source, GraphicsStateCollection destination, HashSet<Shader> shaders)
     {
         if (source == null || source.variantCount == 0)
         {
@@ -559,7 +522,6 @@ public static class BasisGraphicsStatePrewarm
                 continue;
             }
             destination.AddVariant(variant.shader, variant.passId, variant.keywords);
-            matchedShaders.Add(variant.shader);
             for (int stateIndex = 0; stateIndex < states.Count; stateIndex++)
             {
                 destination.AddGraphicsStateForVariant(variant, states[stateIndex]);
