@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 using static BundledContentHolder;
 public static class BasisBundleLoadAsset
 {
-    public static async Task<GameObject> LoadFromWrapper(GameObject DisabledGameobject,BasisTrackedBundleWrapper BasisLoadableBundle, bool UseContentRemoval, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, Selector Selector, Transform Parent = null, bool DestroyColliders = false,bool ChangeColidersToCorrectLayer = false, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null)
+    public static async Task<GameObject> LoadFromWrapper(GameObject DisabledGameobject, BasisTrackedBundleWrapper BasisLoadableBundle, bool UseContentRemoval, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, Selector Selector, Transform Parent = null, bool DestroyColliders = false, bool ChangeColidersToCorrectLayer = false, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null)
     {
         if (BasisLoadableBundle.AssetBundle != null || BasisLoadableBundle.HasGltfTemplate)
         {
@@ -34,6 +34,9 @@ public static class BasisBundleLoadAsset
                                 await BasisLoadableBundle.AssetBundle.UnloadAsync(true);
                                 return null;
                             }
+                            List<Renderer> legacyRenderers = new List<Renderer>();
+                            loadedObject.GetComponentsInChildren(true, legacyRenderers);
+                            BasisLegacyMaterialCompatibility.UpgradeEmission(legacyRenderers, BasisLoadableBundle.BuiltWithUnityVersion);
                             // GraphicsStateCollection resolves Shader references at load time, so
                             // parse the sidecar only after this prefab and its shaders are resident.
                             await BasisLoadableBundle.EnsureEmbeddedGraphicsStatesLoaded();
@@ -86,6 +89,15 @@ public static class BasisBundleLoadAsset
         // by keeping rendering gated until their embedded graphics states finish warming.
         ContentPoliceControl.ContentControlState scrubState = ContentPoliceControl.BeginContentControl(DisabledGameobject, loadedObject, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, LayerMask.NameToLayer("IgnoredByInteractable"), HarvestedHeadChop, harvest, BasisLoadableBundle.EmbeddedGraphicsStates);
         GameObject CreatedCopy = ContentPoliceControl.PrepareContentControl(scrubState, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
+        if (CreatedCopy != null)
+        {
+            List<Renderer> createdRenderers = new List<Renderer>();
+            CreatedCopy.GetComponentsInChildren(true, createdRenderers);
+            // Content control can clone or replace materials, so normalize the final runtime
+            // materials too. The serialized flags themselves are the authoritative legacy signal;
+            // this also handles old materials repacked by a newer Unity editor.
+            BasisLegacyMaterialCompatibility.UpgradeEmission(createdRenderers, BasisLoadableBundle.BuiltWithUnityVersion);
+        }
         while (!warmup.IsCompleted)
         {
             await Task.Yield();
@@ -112,6 +124,13 @@ public static class BasisBundleLoadAsset
     {
         string UniqueID = BasisGenerateUniqueID.GenerateUniqueID();
         bool AssignedIncrement = false;
+        HashSet<EntityId> renderersPresentBeforeLoad = new HashSet<EntityId>();
+        Renderer[] existingRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
+        for (int i = 0; i < existingRenderers.Length; i++)
+        {
+            renderersPresentBeforeLoad.Add(existingRenderers[i].GetEntityId());
+        }
+
         string[] scenePaths = bundle.AssetBundle.GetAllScenePaths();
         if (scenePaths.Length == 0)
         {
@@ -126,116 +145,173 @@ public static class BasisBundleLoadAsset
 
         if (!string.IsNullOrEmpty(scenePaths[0]))
         {
-                string scenePath = scenePaths[0];
-                string sceneName = System.IO.Path.GetFileNameWithoutExtension(scenePath);
-                List<GameObject> roots = null;
-                List<Renderer> gatedRenderers = null;
-                bool[] previousForceRenderingOff = null;
+            string scenePath = scenePaths[0];
+            string sceneName = System.IO.Path.GetFileNameWithoutExtension(scenePath);
+            List<GameObject> roots = null;
+            List<Renderer> gatedRenderers = null;
+            bool[] previousForceRenderingOff = null;
 
-                // sceneLoaded runs before Start and before the first rendered frame. Gate only the
-                // renderers: disabling whole roots also disables terrain/ground colliders, allowing
-                // the player to fall below the world while PSOs warm.
-                void GateSceneRenderers(Scene scene)
+            // sceneLoaded runs before Start and before the first rendered frame. Gate only the
+            // renderers: disabling whole roots also disables terrain/ground colliders, allowing
+            // the player to fall below the world while PSOs warm.
+            void GateSceneRenderers(Scene scene)
+            {
+                roots = new List<GameObject>();
+                scene.GetRootGameObjects(roots);
+                gatedRenderers = new List<Renderer>();
+                int RootCounts = roots.Count;
+                for (int Index = 0; Index < RootCounts; Index++)
                 {
-                    roots = new List<GameObject>();
-                    scene.GetRootGameObjects(roots);
-                    gatedRenderers = new List<Renderer>();
-                    for (int i = 0; i < roots.Count; i++)
-                        roots[i].GetComponentsInChildren(true, gatedRenderers);
-                    previousForceRenderingOff = new bool[gatedRenderers.Count];
-                    for (int i = 0; i < gatedRenderers.Count; i++)
+                    roots[Index].GetComponentsInChildren(true, gatedRenderers);
+                }
+
+                previousForceRenderingOff = new bool[gatedRenderers.Count];
+                for (int i = 0; i < gatedRenderers.Count; i++)
+                {
+                    Renderer renderer = gatedRenderers[i];
+                    if (renderer == null)
                     {
-                        Renderer renderer = gatedRenderers[i];
-                        if (renderer == null) continue;
-                        previousForceRenderingOff[i] = renderer.forceRenderingOff;
-                        renderer.forceRenderingOff = true;
+                        continue;
                     }
-                }
 
-                void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+                    previousForceRenderingOff[i] = renderer.forceRenderingOff;
+                    renderer.forceRenderingOff = true;
+                }
+            }
+
+            void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+            {
+                if (string.Equals(scene.path, scenePath, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (string.Equals(scene.path, scenePath, StringComparison.OrdinalIgnoreCase))
-                        GateSceneRenderers(scene);
+                    GateSceneRenderers(scene);
                 }
+            }
 
-                void RestoreSceneRenderers()
+            void RestoreSceneRenderers()
+            {
+                if (gatedRenderers == null || previousForceRenderingOff == null)
                 {
-                    if (gatedRenderers == null || previousForceRenderingOff == null) return;
-                    for (int i = 0; i < gatedRenderers.Count; i++)
-                    {
-                        Renderer renderer = gatedRenderers[i];
-                        if (renderer != null) renderer.forceRenderingOff = previousForceRenderingOff[i];
-                    }
+                    return;
+                }
+                int GatedRendersCount = gatedRenderers.Count;
+                for (int Index = 0; Index < GatedRendersCount; Index++)
+                {
+                    Renderer renderer = gatedRenderers[Index];
+                    if (renderer != null) renderer.forceRenderingOff = previousForceRenderingOff[Index];
+                }
+            }
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            try
+            {
+                AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Additive);
+                if (asyncLoad == null)
+                {
+                    BasisDebug.LogError("Failed to start loading scene " + scenePath);
+                    return new Scene();
+                }
+                while (!asyncLoad.isDone)
+                {
+                    progressCallback.ReportProgress(UniqueID, Mathf.Min(asyncLoad.progress, 0.99f) * 100, $"Activating scene {sceneName}");
+                    await Task.Yield();
+                }
+            }
+            finally
+            {
+                SceneManager.sceneLoaded -= OnSceneLoaded;
+            }
+
+            BasisDebug.Log("Scene loaded successfully from AssetBundle.");
+            Scene loadedScene = SceneManager.GetSceneByPath(scenePath);
+            bundle.MetaLink = loadedScene.path;
+            if (loadedScene.IsValid())
+            {
+                // Defensive fallback if Unity did not deliver sceneLoaded for this path.
+                if (roots == null)
+                {
+                    GateSceneRenderers(loadedScene);
                 }
 
-                SceneManager.sceneLoaded += OnSceneLoaded;
+                BasisLegacyMaterialCompatibility.UpgradeEmission(gatedRenderers, bundle.BuiltWithUnityVersion);
+
+                ChecksRequired ChecksRequired = new ChecksRequired
+                {
+                    UseContentRemoval = true,
+                    ScrubPersistentUnityEvents = true
+                };
+                // Scene shaders become resident as part of additive scene load. Loading the
+                // collection here lets Unity resolve them before we select and warm its PSOs.
                 try
                 {
-                    AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Additive);
-                    if (asyncLoad == null)
+                    await bundle.EnsureEmbeddedGraphicsStatesLoaded(progressCallback);
+                    BasisGraphicsStatePrewarm.WarmupRequest warmup = ContentPoliceControl.ContentControl(
+                        ChecksRequired,
+                        Selector.World,
+                        loadedScene,
+                        true,
+                        bundle.EmbeddedGraphicsStates,
+                        renderers => BasisLegacyMaterialCompatibility.UpgradeEmission(renderers, bundle.BuiltWithUnityVersion));
+                    while (!warmup.IsCompleted)
                     {
-                        BasisDebug.LogError("Failed to start loading scene " + scenePath);
-                        return new Scene();
-                    }
-                    while (!asyncLoad.isDone)
-                    {
-                        progressCallback.ReportProgress(UniqueID, Mathf.Min(asyncLoad.progress, 0.99f) * 100, $"Activating scene {sceneName}");
                         await Task.Yield();
                     }
+                    warmup.CompleteAndDispose();
+
+                    // The warmup yields frames, allowing Awake/Start to create additional
+                    // renderers after sceneLoaded. Sweep the completed scene again so those
+                    // runtime-created materials receive the same compatibility migration.
+                    List<GameObject> finalRoots = new List<GameObject>();
+                    loadedScene.GetRootGameObjects(finalRoots);
+                    List<Renderer> finalRenderers = new List<Renderer>();
+                    int FinalRootCount = finalRoots.Count;
+                    for (int RootIndex = 0; RootIndex < FinalRootCount; RootIndex++)
+                    {
+                        finalRoots[RootIndex].GetComponentsInChildren(true, finalRenderers);
+                    }
+
+                    BasisLegacyMaterialCompatibility.UpgradeEmission(finalRenderers, bundle.BuiltWithUnityVersion);
                 }
                 finally
                 {
-                    SceneManager.sceneLoaded -= OnSceneLoaded;
+                    RestoreSceneRenderers();
+                }
+                AssignedIncrement = bundle.Increment();
+                if (MakeActiveScene)
+                {
+                    SceneManager.SetActiveScene(loadedScene);
+                    BasisDebug.Log("Scene set as active: " + loadedScene.name);
                 }
 
-                BasisDebug.Log("Scene loaded successfully from AssetBundle.");
-                Scene loadedScene = SceneManager.GetSceneByPath(scenePath);
-                bundle.MetaLink = loadedScene.path;
-                if (loadedScene.IsValid())
+                // Some world systems instantiate or reparent their visual hierarchy during
+                // activation, so those renderers are absent from both sceneLoaded and the
+                // Content Police walk. Wait one frame and migrate every renderer created by
+                // this load, including ones moved into DontDestroyOnLoad.
+                await Task.Yield();
+                Renderer[] liveRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
+                List<Renderer> renderersCreatedByLoad = new List<Renderer>();
+                int LiverenderersCount = liveRenderers.Length;
+                for (int i = 0; i < LiverenderersCount; i++)
                 {
-                    // Defensive fallback if Unity did not deliver sceneLoaded for this path.
-                    if (roots == null)
+                    Renderer renderer = liveRenderers[i];
+                    if (renderer != null && !renderersPresentBeforeLoad.Contains(renderer.GetEntityId()))
                     {
-                        GateSceneRenderers(loadedScene);
+                        renderersCreatedByLoad.Add(renderer);
                     }
+                }
+                BasisLegacyMaterialCompatibility.UpgradeEmission(renderersCreatedByLoad, bundle.BuiltWithUnityVersion);
 
-                    ChecksRequired ChecksRequired = new ChecksRequired();
-                    ChecksRequired.UseContentRemoval = true;
-                    ChecksRequired.ScrubPersistentUnityEvents = true;
-                    // Scene shaders become resident as part of additive scene load. Loading the
-                    // collection here lets Unity resolve them before we select and warm its PSOs.
-                    try
-                    {
-                        await bundle.EnsureEmbeddedGraphicsStatesLoaded(progressCallback);
-                        BasisGraphicsStatePrewarm.WarmupRequest warmup = ContentPoliceControl.ContentControl(ChecksRequired, Selector.World, loadedScene, true, bundle.EmbeddedGraphicsStates);
-                        while (!warmup.IsCompleted)
-                        {
-                            await Task.Yield();
-                        }
-                        warmup.CompleteAndDispose();
-                    }
-                    finally
-                    {
-                        RestoreSceneRenderers();
-                    }
-                    AssignedIncrement = bundle.Increment();
-                    if (MakeActiveScene)
-                    {
-                        SceneManager.SetActiveScene(loadedScene);
-                        BasisDebug.Log("Scene set as active: " + loadedScene.name);
-                    }
-                    BasisDebug.Log("Scene loaded: " + loadedScene.name + " (MakeActive=" + MakeActiveScene + ", Incremented=" + AssignedIncrement + ")");
+                BasisDebug.Log("Scene loaded: " + loadedScene.name + " (MakeActive=" + MakeActiveScene + ", Incremented=" + AssignedIncrement + ")");
 #if UNITY_BUNDLEUNLOAD
                     bundle.ReleaseBundleBackingStore();
 #endif
-                    progressCallback.ReportProgress(UniqueID, 100, $"Loaded scene {sceneName}");
-                    return loadedScene;
-                }
-                else
-                {
-                    RestoreSceneRenderers();
-                    BasisDebug.LogError("Failed to get loaded scene.");
-                }
+                progressCallback.ReportProgress(UniqueID, 100, $"Loaded scene {sceneName}");
+                return loadedScene;
+            }
+            else
+            {
+                RestoreSceneRenderers();
+                BasisDebug.LogError("Failed to get loaded scene.");
+            }
         }
         else
         {

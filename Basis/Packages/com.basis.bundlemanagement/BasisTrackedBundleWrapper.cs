@@ -37,6 +37,13 @@ public class BasisTrackedBundleWrapper
     /// </summary>
     [System.NonSerialized]
     public string ObservedVersionTag;
+    /// <summary>
+    /// Unity editor version stored in the native UnityFS AssetBundle header. Populated while the
+    /// decrypted bytes are available, before Unity takes ownership of the bundle load request.
+    /// Empty for generic glTF content and malformed/legacy bundle headers.
+    /// </summary>
+    [System.NonSerialized]
+    public string BuiltWithUnityVersion;
     public bool HasGltfTemplate => GltfTemplateAvatarRoot != null;
     #if UNITY_BUNDLEUNLOAD
     [SerializeField]

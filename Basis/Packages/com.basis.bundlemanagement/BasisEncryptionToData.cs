@@ -105,7 +105,7 @@ public static class BasisEncryptionToData
         return BasisEncryptionWrapper.DecryptFromFileAsync(uniqueID, password, section.FilePath, section.Offset, section.Length, progressCallback, ct);
     }
 
-    public static async Task<AssetBundleCreateRequest> GenerateBundleFromFile(string Password, BasisBundleSection Section, uint CRC, BasisProgressReport progressCallback)
+    public static async Task<AssetBundleCreateRequest> GenerateBundleFromFile(string Password, BasisBundleSection Section, uint CRC, BasisProgressReport progressCallback, Action<string> unityVersionResolved = null)
     {
         // Define the password object for decryption
         var BasisPassword = new BasisEncryptionWrapper.BasisPassword
@@ -125,6 +125,10 @@ public static class BasisEncryptionToData
             BasisDebug.LogError($"Decrypt failed: {decrypted.Error} | {decrypted.Message}");
             return null; // <-- critical
         }
+
+        unityVersionResolved?.Invoke(TryReadUnityVersion(decrypted.Data, out string builtWithUnityVersion)
+            ? builtWithUnityVersion
+            : null);
 
         BasisDebug.Log("Attempting Asset Bundle Load...", BasisDebug.LogTag.Event);
 
@@ -155,6 +159,75 @@ public static class BasisEncryptionToData
         }
 
         return assetBundleCreateRequest;
+    }
+
+    /// <summary>
+    /// Reads the Unity editor version stored in a native AssetBundle header. Modern bundles use
+    /// UnityFS: a null-terminated signature, a big-endian format revision, then the editor version
+    /// and editor revision as null-terminated ASCII strings.
+    /// </summary>
+    public static bool TryReadUnityVersion(byte[] bundleBytes, out string unityVersion)
+    {
+        unityVersion = null;
+        if (bundleBytes == null || bundleBytes.Length < 16)
+            return false;
+
+        int offset = 0;
+        if (!TryReadNullTerminatedAscii(bundleBytes, ref offset, 16, out string signature) ||
+            !string.Equals(signature, "UnityFS", StringComparison.Ordinal))
+            return false;
+
+        // SerializedFile format version. Its value is not needed here, but it occupies four bytes.
+        if (offset > bundleBytes.Length - 4)
+            return false;
+        offset += 4;
+
+        if (!TryReadNullTerminatedAscii(bundleBytes, ref offset, 64, out string version) ||
+            !TryReadNullTerminatedAscii(bundleBytes, ref offset, 64, out string revision))
+            return false;
+
+        // Unity commonly writes the generic bundle-format marker "5.x.x" first and the
+        // concrete editor version (for example 6000.5.10f1) in the revision field.
+        if (IsConcreteUnityVersion(revision))
+            unityVersion = revision;
+        else if (IsConcreteUnityVersion(version))
+            unityVersion = version;
+        else
+            unityVersion = string.IsNullOrWhiteSpace(revision) ? version : revision;
+
+        return !string.IsNullOrWhiteSpace(unityVersion);
+    }
+
+    private static bool IsConcreteUnityVersion(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        int dot = value.IndexOf('.');
+        return dot > 0 && int.TryParse(value.Substring(0, dot), out _);
+    }
+
+    private static bool TryReadNullTerminatedAscii(byte[] bytes, ref int offset, int maxLength, out string value)
+    {
+        value = null;
+        if (offset < 0 || offset >= bytes.Length)
+            return false;
+
+        int start = offset;
+        int limit = Math.Min(bytes.Length, start + maxLength + 1);
+        while (offset < limit && bytes[offset] != 0)
+        {
+            byte c = bytes[offset];
+            if (c < 0x20 || c > 0x7E)
+                return false;
+            offset++;
+        }
+        if (offset >= limit || bytes[offset] != 0)
+            return false;
+
+        value = Encoding.ASCII.GetString(bytes, start, offset - start);
+        offset++;
+        return true;
     }
     public static async Task<BasisBundleConnector> GenerateMetaFromBytes(string password, byte[] encryptedBytes, BasisProgressReport progressCallback)
     {

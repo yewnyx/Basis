@@ -514,7 +514,13 @@ public static class ContentPoliceControl
     /// <summary>
     /// Scrubs a scene by removing any unapproved MonoBehaviours and applying optional safety checks.
     /// </summary>
-    public static BasisGraphicsStatePrewarm.WarmupRequest ContentControl(ChecksRequired checks, BundledContentHolder.Selector selector, Scene targetScene, bool includeInactive = true, GraphicsStateCollection contentGraphicsStates = null)
+    public static BasisGraphicsStatePrewarm.WarmupRequest ContentControl(
+        ChecksRequired checks,
+        BundledContentHolder.Selector selector,
+        Scene targetScene,
+        bool includeInactive = true,
+        GraphicsStateCollection contentGraphicsStates = null,
+        Action<IList<Renderer>> rendererPostprocessor = null)
     {
         if (!checks.UseContentRemoval)
         {
@@ -648,6 +654,11 @@ public static class ContentPoliceControl
         {
             BasisShaderFallback.MaterialCorrection(renderersForPrewarm, BundledContentHolder.Instance.UrpShader, MaterialCorrectionEnabled, blockShaders);
         }
+
+        // The component scrub already owns the authoritative renderer list, including renderer
+        // subclasses and objects that are replaced while the scene is sanitized. Let callers run
+        // material migrations on that exact list before shader variants are selected and warmed.
+        rendererPostprocessor?.Invoke(renderersForPrewarm);
 
         // Warm shaders for every renderer we just collected. One call per scene scrub.
         if (ShaderPrewarmEnabled && !(BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits()))
