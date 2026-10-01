@@ -6,6 +6,8 @@ using Basis.Scripts.BasisSdk;
 using Basis.Scripts.BasisSdk.Constraints;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 public static class ContentPoliceControl
@@ -112,9 +114,9 @@ public static class ContentPoliceControl
     /// <param name="Rotation">The rotation to instantiate the cleaned copy.</param>
     /// <param name="Parent">The parent transform for the instantiated copy. Defaults to null.</param>
     /// <returns>A copy of the GameObject with unapproved scripts removed.</returns>
-    public static GameObject ContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null,int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null)
+    public static GameObject ContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null,int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null, GraphicsStateCollection contentGraphicsStates = null)
     {
-        ContentControlState state = BeginContentControl(DisabledGameobject, SearchAndDestroy, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, colliderlayer, HarvestedHeadChop, harvest);
+        ContentControlState state = BeginContentControl(DisabledGameobject, SearchAndDestroy, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, colliderlayer, HarvestedHeadChop, harvest, contentGraphicsStates);
         GameObject result = PrepareContentControl(state, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
         warmup.CompleteAndDispose();
         ActivateContentControl(state, result);
@@ -126,7 +128,7 @@ public static class ContentPoliceControl
     // inactive host, so it stays dormant — no Awake/OnEnable/event fires — until FinishContentControl
     // runs the strip/scrub and activates it. That dormancy is what lets the heavy component walk run
     // on a later frame: deferring it is as safe as the original single-frame walk. Main-thread only.
-    public static ContentControlState BeginContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null, int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null)
+    public static ContentControlState BeginContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null, int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null, GraphicsStateCollection contentGraphicsStates = null)
     {
         ContentControlState state = default;
         state.Checks = ChecksRequired;
@@ -134,6 +136,7 @@ public static class ContentPoliceControl
         state.Parent = Parent;
         state.ColliderLayer = colliderlayer;
         state.HarvestedHeadChop = HarvestedHeadChop;
+        state.ContentGraphicsStates = contentGraphicsStates;
         if (ChecksRequired.UseContentRemoval)
         {
             if (DisabledGameobject == null)
@@ -228,6 +231,7 @@ public static class ContentPoliceControl
     {
         GameObject SearchAndDestroy = state.Clone;
         warmup = null;
+        IList<Renderer> renderersForVisibility = state.RenderersForPrewarm;
         if (state.RemovalWalkPending)
         {
             // The clone is parked under the inactive host; if the load was torn down during the
@@ -250,6 +254,7 @@ public static class ContentPoliceControl
                 SearchAndDestroy.GetComponentsInChildren(true, components);
                 int count = components.Count;
                 List<Renderer> renderersForPrewarm = harvest.Renderers;
+                renderersForVisibility = renderersForPrewarm;
                 List<SkinnedMeshRenderer> skinnedForHarvest = harvest.SkinnedMeshRenderers;
                 List<BasisAuthoredMotion> authoredForHarvest = harvest.AuthoredMotions;
                 List<BasisComponentKind> kinds = harvest.Kinds;
@@ -427,7 +432,7 @@ public static class ContentPoliceControl
                 {
                     BasisShaderPrewarm.Warm(renderersForPrewarm, SearchAndDestroy.name);
                 }
-                warmup = BasisGraphicsStatePrewarm.ScheduleResident(renderersForPrewarm, SearchAndDestroy.name);
+                warmup = BasisGraphicsStatePrewarm.ScheduleResident(renderersForPrewarm, SearchAndDestroy.name, state.ContentGraphicsStates);
 
                 // Persistent UnityEvent listeners are the second attack surface:
                 // a Button.onClick wired in the editor to Application.OpenURL /
@@ -452,12 +457,18 @@ public static class ContentPoliceControl
         }
         else if (SearchAndDestroy != null)
         {
-            warmup = BasisGraphicsStatePrewarm.ScheduleResident(state.RenderersForPrewarm, SearchAndDestroy.name);
+            warmup = BasisGraphicsStatePrewarm.ScheduleResident(state.RenderersForPrewarm, SearchAndDestroy.name, state.ContentGraphicsStates);
         }
         warmup ??= BasisGraphicsStatePrewarm.ScheduleResident(null, SearchAndDestroy != null ? SearchAndDestroy.name : "destroyed content");
         if (state.Harvest != null && SearchAndDestroy != null && SearchAndDestroy.TryGetComponent(out BasisContentBase contentBase))
         {
             contentBase.Harvest = state.Harvest;
+        }
+        if (SearchAndDestroy != null && state.Selector == BundledContentHolder.Selector.Avatar &&
+            BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits() &&
+            SearchAndDestroy.TryGetComponent(out BasisAvatar avatar))
+        {
+            avatar.BeginLoadVisibilityGate(renderersForVisibility);
         }
         return SearchAndDestroy;
     }
@@ -498,11 +509,12 @@ public static class ContentPoliceControl
         public List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop;
         public BasisContentHarvest Harvest;
         public List<Renderer> RenderersForPrewarm;
+        public GraphicsStateCollection ContentGraphicsStates;
     }
     /// <summary>
     /// Scrubs a scene by removing any unapproved MonoBehaviours and applying optional safety checks.
     /// </summary>
-    public static BasisGraphicsStatePrewarm.WarmupRequest ContentControl(ChecksRequired checks, BundledContentHolder.Selector selector, Scene targetScene, bool includeInactive = true)
+    public static BasisGraphicsStatePrewarm.WarmupRequest ContentControl(ChecksRequired checks, BundledContentHolder.Selector selector, Scene targetScene, bool includeInactive = true, GraphicsStateCollection contentGraphicsStates = null)
     {
         if (!checks.UseContentRemoval)
         {
@@ -642,7 +654,7 @@ public static class ContentPoliceControl
         {
             BasisShaderPrewarm.Warm(renderersForPrewarm, targetScene.name);
         }
-        return BasisGraphicsStatePrewarm.ScheduleResident(renderersForPrewarm, targetScene.name);
+        return BasisGraphicsStatePrewarm.ScheduleResident(renderersForPrewarm, targetScene.name, contentGraphicsStates);
     }
 
     // ------------------------------------------------------------------

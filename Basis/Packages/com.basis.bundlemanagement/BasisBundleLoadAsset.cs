@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Basis.Scripts.BasisSdk;
 using UnityEngine;
@@ -33,6 +35,9 @@ public static class BasisBundleLoadAsset
                                 await BasisLoadableBundle.AssetBundle.UnloadAsync(true);
                                 return null;
                             }
+                            // GraphicsStateCollection resolves Shader references at load time, so
+                            // parse the sidecar only after this prefab and its shaders are resident.
+                            await BasisLoadableBundle.EnsureEmbeddedGraphicsStatesLoaded();
                             return await InstantiateContentControlled(DisabledGameobject, BasisLoadableBundle, loadedObject, UseContentRemoval, Position, Rotation, ModifyScale, Scale, Selector, Parent, DestroyColliders, ChangeColidersToCorrectLayer, HarvestedHeadChop);
                         }
                     case BasisBundleConnector.GltfAssetMode:
@@ -68,6 +73,14 @@ public static class BasisBundleLoadAsset
 
     private static async Task<GameObject> InstantiateContentControlled(GameObject DisabledGameobject, BasisTrackedBundleWrapper BasisLoadableBundle, GameObject loadedObject, bool UseContentRemoval, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, Selector Selector, Transform Parent, bool DestroyColliders, bool ChangeColidersToCorrectLayer, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop)
     {
+        using (IDisposable admission = await BasisPsoLoadAdmission.EnterAsync())
+        {
+            return await InstantiateContentControlledCore(DisabledGameobject, BasisLoadableBundle, loadedObject, UseContentRemoval, Position, Rotation, ModifyScale, Scale, Selector, Parent, DestroyColliders, ChangeColidersToCorrectLayer, HarvestedHeadChop);
+        }
+    }
+
+    private static async Task<GameObject> InstantiateContentControlledCore(GameObject DisabledGameobject, BasisTrackedBundleWrapper BasisLoadableBundle, GameObject loadedObject, bool UseContentRemoval, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, Selector Selector, Transform Parent, bool DestroyColliders, bool ChangeColidersToCorrectLayer, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop)
+    {
         ChecksRequired ChecksRequired = new ChecksRequired();
         if (loadedObject.TryGetComponent<BasisAvatar>(out BasisAvatar BasisAvatar))
         {
@@ -85,7 +98,7 @@ public static class BasisBundleLoadAsset
         // frame. The budget gate still spreads concurrent loads across frames on top of that.
         await BasisLoadFrameBudget.WaitForBudgetAsync();
         double instantiateStart = BasisLoadFrameBudget.BeginStep();
-        ContentPoliceControl.ContentControlState scrubState = ContentPoliceControl.BeginContentControl(DisabledGameobject, loadedObject, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, LayerMask.NameToLayer("IgnoredByInteractable"), HarvestedHeadChop, harvest);
+        ContentPoliceControl.ContentControlState scrubState = ContentPoliceControl.BeginContentControl(DisabledGameobject, loadedObject, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, LayerMask.NameToLayer("IgnoredByInteractable"), HarvestedHeadChop, harvest, BasisLoadableBundle.EmbeddedGraphicsStates);
         BasisLoadFrameBudget.EndStep(instantiateStart);
         GameObject CreatedCopy;
         if (scrubState.RemovalWalkPending)
@@ -147,63 +160,106 @@ public static class BasisBundleLoadAsset
 
         if (!string.IsNullOrEmpty(scenePaths[0]))
         {
-            string sceneName = System.IO.Path.GetFileNameWithoutExtension(scenePaths[0]);
-            // Load the scene asynchronously
-            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(scenePaths[0], LoadSceneMode.Additive);
-            asyncLoad.allowSceneActivation = true;
-            while (!asyncLoad.isDone)
+            using (IDisposable admission = await BasisPsoLoadAdmission.EnterSceneAsync())
             {
-                progressCallback.ReportProgress(UniqueID, Mathf.Min(asyncLoad.progress, 0.99f) * 100, $"Activating scene {sceneName}");
-                await Task.Yield();
-            }
+                string scenePath = scenePaths[0];
+                string sceneName = System.IO.Path.GetFileNameWithoutExtension(scenePath);
+                List<GameObject> roots = null;
+                bool[] activeRoots = null;
 
-            BasisDebug.Log("Scene loaded successfully from AssetBundle.");
-            Scene loadedScene = SceneManager.GetSceneByPath(scenePaths[0]);
-            bundle.MetaLink = loadedScene.path;
-            // Set the loaded scene as the active scene
-            if (loadedScene.IsValid())
-            {
-                ChecksRequired ChecksRequired = new ChecksRequired();
-                ChecksRequired.UseContentRemoval = true;
-                ChecksRequired.ScrubPersistentUnityEvents = true;
-                List<GameObject> roots = new List<GameObject>();
-                loadedScene.GetRootGameObjects(roots);
-                bool[] activeRoots = new bool[roots.Count];
-                for (int i = 0; i < roots.Count; i++)
+                // sceneLoaded runs before Start and before the first rendered frame. Disable roots
+                // there instead of waiting for LoadSceneAsync.isDone, which is too late to ensure
+                // an uncached world never reaches the renderer.
+                void HideSceneRoots(Scene scene, LoadSceneMode mode)
                 {
-                    activeRoots[i] = roots[i].activeSelf;
-                    roots[i].SetActive(false);
-                }
-
-                BasisGraphicsStatePrewarm.WarmupRequest warmup = ContentPoliceControl.ContentControl(ChecksRequired, Selector.World, loadedScene, true);
-                while (!warmup.IsCompleted)
-                {
-                    await Task.Yield();
-                }
-                warmup.CompleteAndDispose();
-                for (int i = 0; i < roots.Count; i++)
-                {
-                    if (roots[i] != null)
+                    if (!string.Equals(scene.path, scenePath, StringComparison.OrdinalIgnoreCase))
                     {
-                        roots[i].SetActive(activeRoots[i]);
+                        return;
+                    }
+                    roots = new List<GameObject>();
+                    scene.GetRootGameObjects(roots);
+                    activeRoots = new bool[roots.Count];
+                    for (int i = 0; i < roots.Count; i++)
+                    {
+                        activeRoots[i] = roots[i].activeSelf;
+                        roots[i].SetActive(false);
                     }
                 }
-                AssignedIncrement = bundle.Increment();
-                if (MakeActiveScene)
+
+                SceneManager.sceneLoaded += HideSceneRoots;
+                try
                 {
-                    SceneManager.SetActiveScene(loadedScene);
-                    BasisDebug.Log("Scene set as active: " + loadedScene.name);
+                    AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Additive);
+                    if (asyncLoad == null)
+                    {
+                        BasisDebug.LogError("Failed to start loading scene " + scenePath);
+                        return new Scene();
+                    }
+                    while (!asyncLoad.isDone)
+                    {
+                        progressCallback.ReportProgress(UniqueID, Mathf.Min(asyncLoad.progress, 0.99f) * 100, $"Activating scene {sceneName}");
+                        await Task.Yield();
+                    }
                 }
-                BasisDebug.Log("Scene loaded: " + loadedScene.name + " (MakeActive=" + MakeActiveScene + ", Incremented=" + AssignedIncrement + ")");
+                finally
+                {
+                    SceneManager.sceneLoaded -= HideSceneRoots;
+                }
+
+                BasisDebug.Log("Scene loaded successfully from AssetBundle.");
+                Scene loadedScene = SceneManager.GetSceneByPath(scenePath);
+                bundle.MetaLink = loadedScene.path;
+                if (loadedScene.IsValid())
+                {
+                    // Defensive fallback if Unity did not deliver sceneLoaded for this path.
+                    if (roots == null)
+                    {
+                        roots = new List<GameObject>();
+                        loadedScene.GetRootGameObjects(roots);
+                        activeRoots = new bool[roots.Count];
+                        for (int i = 0; i < roots.Count; i++)
+                        {
+                            activeRoots[i] = roots[i].activeSelf;
+                            roots[i].SetActive(false);
+                        }
+                    }
+
+                    ChecksRequired ChecksRequired = new ChecksRequired();
+                    ChecksRequired.UseContentRemoval = true;
+                    ChecksRequired.ScrubPersistentUnityEvents = true;
+                    // Scene shaders become resident as part of additive scene load. Loading the
+                    // collection here lets Unity resolve them before we select and warm its PSOs.
+                    await bundle.EnsureEmbeddedGraphicsStatesLoaded(progressCallback);
+                    BasisGraphicsStatePrewarm.WarmupRequest warmup = ContentPoliceControl.ContentControl(ChecksRequired, Selector.World, loadedScene, true, bundle.EmbeddedGraphicsStates);
+                    while (!warmup.IsCompleted)
+                    {
+                        await Task.Yield();
+                    }
+                    warmup.CompleteAndDispose();
+                    for (int i = 0; i < roots.Count; i++)
+                    {
+                        if (roots[i] != null)
+                        {
+                            roots[i].SetActive(activeRoots[i]);
+                        }
+                    }
+                    AssignedIncrement = bundle.Increment();
+                    if (MakeActiveScene)
+                    {
+                        SceneManager.SetActiveScene(loadedScene);
+                        BasisDebug.Log("Scene set as active: " + loadedScene.name);
+                    }
+                    BasisDebug.Log("Scene loaded: " + loadedScene.name + " (MakeActive=" + MakeActiveScene + ", Incremented=" + AssignedIncrement + ")");
 #if UNITY_BUNDLEUNLOAD
-                bundle.ReleaseBundleBackingStore();
+                    bundle.ReleaseBundleBackingStore();
 #endif
-                progressCallback.ReportProgress(UniqueID, 100, $"Loaded scene {sceneName}");
-                return loadedScene;
-            }
-            else
-            {
-                BasisDebug.LogError("Failed to get loaded scene.");
+                    progressCallback.ReportProgress(UniqueID, 100, $"Loaded scene {sceneName}");
+                    return loadedScene;
+                }
+                else
+                {
+                    BasisDebug.LogError("Failed to get loaded scene.");
+                }
             }
         }
         else
@@ -211,6 +267,64 @@ public static class BasisBundleLoadAsset
             BasisDebug.LogError("Path was null or empty! this should not be happening!");
         }
         return new Scene();
+    }
+}
+
+// Bounds inactive instantiated content waiting for exact PSO warm-up. This is admission control,
+// not a throughput throttle: DX11 and other backends take the no-op lease, while DX12/Vulkan keep
+// a mass join from retaining thousands of fully-instantiated avatars/props/worlds at once.
+public static class BasisPsoLoadAdmission
+{
+    public const int MaxConcurrentLoads = 8;
+    private static readonly SemaphoreSlim Slots = new SemaphoreSlim(MaxConcurrentLoads, MaxConcurrentLoads);
+    private static readonly SemaphoreSlim SceneSlot = new SemaphoreSlim(1, 1);
+    private static readonly IDisposable Noop = new NoopLease();
+
+    public static async Task<IDisposable> EnterAsync()
+    {
+        if (!BasisGraphicsStatePrewarm.Enabled || !BasisGraphicsStatePrewarm.BackendBenefits())
+        {
+            return Noop;
+        }
+        await Slots.WaitAsync();
+        return new SlotLease();
+    }
+
+    public static async Task<IDisposable> EnterSceneAsync()
+    {
+        if (!BasisGraphicsStatePrewarm.Enabled || !BasisGraphicsStatePrewarm.BackendBenefits())
+        {
+            return Noop;
+        }
+        await SceneSlot.WaitAsync();
+        return new SemaphoreLease(SceneSlot);
+    }
+
+    private sealed class SlotLease : IDisposable
+    {
+        private int _released;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _released, 1) == 0)
+            {
+                Slots.Release();
+            }
+        }
+    }
+
+    private sealed class SemaphoreLease : IDisposable
+    {
+        private SemaphoreSlim _semaphore;
+        public SemaphoreLease(SemaphoreSlim semaphore) => _semaphore = semaphore;
+        public void Dispose()
+        {
+            Interlocked.Exchange(ref _semaphore, null)?.Release();
+        }
+    }
+
+    private sealed class NoopLease : IDisposable
+    {
+        public void Dispose() { }
     }
 }
 

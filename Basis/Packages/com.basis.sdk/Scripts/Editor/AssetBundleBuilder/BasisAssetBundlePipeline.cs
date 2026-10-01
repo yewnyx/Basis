@@ -71,6 +71,7 @@ public static class BasisAssetBundlePipeline
         BasisSceneBuildName sceneBuildName = null;
         string farLodBase64 = null;
         BasisBundleContentKind contentKind = ResolveContentKind(isScene, asset);
+        BasisBundleGraphicsStateBuilder.BuildInputs graphicsStateInputs = null;
 
         try
         {
@@ -91,6 +92,7 @@ public static class BasisAssetBundlePipeline
 
                 OnBeforeBuildScene?.Invoke(scene, settings);
                 meta = BasisBundleBuild.GenerateSceneMetaData(scene);
+                graphicsStateInputs = BasisBundleGraphicsStateBuilder.CollectInputs(scene);
                 sceneBuildName = BasisSceneBuildName.Assign(scene);
                 if (sceneBuildName == null)
                 {
@@ -106,6 +108,7 @@ public static class BasisAssetBundlePipeline
                 OnBeforeBuildPrefab?.Invoke(prefab, settings);
                 PostProcessAvatar(prefab);
                 meta = BasisBundleBuild.GenerateMetaData(prefab);
+                graphicsStateInputs = BasisBundleGraphicsStateBuilder.CollectInputs(prefab);
                 if (bakeFarLod && contentKind == BasisBundleContentKind.Avatar)
                 {
                     farLodBase64 = BasisBundleBuild.GenerateFarLod(prefab);
@@ -136,7 +139,9 @@ public static class BasisAssetBundlePipeline
                     isScene ? BasisBundleConnector.SceneAssetMode : BasisBundleConnector.GameObjectAssetMode,
                     Password,
                     Target,
-                    contentKind);
+                    contentKind,
+                    true,
+                    graphicsStateInputs);
 
             TemporaryStorageHandler.ClearTemporaryStorage(settings.TemporaryStorage);
             AssetDatabase.Refresh();

@@ -798,7 +798,7 @@ namespace Basis.BasisUI
         // persisted the old windows=true default actually pick up "off" instead of keeping it.
         public static BasisSettingsBinding<bool> EnableStagedAvatarReveal = new("enablestagedavatarreveal_v2", new BasisPlatformDefault<bool>(false));
         // MB, not bytes — matches AvatarDownloadSize's convention for a PanelSlider.ValueDisplayMode.MemorySize binding.
-        public static BasisSettingsBinding<float> PsoCacheSizeMb = new("psocachesizemb", new BasisPlatformDefault<float>(10240f));
+        public static BasisSettingsBinding<float> PsoCacheSizeMb = new("psocachesizemb_v2", new BasisPlatformDefault<float>(512f));
         public static BasisSettingsBinding<bool> ContentPoliceLogging = new("contentpolicelogging", new BasisPlatformDefault<bool>(false));
 
         /// <summary>

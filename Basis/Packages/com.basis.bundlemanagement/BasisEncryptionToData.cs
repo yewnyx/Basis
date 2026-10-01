@@ -1,9 +1,100 @@
 using System;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 public static class BasisEncryptionToData
 {
+    public static BasisBundleSection AssetBundlePart(BasisBundleGenerated generated, BasisBundleSection section)
+    {
+        long length = generated != null && generated.AssetBundleEndByte > 0
+            ? generated.AssetBundleEndByte
+            : section.Length;
+        return section.Slice(0, length);
+    }
+
+    public static bool TryGetEmbeddedGraphicsStatePart(
+        BasisBundleGenerated generated, BasisBundleSection section, out BasisBundleSection payloadSection)
+    {
+        payloadSection = default;
+        if (!BasisGraphicsStatePrewarm.Enabled || !BasisGraphicsStatePrewarm.BackendBenefits() ||
+            generated?.GraphicsStatePayloads == null)
+            return false;
+
+        string api = SystemInfo.graphicsDeviceType.ToString();
+        BasisGraphicsStatePayload payload = null;
+        for (int i = 0; i < generated.GraphicsStatePayloads.Length; i++)
+        {
+            BasisGraphicsStatePayload candidate = generated.GraphicsStatePayloads[i];
+            if (candidate != null &&
+                string.Equals(candidate.GraphicsAPI, api, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrEmpty(candidate.RuntimePlatform) || string.Equals(candidate.RuntimePlatform, Application.platform.ToString(), StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(candidate.QualityLevelName) || string.Equals(candidate.QualityLevelName, QualitySettings.names[QualitySettings.GetQualityLevel()], StringComparison.Ordinal)))
+            {
+                payload = candidate;
+                break;
+            }
+        }
+        if (payload == null || payload.Length <= 0) return false;
+        payloadSection = section.Slice(payload.Offset, payload.Length);
+        return true;
+    }
+
+    public static async Task<GraphicsStateCollection> LoadEmbeddedGraphicsStates(
+        string password, BasisBundleSection encryptedPayload, BasisProgressReport progressCallback)
+    {
+        if (!encryptedPayload.HasPayload) return null;
+        string api = SystemInfo.graphicsDeviceType.ToString();
+
+        string temporaryPath = null;
+        try
+        {
+            var basisPassword = new BasisEncryptionWrapper.BasisPassword { VP = password };
+            var decrypted = await DecryptSection(
+                BasisGenerateUniqueID.GenerateUniqueID(), basisPassword, encryptedPayload,
+                progressCallback ?? new BasisProgressReport());
+            if (!decrypted.Success || decrypted.Data == null || decrypted.Data.Length == 0)
+            {
+                BasisDebug.LogWarning($"BEE PSO: failed to decrypt embedded {api} states ({decrypted.Message}).");
+                return null;
+            }
+
+            temporaryPath = Path.Combine(Application.temporaryCachePath, $"basis_embedded_{Guid.NewGuid():N}.{api}.graphicsstate");
+            File.WriteAllBytes(temporaryPath, decrypted.Data);
+            GraphicsStateCollection collection = new GraphicsStateCollection();
+            if (!collection.LoadFromFile(temporaryPath))
+            {
+                UnityEngine.Object.Destroy(collection);
+                BasisDebug.LogWarning($"BEE PSO: Unity rejected the embedded {api} collection.");
+                return null;
+            }
+            string quality = QualitySettings.names[QualitySettings.GetQualityLevel()];
+            if (collection.graphicsDeviceType != SystemInfo.graphicsDeviceType ||
+                collection.runtimePlatform != Application.platform ||
+                !string.Equals(collection.qualityLevelName, quality, StringComparison.Ordinal))
+            {
+                BasisDebug.LogWarning(
+                    $"BEE PSO: embedded collection targets {collection.runtimePlatform}/{collection.graphicsDeviceType}/{collection.qualityLevelName}, " +
+                    $"current is {Application.platform}/{SystemInfo.graphicsDeviceType}/{quality}; ignored.");
+                UnityEngine.Object.Destroy(collection);
+                return null;
+            }
+            BasisDebug.Log($"BEE PSO: loaded {collection.variantCount} embedded {api} variant(s).", BasisDebug.LogTag.Event);
+            return collection;
+        }
+        catch (Exception ex)
+        {
+            BasisDebug.LogWarning($"BEE PSO: embedded collection load failed ({ex.Message}).");
+            return null;
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(temporaryPath) && File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+    }
+
     public static Task<BasisEncryptionWrapper.BasisDecryptResult> DecryptSection(string uniqueID, BasisEncryptionWrapper.BasisPassword password, BasisBundleSection section, BasisProgressReport progressCallback, System.Threading.CancellationToken ct = default)
     {
         if (section.Bytes != null)

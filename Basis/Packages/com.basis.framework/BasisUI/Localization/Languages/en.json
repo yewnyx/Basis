@@ -12044,7 +12044,7 @@
     },
     {
       "key": "settings.developer.graphicsStatePrewarm.description",
-      "value": "Trace and persist full GPU pipeline states (PSOs), then pre-create them ahead of first draw. Only does anything on DX12 and Vulkan. A seed shipped with the app covers the base game on first launch; your own traced cache covers content you have loaded before."
+      "value": "Trace and persist exact GPU pipeline states (PSOs), then asynchronously pre-create matching states ahead of first draw. Only does anything on DX12 and Vulkan. A platform-specific seed can cover the base game on first launch; your own traced cache covers content you have loaded before. First-ever arbitrary content may still compile when it is first shown."
     },
     {
       "key": "settings.developer.gridSnap.title",
@@ -19470,7 +19470,7 @@
     },
     {
       "key": "settings.graphics.psoCacheSize.tooltip",
-      "value": "How much disk space to spend remembering pipeline state for shaders you've already drawn on DX12, so an avatar you've loaded before doesn't hitch again. Raising this trades disk space for fewer repeat hitches; the cache is trimmed automatically if it ever goes over."
+      "value": "How much disk space to spend remembering exact pipeline states already drawn on DX12 or Vulkan. Raising this trades disk space for fewer repeat-load hitches; the cache is trimmed automatically and capped at 1 GB."
     },
     {
       "key": "settings.graphics.renderer.description",

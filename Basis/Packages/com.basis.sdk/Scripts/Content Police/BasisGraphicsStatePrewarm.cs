@@ -5,17 +5,17 @@ using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Record-then-replay PSO cache layered on top of <see cref="BasisShaderPrewarm"/>.
+/// Record-then-replay PSO cache for explicit graphics APIs.
 /// ShaderVariantCollection.WarmUp only compiles the shader variant; on the explicit-pipeline
 /// backends used by Basis (D3D12 / Vulkan) the first-draw hitch is the full Pipeline State Object —
 /// variant + vertex layout + blend/depth/stencil + render-target formats — which the legacy
 /// path can't know ahead of time. GraphicsStateCollection traces the real PSOs that render and
 /// persists them, so a later session can pre-create them.
 ///
-/// This is complementary, not a replacement: BasisShaderPrewarm stays the proactive first-load
-/// warm for never-before-seen content; this drains a chunk of last session's traced PSOs at each
-/// content-load point, where the matching shaders are now resident. The reliable win is the base
-/// app plus any content the player re-loads across sessions.
+/// Shader-only warm-up is deliberately not used as a fallback here: it cannot describe the vertex
+/// layout or render state required by a DX12/Vulkan PSO and can therefore add synchronous work
+/// without preventing the first-draw stall. The reliable win is the base app plus content whose
+/// exact graphics states were previously traced on the same platform/API/quality configuration.
 ///
 /// Two instances of the same file are kept because Unity forbids warming a collection that is
 /// actively tracing: <see cref="_warm"/> is loaded read-only and warmed at content loads, while
@@ -46,9 +46,9 @@ public static class BasisGraphicsStatePrewarm
         }
     }
 
-    // PSO caches are graphics-API + engine-version specific; a file traced on one is meaningless
-    // on another. Encoding both in the filename means a driver/API/Unity change simply finds no
-    // matching file and starts clean, instead of replaying stale or invalid state.
+    // PSO caches are configuration-specific. Isolate API, runtime platform, quality, application
+    // and engine version so a setting/build change starts a clean cache instead of replaying a
+    // collection captured under incompatible render state.
     private static bool _initialized;
     private static bool _supported;
     private static bool _tracing;
@@ -65,19 +65,23 @@ public static class BasisGraphicsStatePrewarm
     public static bool Active => _initialized && _supported;
     public static int SeedVariantCount { get; private set; }
     public static int UserVariantCount { get; private set; }
-    public static int PrunedVariantCount { get; private set; }
+    public static int UnresolvedVariantCount { get; private set; }
 
     // Warming creates GPU pipeline objects; cap per call so a large collection can't schedule an
     // unbounded burst on one content load. Each load drains another chunk.
     public static int MaxWarmupPerCall = 256;
     public static int MaxWarmupPerPump = 16;
 
-    // Ceiling on the on-disk cache, checked by actual file size (not variant count — a variant's
-    // serialized size varies a lot with keyword count, so only the real file tells the truth).
-    // Intentionally generous: the goal is "an avatar drawn once on this device is never cold
-    // again," for as long as that's realistic disk-wise, not a small footprint. One aggressive
-    // day of testing measured ~11 MB, so 10 GB is roughly three orders of magnitude of headroom.
-    public static long MaxCacheBytes = 10L * 1024 * 1024 * 1024;
+    // Bound both bad persisted settings and future callers. A typical development capture is only
+    // around 11 MB; 512 MB is the default and 1 GB is a hard safety ceiling.
+    private const long MinimumCacheBytes = 64L * 1024 * 1024;
+    private const long MaximumCacheBytes = 1024L * 1024 * 1024;
+    private static long _maxCacheBytes = 512L * 1024 * 1024;
+    public static long MaxCacheBytes
+    {
+        get => _maxCacheBytes;
+        set => _maxCacheBytes = System.Math.Max(MinimumCacheBytes, System.Math.Min(MaximumCacheBytes, value));
+    }
 
     // Short enough that a quick dev-iteration session (launch, test, quit) still persists its trace
     // instead of losing everything to the next cold start when EndTrace only runs at Flush().
@@ -127,18 +131,18 @@ public static class BasisGraphicsStatePrewarm
         {
             string dir = System.IO.Path.Combine(Application.persistentDataPath, "GraphicsState");
             System.IO.Directory.CreateDirectory(dir);
-            _filePath = System.IO.Path.Combine(dir, $"basis_pso.{SystemInfo.graphicsDeviceType}.{Application.unityVersion}.gpsc");
+            string cacheIdentity = SanitizeFilePart($"{Application.platform}.{SystemInfo.graphicsDeviceType}.{QualitySettings.names[QualitySettings.GetQualityLevel()]}.{Application.version}.{Application.unityVersion}");
+            _filePath = System.IO.Path.Combine(dir, $"basis_pso.{cacheIdentity}.gpsc");
 
             bool onDisk = System.IO.File.Exists(_filePath);
 
             // Warm source: last session's PSOs, never traced so it stays warmable.
             _warm = LoadCollection(onDisk);
             int loaded = _warm != null ? _warm.variantCount : 0;
-            PrunedVariantCount = PruneUnresolved(_warm);
+            UnresolvedVariantCount = CountUnresolved(_warm);
 
             // Trace sink: starts from the same on-disk set and appends this session's real PSOs.
             _trace = LoadCollection(onDisk);
-            PruneUnresolved(_trace);
             _trace.BeginTrace();
             _tracing = _trace.isTracing;
 
@@ -148,7 +152,7 @@ public static class BasisGraphicsStatePrewarm
             _initTime = Time.realtimeSinceStartup;
             _lastFlushTime = _initTime;
             _variantsAtLastFlush = _trace.variantCount;
-            BasisDebug.Log($"BasisGraphicsStatePrewarm: {SystemInfo.graphicsDeviceType} seed {SeedVariantCount} variant(s), user cache {UserVariantCount} of {loaded} replayable ({PrunedVariantCount} unresolvable pruned)", BasisDebug.LogTag.Event);
+            BasisDebug.Log($"BasisGraphicsStatePrewarm: {SystemInfo.graphicsDeviceType} seed {SeedVariantCount} variant(s), user cache {UserVariantCount} variant(s) ({UnresolvedVariantCount} currently unresolved)", BasisDebug.LogTag.Event);
         }
         catch (System.Exception e)
         {
@@ -160,6 +164,20 @@ public static class BasisGraphicsStatePrewarm
         }
     }
 
+    private static string SanitizeFilePart(string value)
+    {
+        char[] invalid = System.IO.Path.GetInvalidFileNameChars();
+        char[] chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (System.Array.IndexOf(invalid, chars[i]) >= 0 || char.IsWhiteSpace(chars[i]))
+            {
+                chars[i] = '_';
+            }
+        }
+        return new string(chars);
+    }
+
     private static GraphicsStateCollection LoadCollection(bool onDisk)
     {
         GraphicsStateCollection collection = new GraphicsStateCollection();
@@ -169,41 +187,40 @@ public static class BasisGraphicsStatePrewarm
             // an empty collection so this session still functions.
             try
             {
-                collection.LoadFromFile(_filePath);
+                if (!collection.LoadFromFile(_filePath))
+                {
+                    BasisDebug.LogWarning("BasisGraphicsStatePrewarm: cache rejected, starting fresh", BasisDebug.LogTag.Event);
+                    Object.Destroy(collection);
+                    collection = new GraphicsStateCollection();
+                }
             }
             catch (System.Exception load)
             {
                 BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: load failed, starting fresh ({load.Message})", BasisDebug.LogTag.Event);
+                Object.Destroy(collection);
                 collection = new GraphicsStateCollection();
             }
         }
         return collection;
     }
 
-    private static int PruneUnresolved(GraphicsStateCollection collection)
+    private static int CountUnresolved(GraphicsStateCollection collection)
     {
         if (collection == null || collection.variantCount == 0)
         {
             return 0;
         }
-        int before = collection.variantCount;
+        int unresolved = 0;
         List<GraphicsStateCollection.ShaderVariant> variants = new List<GraphicsStateCollection.ShaderVariant>();
         collection.GetVariants(variants);
         for (int i = 0; i < variants.Count; i++)
         {
-            if (variants[i].shader != null)
+            if (variants[i].shader == null)
             {
-                continue;
-            }
-            try
-            {
-                collection.RemoveVariant(variants[i].shader, variants[i].passId, variants[i].keywords);
-            }
-            catch (System.Exception)
-            {
+                unresolved++;
             }
         }
-        return before - collection.variantCount;
+        return unresolved;
     }
 
     public static string SeedResourceNameFor(GraphicsDeviceType api)
@@ -216,6 +233,7 @@ public static class BasisGraphicsStatePrewarm
         TextAsset asset = Resources.Load<TextAsset>(SeedResourceNameFor(SystemInfo.graphicsDeviceType));
         if (asset == null)
         {
+            BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: no {SystemInfo.graphicsDeviceType} seed; first-run base content will rely on the user trace cache", BasisDebug.LogTag.Event);
             return null;
         }
         try
@@ -223,8 +241,17 @@ public static class BasisGraphicsStatePrewarm
             string staged = System.IO.Path.Combine(Application.temporaryCachePath, $"basis_pso_seed.{SystemInfo.graphicsDeviceType}.gpsc");
             System.IO.File.WriteAllBytes(staged, asset.bytes);
             GraphicsStateCollection collection = new GraphicsStateCollection();
-            collection.LoadFromFile(staged);
-            return collection.variantCount > 0 ? collection : null;
+            if (!collection.LoadFromFile(staged))
+            {
+                Object.Destroy(collection);
+                return null;
+            }
+            if (collection.variantCount > 0)
+            {
+                return collection;
+            }
+            Object.Destroy(collection);
+            return null;
         }
         catch (System.Exception e)
         {
@@ -267,14 +294,16 @@ public static class BasisGraphicsStatePrewarm
         internal readonly HashSet<Shader> Shaders;
         internal readonly IList<Renderer> Renderers;
         internal readonly string Label;
+        internal readonly GraphicsStateCollection ContentCollection;
         internal bool Completed;
 
-        internal WarmupRequest(HashSet<Shader> shaders, IList<Renderer> renderers, string label, bool completed)
+        internal WarmupRequest(HashSet<Shader> shaders, IList<Renderer> renderers, string label, bool completed, GraphicsStateCollection contentCollection = null)
         {
             Shaders = shaders;
             Renderers = renderers;
             Label = label;
             Completed = completed;
+            ContentCollection = contentCollection;
         }
 
         public bool IsCompleted => Completed;
@@ -297,11 +326,9 @@ public static class BasisGraphicsStatePrewarm
         public readonly HashSet<Shader> MatchedShaders = new HashSet<Shader>();
     }
 
-    // Thousands of concurrent avatar loads must not each read the same cache and submit duplicate
-    // PSO jobs. Requests arriving during a frame are coalesced into one shader set, one cache read,
-    // and one warm-up job. A single active batch also bounds driver-side pipeline creation pressure.
+    // Requests arriving during a frame are coalesced into one shader set and one warm-up job. A
+    // single active batch bounds driver-side pipeline creation pressure.
     private static readonly List<WarmupRequest> _pendingScopedWarmups = new List<WarmupRequest>();
-    private static readonly HashSet<EntityId> _scopedWarmedShaderIds = new HashSet<EntityId>();
     private static readonly Queue<WarmupRequest> _coldRevealQueue = new Queue<WarmupRequest>();
     private static WarmupBatch _activeScopedBatch;
     // Never expose a mass join's uncached avatars in one frame: each could independently trigger a
@@ -310,11 +337,10 @@ public static class BasisGraphicsStatePrewarm
 
     /// <summary>
     /// Copies cached graphics states for the shaders used by <paramref name="renderers"/> into a
-    /// short-lived collection and warms all of them asynchronously. Reloading the user cache here
-    /// is intentional: AssetBundle shaders are resident now, whereas the boot-time load can leave
-    /// their serialized shader references unresolved.
+    /// short-lived collection and warms all of them asynchronously. A shader is not used as a
+    /// permanent de-duplication key because one shader can produce many distinct PSOs.
     /// </summary>
-    public static WarmupRequest ScheduleResident(IList<Renderer> renderers, string label)
+    public static WarmupRequest ScheduleResident(IList<Renderer> renderers, string label, GraphicsStateCollection contentCollection = null)
     {
         if (!Enabled || renderers == null || renderers.Count == 0)
         {
@@ -327,13 +353,13 @@ public static class BasisGraphicsStatePrewarm
         }
 
         HashSet<Shader> shaders = CollectShaders(renderers);
-        shaders.RemoveWhere(shader => shader == null || _scopedWarmedShaderIds.Contains(shader.GetEntityId()));
+        shaders.RemoveWhere(shader => shader == null);
         if (shaders.Count == 0)
         {
             return new WarmupRequest(null, null, label, true);
         }
 
-        WarmupRequest request = new WarmupRequest(shaders, renderers, label, false);
+        WarmupRequest request = new WarmupRequest(shaders, renderers, label, false, contentCollection);
         _pendingScopedWarmups.Add(request);
         return request;
     }
@@ -344,7 +370,6 @@ public static class BasisGraphicsStatePrewarm
         while (coldBudget-- > 0 && _coldRevealQueue.Count > 0)
         {
             WarmupRequest cold = _coldRevealQueue.Dequeue();
-            WarmColdShaders(cold);
             cold.Completed = true;
         }
 
@@ -358,10 +383,6 @@ public static class BasisGraphicsStatePrewarm
             for (int i = 0; i < _activeScopedBatch.Requests.Count; i++)
             {
                 CompleteOrThrottleCold(_activeScopedBatch.Requests[i], _activeScopedBatch.MatchedShaders, completeSynchronously);
-            }
-            foreach (Shader shader in _activeScopedBatch.MatchedShaders)
-            {
-                if (shader != null) _scopedWarmedShaderIds.Add(shader.GetEntityId());
             }
             Object.Destroy(_activeScopedBatch.Collection);
             _activeScopedBatch = null;
@@ -377,7 +398,7 @@ public static class BasisGraphicsStatePrewarm
         for (int i = 0; i < _pendingScopedWarmups.Count; i++)
         {
             WarmupRequest request = _pendingScopedWarmups[i];
-            request.Shaders.RemoveWhere(shader => shader == null || _scopedWarmedShaderIds.Contains(shader.GetEntityId()));
+            request.Shaders.RemoveWhere(shader => shader == null);
             if (request.Shaders.Count == 0)
             {
                 request.Completed = true;
@@ -393,21 +414,18 @@ public static class BasisGraphicsStatePrewarm
             return false;
         }
 
-        GraphicsStateCollection residentUserCache = null;
         try
         {
             batch.Collection = new GraphicsStateCollection();
+            HashSet<GraphicsStateCollection> copiedContentCollections = new HashSet<GraphicsStateCollection>();
+            for (int i = 0; i < batch.Requests.Count; i++)
+            {
+                GraphicsStateCollection contentCollection = batch.Requests[i].ContentCollection;
+                if (contentCollection != null && copiedContentCollections.Add(contentCollection))
+                    CopyMatchingStates(contentCollection, batch.Collection, shaders, batch.MatchedShaders);
+            }
             CopyMatchingStates(_seed, batch.Collection, shaders, batch.MatchedShaders);
-            if (_filePath != null && System.IO.File.Exists(_filePath))
-            {
-                // One reload per coalesced batch, after its AssetBundle shaders are resident.
-                residentUserCache = LoadCollection(true);
-                CopyMatchingStates(residentUserCache, batch.Collection, shaders, batch.MatchedShaders);
-            }
-            else
-            {
-                CopyMatchingStates(_warm, batch.Collection, shaders, batch.MatchedShaders);
-            }
+            CopyMatchingStates(_warm, batch.Collection, shaders, batch.MatchedShaders);
 
             if (batch.Collection.totalGraphicsStateCount == 0)
             {
@@ -439,10 +457,6 @@ public static class BasisGraphicsStatePrewarm
             for (int i = 0; i < batch.Requests.Count; i++) batch.Requests[i].Completed = true;
             BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: coalesced warm-up failed ({e.Message})", BasisDebug.LogTag.Event);
             return false;
-        }
-        finally
-        {
-            if (residentUserCache != null) Object.Destroy(residentUserCache);
         }
     }
 
@@ -490,30 +504,11 @@ public static class BasisGraphicsStatePrewarm
 
         if (!hasColdShader || completeSynchronously)
         {
-            if (hasColdShader)
-            {
-                WarmColdShaders(request);
-            }
             request.Completed = true;
         }
         else
         {
             _coldRevealQueue.Enqueue(request);
-        }
-    }
-
-    private static void WarmColdShaders(WarmupRequest request)
-    {
-        // ShaderVariantCollection has no asynchronous API. Running it here keeps the object hidden
-        // and, critically, serializes never-seen UGC so a mass join cannot make many compilers peak
-        // memory at once. The remaining first-draw graphics state is then captured by the trace.
-        try
-        {
-            BasisShaderPrewarm.Warm(request.Renderers, request.Label);
-        }
-        catch (System.Exception e)
-        {
-            BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: cold shader warm '{request.Label}' failed ({e.Message})", BasisDebug.LogTag.Event);
         }
     }
 
@@ -728,7 +723,12 @@ public static class BasisGraphicsStatePrewarm
 
         if (size > MaxCacheBytes)
         {
-            BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: cache still {size / (1024 * 1024)} MB after eviction, over the {MaxCacheBytes / (1024 * 1024)} MB budget", BasisDebug.LogTag.Event);
+            // Unresolved shader references cannot be removed through Unity's public API. Never let
+            // such entries defeat the hard cap: discard this cache and continue tracing cleanly.
+            BasisDebug.LogWarning($"BasisGraphicsStatePrewarm: cache remained {size / (1024 * 1024)} MB after eviction; resetting it to enforce the {MaxCacheBytes / (1024 * 1024)} MB budget", BasisDebug.LogTag.Event);
+            Object.Destroy(_trace);
+            _trace = new GraphicsStateCollection();
+            System.IO.File.Delete(_filePath);
         }
     }
 
