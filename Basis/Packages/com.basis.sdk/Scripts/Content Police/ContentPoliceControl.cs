@@ -128,7 +128,7 @@ public static class ContentPoliceControl
     // inactive host, so it stays dormant — no Awake/OnEnable/event fires — until FinishContentControl
     // runs the strip/scrub and activates it. That dormancy is what lets the heavy component walk run
     // on a later frame: deferring it is as safe as the original single-frame walk. Main-thread only.
-    public static ContentControlState BeginContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null, int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null, GraphicsStateCollection contentGraphicsStates = null)
+    public static ContentControlState BeginContentControl(GameObject DisabledGameobject, GameObject SearchAndDestroy, ChecksRequired ChecksRequired, Vector3 Position, Quaternion Rotation, bool ModifyScale, Vector3 Scale, BundledContentHolder.Selector Selector, Transform Parent = null, int colliderlayer = -1, List<BasisHeadChop.HeadChopTarget> HarvestedHeadChop = null, BasisContentHarvest harvest = null, GraphicsStateCollection contentGraphicsStates = null, Action<IList<Renderer>> rendererPostprocessor = null)
     {
         ContentControlState state = default;
         state.Checks = ChecksRequired;
@@ -137,6 +137,7 @@ public static class ContentPoliceControl
         state.ColliderLayer = colliderlayer;
         state.HarvestedHeadChop = HarvestedHeadChop;
         state.ContentGraphicsStates = contentGraphicsStates;
+        state.RendererPostprocessor = rendererPostprocessor;
         if (ChecksRequired.UseContentRemoval)
         {
             if (DisabledGameobject == null)
@@ -205,6 +206,7 @@ public static class ContentPoliceControl
             {
                 BasisShaderFallback.MaterialCorrection(rawRenderers, BundledContentHolder.Instance.UrpShader, MaterialCorrectionEnabled, blockShaders);
             }
+            rendererPostprocessor?.Invoke(rawRenderers);
             if (ShaderPrewarmEnabled && !(BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits()))
             {
                 BasisShaderPrewarm.Warm(rawRenderers, SearchAndDestroy.name);
@@ -426,6 +428,8 @@ public static class ContentPoliceControl
                     BasisShaderFallback.MaterialCorrection(renderersForPrewarm, BundledContentHolder.Instance.UrpShader, MaterialCorrectionEnabled, blockShaders);
                 }
 
+                state.RendererPostprocessor?.Invoke(renderersForPrewarm);
+
                 // Compile shader variants for everything we just walked before we set the clone
                 // active, so the first frame it's visible doesn't stall on a hitch.
                 if (ShaderPrewarmEnabled && !(BasisGraphicsStatePrewarm.Enabled && BasisGraphicsStatePrewarm.BackendBenefits()))
@@ -510,6 +514,7 @@ public static class ContentPoliceControl
         public BasisContentHarvest Harvest;
         public List<Renderer> RenderersForPrewarm;
         public GraphicsStateCollection ContentGraphicsStates;
+        public Action<IList<Renderer>> RendererPostprocessor;
     }
     /// <summary>
     /// Scrubs a scene by removing any unapproved MonoBehaviours and applying optional safety checks.

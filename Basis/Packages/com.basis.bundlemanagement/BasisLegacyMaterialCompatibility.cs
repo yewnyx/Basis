@@ -22,8 +22,8 @@ public static class BasisLegacyMaterialCompatibility
             return 0;
 
         HashSet<Material> visited = new HashSet<Material>();
+        List<Material> materials = new List<Material>(8);
         int upgraded = 0;
-        int legacyCandidates = 0;
         string firstUpgrade = null;
         for (int rendererIndex = 0; rendererIndex < renderers.Count; rendererIndex++)
         {
@@ -31,8 +31,9 @@ public static class BasisLegacyMaterialCompatibility
             if (renderer == null)
                 continue;
 
-            Material[] materials = renderer.sharedMaterials;
-            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+            materials.Clear();
+            renderer.GetSharedMaterials(materials);
+            for (int materialIndex = 0; materialIndex < materials.Count; materialIndex++)
             {
                 Material material = materials[materialIndex];
                 if (material == null || !visited.Add(material))
@@ -53,7 +54,6 @@ public static class BasisLegacyMaterialCompatibility
                 if (!hadLegacyEmissionIntent)
                     continue;
 
-                legacyCandidates++;
                 material.globalIlluminationFlags = (flags & ~MaterialGlobalIlluminationFlags.EmissiveIsBlack) |
                                                    AllEmissionFlags;
                 material.EnableKeyword(EmissionKeyword);
@@ -66,11 +66,11 @@ public static class BasisLegacyMaterialCompatibility
             }
         }
 
-        if (visited.Count > 0)
+        if (upgraded > 0)
         {
             BasisDebug.Log(
                 $"AssetBundle emission compatibility scan (Unity {builtWithUnityVersion ?? "unknown"}): " +
-                $"renderers={renderers.Count}, materials={visited.Count}, legacyCandidates={legacyCandidates}, upgraded={upgraded}" +
+                $"renderers={renderers.Count}, materials={visited.Count}, upgraded={upgraded}" +
                 (firstUpgrade == null ? "." : $". First: {firstUpgrade}"),
                 BasisDebug.LogTag.Event);
         }

@@ -34,9 +34,6 @@ public static class BasisBundleLoadAsset
                                 await BasisLoadableBundle.AssetBundle.UnloadAsync(true);
                                 return null;
                             }
-                            List<Renderer> legacyRenderers = new List<Renderer>();
-                            loadedObject.GetComponentsInChildren(true, legacyRenderers);
-                            BasisLegacyMaterialCompatibility.UpgradeEmission(legacyRenderers, BasisLoadableBundle.BuiltWithUnityVersion);
                             // GraphicsStateCollection resolves Shader references at load time, so
                             // parse the sidecar only after this prefab and its shaders are resident.
                             await BasisLoadableBundle.EnsureEmbeddedGraphicsStatesLoaded();
@@ -87,17 +84,12 @@ public static class BasisBundleLoadAsset
         BasisContentHarvest harvest = BasisAvatar != null ? new BasisContentHarvest() : null;
         // Match the DX11 load path: instantiate and scrub immediately. DX12/Vulkan differ only
         // by keeping rendering gated until their embedded graphics states finish warming.
-        ContentPoliceControl.ContentControlState scrubState = ContentPoliceControl.BeginContentControl(DisabledGameobject, loadedObject, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, LayerMask.NameToLayer("IgnoredByInteractable"), HarvestedHeadChop, harvest, BasisLoadableBundle.EmbeddedGraphicsStates);
+        Action<IList<Renderer>> emissionPostprocessor =
+            BasisLegacyMaterialCompatibility.RequiresLegacyEmissionUpgrade(BasisLoadableBundle.BuiltWithUnityVersion)
+                ? renderers => BasisLegacyMaterialCompatibility.UpgradeEmission(renderers, BasisLoadableBundle.BuiltWithUnityVersion)
+                : null;
+        ContentPoliceControl.ContentControlState scrubState = ContentPoliceControl.BeginContentControl(DisabledGameobject, loadedObject, ChecksRequired, Position, Rotation, ModifyScale, Scale, Selector, Parent, LayerMask.NameToLayer("IgnoredByInteractable"), HarvestedHeadChop, harvest, BasisLoadableBundle.EmbeddedGraphicsStates, emissionPostprocessor);
         GameObject CreatedCopy = ContentPoliceControl.PrepareContentControl(scrubState, out BasisGraphicsStatePrewarm.WarmupRequest warmup);
-        if (CreatedCopy != null)
-        {
-            List<Renderer> createdRenderers = new List<Renderer>();
-            CreatedCopy.GetComponentsInChildren(true, createdRenderers);
-            // Content control can clone or replace materials, so normalize the final runtime
-            // materials too. The serialized flags themselves are the authoritative legacy signal;
-            // this also handles old materials repacked by a newer Unity editor.
-            BasisLegacyMaterialCompatibility.UpgradeEmission(createdRenderers, BasisLoadableBundle.BuiltWithUnityVersion);
-        }
         while (!warmup.IsCompleted)
         {
             await Task.Yield();
@@ -124,11 +116,15 @@ public static class BasisBundleLoadAsset
     {
         string UniqueID = BasisGenerateUniqueID.GenerateUniqueID();
         bool AssignedIncrement = false;
-        HashSet<EntityId> renderersPresentBeforeLoad = new HashSet<EntityId>();
-        Renderer[] existingRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
-        for (int i = 0; i < existingRenderers.Length; i++)
+        bool requiresLegacyEmissionUpgrade =
+            BasisLegacyMaterialCompatibility.RequiresLegacyEmissionUpgrade(bundle.BuiltWithUnityVersion);
+        HashSet<EntityId> renderersPresentBeforeLoad = null;
+        if (requiresLegacyEmissionUpgrade)
         {
-            renderersPresentBeforeLoad.Add(existingRenderers[i].GetEntityId());
+            renderersPresentBeforeLoad = new HashSet<EntityId>();
+            Renderer[] existingRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
+            for (int i = 0; i < existingRenderers.Length; i++)
+                renderersPresentBeforeLoad.Add(existingRenderers[i].GetEntityId());
         }
 
         string[] scenePaths = bundle.AssetBundle.GetAllScenePaths();
@@ -232,8 +228,6 @@ public static class BasisBundleLoadAsset
                     GateSceneRenderers(loadedScene);
                 }
 
-                BasisLegacyMaterialCompatibility.UpgradeEmission(gatedRenderers, bundle.BuiltWithUnityVersion);
-
                 ChecksRequired ChecksRequired = new ChecksRequired
                 {
                     UseContentRemoval = true,
@@ -250,26 +244,15 @@ public static class BasisBundleLoadAsset
                         loadedScene,
                         true,
                         bundle.EmbeddedGraphicsStates,
-                        renderers => BasisLegacyMaterialCompatibility.UpgradeEmission(renderers, bundle.BuiltWithUnityVersion));
+                        requiresLegacyEmissionUpgrade
+                            ? renderers => BasisLegacyMaterialCompatibility.UpgradeEmission(renderers, bundle.BuiltWithUnityVersion)
+                            : null);
                     while (!warmup.IsCompleted)
                     {
                         await Task.Yield();
                     }
                     warmup.CompleteAndDispose();
 
-                    // The warmup yields frames, allowing Awake/Start to create additional
-                    // renderers after sceneLoaded. Sweep the completed scene again so those
-                    // runtime-created materials receive the same compatibility migration.
-                    List<GameObject> finalRoots = new List<GameObject>();
-                    loadedScene.GetRootGameObjects(finalRoots);
-                    List<Renderer> finalRenderers = new List<Renderer>();
-                    int FinalRootCount = finalRoots.Count;
-                    for (int RootIndex = 0; RootIndex < FinalRootCount; RootIndex++)
-                    {
-                        finalRoots[RootIndex].GetComponentsInChildren(true, finalRenderers);
-                    }
-
-                    BasisLegacyMaterialCompatibility.UpgradeEmission(finalRenderers, bundle.BuiltWithUnityVersion);
                 }
                 finally
                 {
@@ -282,23 +265,21 @@ public static class BasisBundleLoadAsset
                     BasisDebug.Log("Scene set as active: " + loadedScene.name);
                 }
 
-                // Some world systems instantiate or reparent their visual hierarchy during
-                // activation, so those renderers are absent from both sceneLoaded and the
-                // Content Police walk. Wait one frame and migrate every renderer created by
-                // this load, including ones moved into DontDestroyOnLoad.
-                await Task.Yield();
-                Renderer[] liveRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
-                List<Renderer> renderersCreatedByLoad = new List<Renderer>();
-                int LiverenderersCount = liveRenderers.Length;
-                for (int i = 0; i < LiverenderersCount; i++)
+                if (requiresLegacyEmissionUpgrade)
                 {
-                    Renderer renderer = liveRenderers[i];
-                    if (renderer != null && !renderersPresentBeforeLoad.Contains(renderer.GetEntityId()))
+                    // One late legacy-only pass catches visuals created or reparented during
+                    // activation without charging modern bundles for a global renderer search.
+                    await Task.Yield();
+                    Renderer[] liveRenderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
+                    List<Renderer> renderersCreatedByLoad = new List<Renderer>();
+                    for (int i = 0; i < liveRenderers.Length; i++)
                     {
-                        renderersCreatedByLoad.Add(renderer);
+                        Renderer renderer = liveRenderers[i];
+                        if (renderer != null && !renderersPresentBeforeLoad.Contains(renderer.GetEntityId()))
+                            renderersCreatedByLoad.Add(renderer);
                     }
+                    BasisLegacyMaterialCompatibility.UpgradeEmission(renderersCreatedByLoad, bundle.BuiltWithUnityVersion);
                 }
-                BasisLegacyMaterialCompatibility.UpgradeEmission(renderersCreatedByLoad, bundle.BuiltWithUnityVersion);
 
                 BasisDebug.Log("Scene loaded: " + loadedScene.name + " (MakeActive=" + MakeActiveScene + ", Incremented=" + AssignedIncrement + ")");
 #if UNITY_BUNDLEUNLOAD
