@@ -926,7 +926,7 @@ void Update()
     }
 }
 
-// LoadUrl, Play, Stop, Seek and CaptureScreenshot are blocked, so a scene cannot
+// Open, OpenUserUrl, Play, Pause, Seek and Close are blocked, so a scene cannot
 // step around the video URL trust prompt.",
             },
             new CilboxApiEntry
