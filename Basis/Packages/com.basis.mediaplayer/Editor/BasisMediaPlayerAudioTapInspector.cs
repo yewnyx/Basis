@@ -3,12 +3,15 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-// The tap has no serialized fields, so this draws the filter-ordering note and,
-// when filters have ended up above the tap, the offer to put it back on top.
-// It also has to be a UIElements inspector: Unity's default MonoBehaviour inspector
-// draws a level meter for any script with an OnAudioFilterRead, and that IMGUI path
-// dereferences GUIView.current without a null check, which throws whenever the
-// inspector redraws outside a GUIView repaint (adding a component, for instance).
+/// <summary>
+/// The tap has no serialized fields, so this draws the filter-ordering note
+/// and, when filters have ended up above the tap, the offer to put it back on
+/// top. It also has to be a UIElements inspector: Unity's default
+/// MonoBehaviour inspector draws a level meter for any script with an
+/// OnAudioFilterRead, and that IMGUI path dereferences GUIView.current without
+/// a null check, which throws whenever the inspector redraws outside a GUIView
+/// repaint (adding a component, for instance).
+/// </summary>
 [CustomEditor(typeof(BasisMediaPlayerAudioTap))]
 public class BasisMediaPlayerAudioTapInspector : Editor
 {
@@ -30,8 +33,8 @@ public class BasisMediaPlayerAudioTapInspector : Editor
         return root;
     }
 
-    // Resolved per call, never held: the AudioSource can be replaced on this object
-    // while the notice is up.
+    // Resolved per call, never held: the AudioSource can be replaced on this
+    // object while the notice is up.
     private AudioSource[] Source()
     {
         var tap = target as BasisMediaPlayerAudioTap;

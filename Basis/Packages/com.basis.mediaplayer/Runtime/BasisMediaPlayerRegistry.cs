@@ -1,6 +1,12 @@
 using System;
 using System.Collections.Generic;
 
+/// <summary>
+/// Every <see cref="BasisMediaPlayer"/> alive in the scene. Players add
+/// themselves in Awake and drop out in OnDestroy; consumers that build UI
+/// over the set (an in-world players panel, a session governor) watch
+/// <see cref="OnChanged"/> rather than scanning the scene.
+/// </summary>
 public static class BasisMediaPlayerRegistry
 {
     private static readonly List<BasisMediaPlayer> players = new List<BasisMediaPlayer>();

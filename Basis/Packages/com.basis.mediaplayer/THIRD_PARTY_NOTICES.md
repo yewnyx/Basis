@@ -1,56 +1,132 @@
 # Third-Party Notices
 
-By default the native plugin `basis_media_native` decodes and presents using
-operating-system frameworks only, with **no statically-linked third-party
-libraries**. Building with `-DBASIS_WITH_RIST=ON` adds the RIST live-ingest
-transport, which statically links the two permissively-licensed libraries listed
-under *RIST transport* below; their attribution obligations apply only to a
-RIST-enabled build.
+The native engine (`basis_media`) is a Rust binary that links its dependencies
+statically, so the shipped `.dll` / `.so` embeds them. Everything in the graph is
+permissively licensed and every licence in it requires attribution, which is
+what this file provides.
 
-| Binary shipped | Embeds | License obligation |
-|---|---|---|
-| `Plugins/Windows/x86_64/basis_media_native.dll` | OS frameworks; + librist + mbedTLS when built with `BASIS_WITH_RIST` | none, or BSD-2-Clause + Apache-2.0 (RIST build) |
-| `Plugins/Android/arm64-v8a/libbasis_media_native.so` | OS frameworks; + librist + mbedTLS when built with `BASIS_WITH_RIST` | none, or BSD-2-Clause + Apache-2.0 (RIST build) |
+Nothing here is copyleft. `Native~/deny.toml` holds the allowed licence set and
+`Native~/tools/ci.ps1` fails the build on anything outside it, so a dependency
+carrying an unexpected licence cannot land quietly.
 
-## RIST transport (only when built with `BASIS_WITH_RIST`)
+## What ships
 
-The RIST live-ingest transport statically links these into `basis_media_native`.
-Both are permissive and MIT-compatible, and both require attribution:
+| Binary | Contains |
+| --- | --- |
+| `Runtime/Plugins/x86_64/basis_media.dll` | the Rust graph below, plus Media Foundation and Direct3D from the OS |
+| `Runtime/Plugins/Android/arm64-v8a/libbasis_media.so` | the Rust graph below, plus MediaCodec and Vulkan from the OS |
+| `Runtime/Plugins/Linux/x86_64/libbasis_media.so` | the Rust graph below; software decode only, no OS codec framework |
 
-- **librist** — Reliable Internet Stream Transport (ARQ, GRE tunnel, profiles).
-  BSD-2-Clause. <https://code.videolan.org/rist/librist>
-- **Mbed TLS** — AES primitives used by librist for PSK-AES content encryption.
-  Apache-2.0. <https://github.com/Mbed-TLS/mbedtls>
+Operating-system frameworks carry no attribution obligation. The Rust graph
+does.
 
-## Opus decode (runtime-loaded, not shipped by this package)
+## Licences in the shipped graph
 
-Windows Opus decode does **not** statically link libopus. The plugin resolves
-libopus's decode entry points at runtime (`LoadLibrary` / `GetProcAddress`) from
-the `opus.dll` that **`com.avionblock.opussharp`** already ships; that package
-redistributes libopus (BSD-3-Clause) and carries its licence
-(`Opus_LICENSE_PLEASE_READ.txt`). This package neither bundles nor statically
-links it, so the "no statically-linked third-party libraries by default" stance
-above is unchanged. Android decodes Opus with the OS `audio/opus` MediaCodec —
-no third-party library.
+Resolved from the engine's own `Cargo.lock` for the shipping library, per
+target: 302 crates on Windows x64, 281 on Android arm64, 289 on Linux x64. The
+Windows graph is the largest and is broken down here; the other two are
+subsets of the same licence set.
 
-## Operating-system frameworks used at runtime
+| Licence | Crates |
+| --- | --- |
+| MIT or Apache-2.0 (either, at your option) | 207 |
+| MIT | 40 |
+| Unicode-3.0 | 18 |
+| Unlicense or MIT | 7 |
+| BSD-3-Clause | 4 |
+| ISC | 4 |
+| BSD-2-Clause, or Apache-2.0, or MIT | 3 |
+| Apache-2.0, or ISC, or MIT | 3 |
+| Apache-2.0 | 3 |
+| MIT, Apache-2.0 or Zlib | 2 |
+| one each: BSD-2-Clause; CC0-1.0; CDLA-Permissive-2.0; Apache-2.0 and ISC; Apache-2.0 or BSL-1.0; and four further permissive combinations | 11 |
 
-These are part of the OS and are **not** redistributed by this package:
+Where a crate offers a choice, the permissive option is the one taken, and
+`Native~/deny.toml` lists what may be chosen.
 
-- **Windows** — Media Foundation (`mfplat`, `mfuuid`, AAC/H.264/H.265 decoder
-  MFTs), Direct3D 11/12, DXGI, WinHTTP, Winsock.
-- **Android** — NDK Media (`mediandk`: AMediaCodec/AMediaExtractor), Vulkan,
-  `AHardwareBuffer`, Android NDK platform libraries.
+To regenerate the exact list, from `Native~/`:
 
-## Build-time only (not shipped)
+```sh
+cargo metadata --format-version 1 --locked --filter-platform x86_64-pc-windows-msvc
+```
 
-- **Unity PluginAPI headers** (`IUnityInterface.h`, `IUnityGraphics*.h`) are
-  required to compile the native plugin glue. They are part of the Unity Editor
-  (Unity Companion License) and are **not** included here — copy them from your
-  Unity install at build time (see `Native~/unity/README.md`). The package
-  `.gitignore` excludes them.
+Each package object carries `name`, `version` and `license`. Filtering by
+platform matters: without it the resolver reports crates for targets this
+engine is never built for, and their licences are not obligations here.
 
-The previous pipeline's third-party components (libvpx for VP9, gorilla/websocket
-and the Go runtime for the transcode server) were removed along with the VP9
-transcode path. Opus decode later returned in a different form — runtime-loaded,
-not statically linked (see *Opus decode* above).
+## Libraries worth naming
+
+The graph is mostly small Rust crates. These are the ones that do the heavy
+lifting, or whose licence differs from the MIT/Apache norm:
+
+| Library | Licence | What it does |
+| --- | --- | --- |
+| **rav1d** | BSD-2-Clause | AV1 video decoding in software. A Rust port of dav1d |
+| **libopus** (via `audiopus_sys`, ISC) | BSD-3-Clause | Opus audio decoding. Built from vendored C source and linked statically |
+| **claxon** | Apache-2.0 | FLAC audio decoding |
+| **retina** | MIT or Apache-2.0 | RTSP client and RTP depacketisation. Vendored, see below |
+| **matroska-demuxer** | Zlib, or MIT, or Apache-2.0 | Matroska/WebM parsing. Vendored, see below |
+| **re_mp4** | MIT | MP4 and fragmented-MP4 parsing |
+| **m3u8-rs** | MIT | HLS playlist parsing |
+| **str0m** | MIT or Apache-2.0 | WebRTC (the WHEP receive path) |
+| **webrtc-rs** `rtp` / `rtcp` / `webrtc-util` | MIT or Apache-2.0 | RTP and RTCP packet formats |
+| **rustls** | Apache-2.0, or ISC, or MIT | TLS |
+| **ring** | Apache-2.0 and ISC | Cryptographic primitives under rustls. Embeds BoringSSL-derived assembly |
+| **aws-lc-rs** / **aws-lc-sys** | ISC and (Apache-2.0 or ISC), with further terms | Cryptography reachable from the WebRTC stack. Windows uses the OS provider instead |
+| **webpki-roots** | CDLA-Permissive-2.0 | The CCADB trust-anchor bundle, used on Android, which has no readable CA store |
+| **tokio** | MIT | Async runtime for the network transports |
+| **ash** | MIT or Apache-2.0 | Vulkan bindings, Android only |
+| **jni** | MIT or Apache-2.0 | JNI bindings, Android only |
+| **windows** | MIT or Apache-2.0 | Windows API bindings, Windows only |
+| **to_method** | CC0-1.0 | A small conversion helper, pulled in by rav1d |
+
+Unicode-3.0 covers the ICU data crates that reach the graph through URL and
+IDNA handling.
+
+## Vendored sources
+
+Three dependencies are vendored under `Native~/third_party/` rather than taken
+from crates.io, each with its patches and the reason for them documented in a
+`PATCHES.md` beside the source:
+
+- **retina** (MIT or Apache-2.0) — patched for servers that advertise an
+  all-zero SSRC, for AAC access units delivered without the RTP marker bit, for
+  UDP socket binding against Windows' excluded port ranges, and for the seams
+  the UDP transport needs.
+- **matroska-demuxer** (Zlib, or MIT, or Apache-2.0) — patched so cue-based
+  seeking resolves against the right cluster and lands on the keyframe at or
+  before the requested time.
+- **librist** (BSD-2-Clause), which vendors **mbedTLS** (Apache-2.0) — the RIST
+  live-ingest transport. Built from source by
+  `Native~/tools/build-librist.ps1` on Windows and `build-librist.sh` on Linux;
+  the static library is not committed.
+
+## RIST, per platform
+
+RIST is behind a Cargo feature, and every shipped binary is now built with it
+on — Windows, Linux and Android alike — so librist and mbedTLS are statically
+linked into all three and the attribution above applies to each. Android's
+librist is cross-compiled against the NDK by
+`Native~/tools/build-librist-android.sh`; as on the other platforms the static
+library itself is not committed.
+
+## Test clips
+
+`Native~/fixtures/captest/A.mp4` through `D.mp4` are test content for the
+session-cap pass, not shipped runtime assets — `Native~` is invisible to
+Unity, so nothing imports them. The video is generated; the music is:
+
+> Kevin MacLeod (incompetech.com) — licensed under Creative Commons: By
+> Attribution 4.0, <https://creativecommons.org/licenses/by/4.0/>
+>
+> - `A.mp4` — *Blue Ska*
+> - `B.mp4` — *Achaidh Cheide*
+> - `C.mp4` — *Vibe Ace*
+> - `D.mp4` — *Bass Walker*
+
+Every other fixture under `Native~/fixtures` is generated by ffmpeg from
+synthetic sources and carries no third-party content.
+
+## This package
+
+Licensed under either of MIT or Apache-2.0, at your option. See `LICENSE.md`.
