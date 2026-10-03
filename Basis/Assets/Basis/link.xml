@@ -12,6 +12,7 @@
     <assembly fullname="Basis.Integration.MetaBodyTracking" preserve="all" />
     <assembly fullname="Basis.Integration.SlimeVR" preserve="all" />
     <assembly fullname="Basis.Integration.TrackerObjects" preserve="all" />
+    <assembly fullname="Basis.Integration.YtDlp.Core" preserve="all" />
     <assembly fullname="Basis.OpenLipSync.Runtime" preserve="all" />
     <assembly fullname="Basis.RTAO" preserve="all" />
     <assembly fullname="Basis.Shims.Samples" preserve="all" />
