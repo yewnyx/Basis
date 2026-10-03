@@ -73,8 +73,8 @@ public sealed class BasisMediaCaptionOverlay : MonoBehaviour
         Unbind();
         bound = p;
         if (bound == null) { Apply(); return; }
-        bound.CaptionChanged += HandleCaption;
-        bound.CaptionPreferencesChanged += Apply;
+        bound.OnCaptionChanged += HandleCaption;
+        bound.OnCaptionPreferencesChanged += Apply;
         // Bind mid-playback without waiting for the next cue.
         currentText = bound.CurrentCaption;
         Apply();
@@ -84,8 +84,8 @@ public sealed class BasisMediaCaptionOverlay : MonoBehaviour
     {
         if (bound != null)
         {
-            bound.CaptionChanged -= HandleCaption;
-            bound.CaptionPreferencesChanged -= Apply;
+            bound.OnCaptionChanged -= HandleCaption;
+            bound.OnCaptionPreferencesChanged -= Apply;
             bound = null;
         }
         // Drop any caption text so it can't linger across a rebind or after disable.

@@ -139,11 +139,20 @@ namespace Cilbox
 			// because the session governor and the networking component reopen and share
 			// whatever they hold; allowLocalAddresses, the engine capture fields and the static
 			// engine defaults are withheld because they reach the local network, the disk, or
-			// every player in the scene.
+			// every player in the scene; StopOnDisable is withheld because off lets a hidden
+			// prop keep decoding.
 			"BasisMediaPlayer.playOnStart",
 			"BasisMediaPlayer.liveness",
 			"BasisMediaPlayer.maxDivergenceMs",
 			"BasisMediaPlayer.BufferDepthOverrideMs",
+			"BasisMediaPlayer.DisplayName",
+			"BasisMediaPlayer.AutoPlayOnSourceAssigned",
+			"BasisMediaPlayer.Loop",
+			"BasisMediaPlayer.LoopRestartDelaySeconds",
+			"BasisMediaPlayer.StopAfterSeconds",
+			"BasisMediaPlayer.Volume",
+			"BasisMediaPlayer.Mute",
+			"BasisMediaPlayer.VerboseLogging",
 			"BasisMediaPlayerAudio.*",
 			// Streaming URLs/platform selection are script-configurable, but ConfigureOnStart
 			// is intentionally withheld so Cilbox cannot re-enable content auto-start.
@@ -345,13 +354,18 @@ namespace Cilbox
 			if (declaringType == typeof(global::BasisMediaPlayer))
 			{
 				// A prop opens URLs only through routes that ask the user first (Open,
-				// OpenUserUrl, and Configure on BasisMediaPlayerStreaming). OpenResolved
+				// LoadUrl, and Configure on BasisMediaPlayerStreaming). OpenResolved
 				// takes what a resolver produced on trust, so a prop could hand it a forged
 				// result and skip the prompt; sidecar subtitles are fetched from a URL the
-				// caller picks with no prompt at all. Play, pause, seek, close, track
-				// selection, status and events stay available.
+				// caller picks with no prompt at all. LoadLocalPath and LoadSource can reach
+				// the viewer's own files, which a prop has no business opening even with
+				// consent. CaptureScreenshot writes to the viewer's disk. Play, pause,
+				// seek, stop, track selection, status and events stay available.
 				if (name == nameof(global::BasisMediaPlayer.OpenResolved) ||
-					name == nameof(global::BasisMediaPlayer.SetSubtitleTracks))
+					name == nameof(global::BasisMediaPlayer.SetSubtitleTracks) ||
+					name == nameof(global::BasisMediaPlayer.LoadLocalPath) ||
+					name == nameof(global::BasisMediaPlayer.LoadSource) ||
+					name == nameof(global::BasisMediaPlayer.CaptureScreenshot))
 				{
 					mi = null;
 					return false;

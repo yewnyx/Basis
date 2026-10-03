@@ -77,7 +77,7 @@ internal static class BasisMediaTextureRetirement
 
         if (driver == null)
         {
-            // Outlives the player's GameObject on purpose: Close is routinely
+            // Outlives the player's GameObject on purpose: Stop is routinely
             // followed by the object going away, and the retention has to
             // survive that.
             var host = new GameObject(nameof(BasisMediaTextureRetirement))

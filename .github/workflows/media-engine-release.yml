@@ -4,10 +4,10 @@
 # binaries; a reviewer (or a release) can take these artifacts as the source of
 # record instead of trusting a dev-box build.
 #
-# Windows and Linux build with the rist feature on, so rist:// works in the
-# shipped binaries. Android does not: media-rist's build script only stages
-# librist for win-x64 and linux-x64, and there is no NDK cross-build recipe for
-# it, so rist:// refuses there with a typed "not built" error.
+# All three build with the rist feature on, so rist:// works in the shipped
+# binaries; each job builds librist for its target first, the Android one
+# with tools/build-librist-android.sh as tools/stage-android-plugin.ps1 does
+# for the committed plugin.
 name: media-engine-release
 
 on:

@@ -10,7 +10,7 @@ prefabs. None of the rows below has an automated test. The engine's tests are in
 | Shared playback, ownership or resync (`BasisMediaPlayerNetworking`) | [Shared playback](#shared-playback) |
 | The panel, transport, seeking or status (`BasisMediaPlayer`, `Runtime/UI/`) | [Media Players panel](#media-players-panel) |
 | The prefabs, outputs or audio components (`Runtime/Audio/`, `Runtime/Rendering/`) | [Prefabs and components](#prefabs-and-components) |
-| `UserDataReceived` | [SEI user data](#sei-user-data) |
+| `OnUserDataReceived` | [SEI user data](#sei-user-data) |
 | Which routes open a URL, the prompt, or the resolvers (`Runtime/Resolver/`) | [URL consent](#url-consent) |
 | How engine events and log lines reach the Console | [Console diagnostics](#console-diagnostics) |
 | Texture handling or the native plugin | [Direct3D 11 and 12](#direct3d-11-and-12) |
@@ -117,7 +117,7 @@ startup in a build or on the second load.
 ## SEI user data
 
 Against `Native~/fixtures/h264-sei-userdata-640x360-30fps.ts` over HTTP, with a
-script logging `UserDataReceived`:
+script logging `OnUserDataReceived`:
 
 | Row | Do | Expect |
 | --- | --- | --- |
@@ -157,7 +157,6 @@ newer than the managed side prints as a number.
 | Row | Do | Expect |
 | --- | --- | --- |
 | Named codes | Play any source | `Code/Stage` lines; `StateChange/Clock` within a second of opening |
-| No stack traces | Any player, in the Editor | Log-level lines have no call stack (builds keep them) |
 | Unknown code | Delete `AudioTrim = 15` from `BmEventCode`, play a source that trims | The line reads `15/AudioRing`. Restore |
 | Burst | Set `EventDrainBatch` to 4, open a source | The open's events arrive in one frame. Restore |
 | Full log | Set `SessionDiag::default`'s cap to 2, rebuild, play | `diagnostics log full: N event(s) refused, M this session`. Restore |
@@ -180,6 +179,7 @@ file given with `-logFile <path>`.
 | Row | Do | Expect |
 | --- | --- | --- |
 | Playback | Play a video with sound, seek forwards and back, pause, resume | Picture and sound throughout, seeks land on their target, the pause holds its frame, and no `consumer open failed` line |
+| Screenshot | From a script, call `CaptureScreenshot()` on a player showing a known frame, with **Flip Screenshots Vertically** off, then again with it on | Off: the PNG under `Screenshots/` in the persistent data folder is upright. On: inverted |
 | Render-thread cost | With `BasisMediaPlayerDiagnostics` recording, leave a minute of playback untouched, then a minute with the player idle | Mean frame time within 0.1 ms of the idle minute, and no more than three extra frames over 33 ms. If either misses, run both minutes again; a second miss is a regression |
 
 ## Still needs a person

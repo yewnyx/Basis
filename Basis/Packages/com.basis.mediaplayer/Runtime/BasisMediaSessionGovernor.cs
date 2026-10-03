@@ -46,6 +46,8 @@ public static class BasisMediaSessionGovernor
         public string Url;
         public double PositionSeconds;
         public bool Live;
+        /// <summary>The viewer had it paused when it went dormant.</summary>
+        public bool Paused;
         public float SettledAt;
         public float PromotedUntil;
         public bool AwaitingResume;
@@ -54,6 +56,9 @@ public static class BasisMediaSessionGovernor
 
     static readonly Dictionary<BasisMediaPlayer, Entry> entries = new();
     static readonly List<Entry> ranked = new();
+    static readonly List<BasisMediaSessionSelection.Candidate> candidates = new();
+    static readonly List<int> toActivate = new();
+    static readonly List<int> toDemote = new();
     static float nextEvaluate;
 
     /// <summary>Players this governor has closed to stay inside the cap.</summary>
@@ -194,48 +199,27 @@ public static class BasisMediaSessionGovernor
         Vector3 listener = ListenerPosition();
         ranked.Sort((a, b) => CompareForSlot(a, b, listener));
 
+        // The retained set is chosen before anything moves, so a dormant
+        // player held off by the swap margin leaves the one it would have
+        // displaced running. The dwell keeps a walk past a row of screens
+        // from opening and closing sessions the whole way.
         float now = Time.unscaledTime;
+        candidates.Clear();
         for (int i = 0; i < ranked.Count; i++)
         {
             Entry entry = ranked[i];
-            bool wantsActive = i < cap;
-            if (wantsActive == !entry.Dormant) continue;
-
-            // Hold a player where it is for a moment after it moves, so walking
-            // between screens does not open and close sessions the whole way.
-            if (now - entry.SettledAt < DwellSeconds) continue;
-
-            if (wantsActive)
+            candidates.Add(new BasisMediaSessionSelection.Candidate
             {
-                // Only displace the sitting player when meaningfully nearer, or
-                // the pair swaps back and forth around equal distance.
-                Entry displaced = FirstActiveAtOrAfter(cap);
-                if (displaced != null && !IsPromoted(entry, now) &&
-                    DistanceTo(entry, listener) > DistanceTo(displaced, listener) * SwapMargin)
-                {
-                    continue;
-                }
-
-                Activate(entry);
-            }
-            else
-            {
-                Demote(entry);
-            }
-        }
-    }
-
-    /// <summary>The nearest player that is still running despite having ranked
-    /// outside the cap. That is the one a nearer dormant player displaces, so it
-    /// is what the swap margin is measured against.</summary>
-    static Entry FirstActiveAtOrAfter(int index)
-    {
-        for (int i = Mathf.Max(0, index); i < ranked.Count; i++)
-        {
-            if (!ranked[i].Dormant) return ranked[i];
+                Active = !entry.Dormant,
+                Promoted = IsPromoted(entry, now),
+                Held = now - entry.SettledAt < DwellSeconds,
+                Distance = DistanceTo(entry, listener),
+            });
         }
 
-        return null;
+        BasisMediaSessionSelection.Select(candidates, cap, SwapMargin, toActivate, toDemote);
+        for (int i = 0; i < toDemote.Count; i++) Demote(ranked[toDemote[i]]);
+        for (int i = 0; i < toActivate.Count; i++) Activate(ranked[toActivate[i]]);
     }
 
     static bool IsPromoted(Entry entry, float now) => now < entry.PromotedUntil;
@@ -292,10 +276,11 @@ public static class BasisMediaSessionGovernor
         entry.Url = ShareableUrl(player);
         entry.Live = player.liveness == BmLiveness.Live || player.DurationSeconds <= 0d;
         entry.PositionSeconds = entry.Live ? 0d : player.PositionSeconds;
+        entry.Paused = player.IsPaused;
         entry.Dormant = true;
         entry.AwaitingResume = false;
         entry.SettledAt = Time.unscaledTime;
-        player.Close();
+        player.Stop();
     }
 
     static void Activate(Entry entry)
@@ -305,17 +290,22 @@ public static class BasisMediaSessionGovernor
         entry.SettledAt = Time.unscaledTime;
         if (player == null || string.IsNullOrEmpty(entry.Url)) return;
 
-        player.OpenApprovedUrl(entry.Url);
-        // Live sources rejoin at the edge; there is nothing to return to.
-        if (entry.Live || entry.PositionSeconds <= 0d) return;
+        player.LoadApprovedUrl(entry.Url);
+        // Live sources rejoin at the edge; there is nothing to return to, and
+        // nothing to pause.
+        if (entry.Live) return;
+        if (entry.PositionSeconds <= 0d && !entry.Paused) return;
         entry.AwaitingResume = true;
         entry.ResumeStartedAt = Time.unscaledTime;
     }
 
     /// <summary>
     /// Puts a reactivated player back where it was, once its session is running
-    /// far enough to accept a seek. A shared-playback player is left alone: its
-    /// owner's position is the truth, and it arrives on the next heartbeat.
+    /// far enough to accept a seek, and pauses it again if the viewer had it
+    /// paused. A shared-playback player's position is left alone: its owner's
+    /// is the truth, and it arrives on the next heartbeat; one that was paused
+    /// with the room is paused again rather than playing out loud until the
+    /// room's state arrives.
     /// </summary>
     static void ResumeWhereReady()
     {
@@ -338,11 +328,17 @@ public static class BasisMediaSessionGovernor
             if (player.TryGetComponent(out BasisMediaPlayerNetworking networking)
                 && networking.HasNetworkID)
             {
+                if (entry.Paused) player.Pause();
                 continue;
             }
-            if (player.DurationSeconds <= 0d) continue;
-
-            player.Seek(entry.PositionSeconds + (Time.unscaledTime - entry.ResumeStartedAt));
+            if (player.DurationSeconds > 0d && entry.PositionSeconds > 0d)
+            {
+                player.Seek(BasisMediaSessionSelection.ResumeTarget(
+                    entry.Paused, entry.PositionSeconds, Time.unscaledTime - entry.ResumeStartedAt));
+            }
+            // The engine holds a pause across the seek, so the order does not
+            // matter: the session lands on the frame and stays there.
+            if (entry.Paused) player.Pause();
         }
     }
 

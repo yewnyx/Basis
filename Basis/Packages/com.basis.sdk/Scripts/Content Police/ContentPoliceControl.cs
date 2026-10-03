@@ -20,33 +20,44 @@ public static class ContentPoliceControl
     public static bool VerboseLogging = false;
 
     private static readonly List<Component> UnapprovedRemovalScratch = new List<Component>(16);
-    // Authored media auto-start that avatars and props may not keep: a
-    // BasisMediaPlayerStreaming that configures itself at Start, and a bare
-    // BasisMediaPlayer that opens its authored URL at Start.
-    private sealed class MediaAutoStartPolicy
+    // Authored media settings avatars and props may not keep, cleared as the
+    // content loads: auto-start (a BasisMediaPlayerStreaming that configures
+    // itself at Start, a BasisMediaPlayer that opens its URL at Start) and the
+    // player's local-address exemption, which would let imported content
+    // reach the viewer's own network.
+    private sealed class MediaFieldPolicy
     {
         public readonly string AssemblyQualifiedTypeName;
         public readonly string TypeName;
-        public readonly string FieldName;
+        public readonly string[] FieldNames;
         public Type Type;
-        public FieldInfo Field;
+        // The bool fields that resolved, in FieldNames order; the rest are
+        // reported once and skipped.
+        public FieldInfo[] Fields;
         public bool Resolved;
-        public bool InvalidLogged;
 
-        public MediaAutoStartPolicy(string typeName, string fieldName)
+        public MediaFieldPolicy(string typeName, params string[] fieldNames)
         {
             AssemblyQualifiedTypeName = typeName + ", BasisMediaPlayer";
             TypeName = typeName;
-            FieldName = fieldName;
+            FieldNames = fieldNames;
         }
 
-        public bool Valid => Type != null && Field != null && Field.FieldType == typeof(bool);
+        public bool Valid => Type != null && Fields != null && Fields.Length > 0;
+
+        public void Clear(Component component)
+        {
+            for (int i = 0; i < Fields.Length; i++)
+            {
+                Fields[i].SetValue(component, false);
+            }
+        }
     }
 
-    private static readonly MediaAutoStartPolicy[] mediaAutoStartPolicies =
+    private static readonly MediaFieldPolicy[] mediaFieldPolicies =
     {
-        new MediaAutoStartPolicy("BasisMediaPlayerStreaming", "ConfigureOnStart"),
-        new MediaAutoStartPolicy("BasisMediaPlayer", "playOnStart"),
+        new MediaFieldPolicy("BasisMediaPlayerStreaming", "ConfigureOnStart"),
+        new MediaFieldPolicy("BasisMediaPlayer", "playOnStart", "allowLocalAddresses"),
     };
 
     // Server-pushed admin lock, mirrored from BasisNetworkModeration.GlobalCilboxLocked by the
@@ -74,28 +85,35 @@ public static class ContentPoliceControl
     // runtime types/fields lazily and cache them so the normal Content Police walk only pays a
     // Type reference comparison per component. If the media-player assembly is not loaded yet,
     // leave a policy unresolved so a later content load can retry. True when any policy is usable.
-    private static bool TryGetMediaAutoStartPolicies()
+    private static bool TryGetMediaFieldPolicies()
     {
         bool any = false;
-        for (int i = 0; i < mediaAutoStartPolicies.Length; i++)
+        for (int i = 0; i < mediaFieldPolicies.Length; i++)
         {
-            MediaAutoStartPolicy policy = mediaAutoStartPolicies[i];
+            MediaFieldPolicy policy = mediaFieldPolicies[i];
             if (!policy.Resolved)
             {
                 Type resolvedType = Type.GetType(policy.AssemblyQualifiedTypeName, throwOnError: false);
                 if (resolvedType != null)
                 {
                     policy.Type = resolvedType;
-                    policy.Field = resolvedType.GetField(policy.FieldName, BindingFlags.Public | BindingFlags.Instance);
                     policy.Resolved = true;
-
-                    if (!policy.Valid && !policy.InvalidLogged)
+                    var fields = new List<FieldInfo>(policy.FieldNames.Length);
+                    for (int f = 0; f < policy.FieldNames.Length; f++)
                     {
-                        policy.InvalidLogged = true;
+                        FieldInfo field = resolvedType.GetField(policy.FieldNames[f], BindingFlags.Public | BindingFlags.Instance);
+                        if (field != null && field.FieldType == typeof(bool))
+                        {
+                            fields.Add(field);
+                            continue;
+                        }
+
                         BasisDebug.LogWarning(
-                            $"[ContentPolice] {policy.TypeName} no longer exposes a public bool {policy.FieldName}; avatar/prop auto-start could not be disabled.",
+                            $"[ContentPolice] {policy.TypeName} no longer exposes a public bool {policy.FieldNames[f]}; it cannot be cleared on avatar/prop content.",
                             BasisDebug.LogTag.Event);
                     }
+
+                    policy.Fields = fields.ToArray();
                 }
             }
 
@@ -105,14 +123,14 @@ public static class ContentPoliceControl
         return any;
     }
 
-    private static bool IsMediaAutoStartComponent(Component component, out MediaAutoStartPolicy policy)
+    private static bool IsMediaPolicyComponent(Component component, out MediaFieldPolicy policy)
     {
         if (component != null)
         {
             Type type = component.GetType();
-            for (int i = 0; i < mediaAutoStartPolicies.Length; i++)
+            for (int i = 0; i < mediaFieldPolicies.Length; i++)
             {
-                policy = mediaAutoStartPolicies[i];
+                policy = mediaFieldPolicies[i];
                 if (policy.Valid && type == policy.Type)
                 {
                     return true;
@@ -124,16 +142,16 @@ public static class ContentPoliceControl
         return false;
     }
 
-    private static void DisableMediaAutoStart(GameObject root, BundledContentHolder.Selector selector)
+    private static void ClearMediaFields(GameObject root, BundledContentHolder.Selector selector)
     {
-        if (!IsAvatarOrPropSelector(selector) || root == null || !TryGetMediaAutoStartPolicies())
+        if (!IsAvatarOrPropSelector(selector) || root == null || !TryGetMediaFieldPolicies())
         {
             return;
         }
 
-        for (int i = 0; i < mediaAutoStartPolicies.Length; i++)
+        for (int i = 0; i < mediaFieldPolicies.Length; i++)
         {
-            MediaAutoStartPolicy policy = mediaAutoStartPolicies[i];
+            MediaFieldPolicy policy = mediaFieldPolicies[i];
             if (!policy.Valid)
             {
                 continue;
@@ -142,7 +160,7 @@ public static class ContentPoliceControl
             Component[] mediaComponents = root.GetComponentsInChildren(policy.Type, true);
             for (int j = 0; j < mediaComponents.Length; j++)
             {
-                policy.Field.SetValue(mediaComponents[j], false);
+                policy.Clear(mediaComponents[j]);
             }
         }
     }
@@ -223,10 +241,11 @@ public static class ContentPoliceControl
             // Do not let the first visible frame race the scoped DX12 PSO warm-up. This also keeps
             // the no-removal path consistent with the inactive-host path used above.
             SearchAndDestroy.SetActive(false);
-            // Avatar/prop media must not auto-start from authored data. This path skips the
-            // normal component-removal walk, so apply the content-specific rewrite explicitly
-            // immediately after Instantiate; Unity Start has not run yet.
-            DisableMediaAutoStart(SearchAndDestroy, Selector);
+            // Avatar/prop media must not auto-start or reach the local network from authored
+            // data. This path skips the normal component-removal walk, so apply the
+            // content-specific rewrite explicitly immediately after Instantiate; Unity Start
+            // has not run yet.
+            ClearMediaFields(SearchAndDestroy, Selector);
 
             // No content-removal walk happened, so a dedicated Renderer-typed walk is the only
             // way to feed the prewarm here. Cheaper than the full component walk above. Only the
@@ -308,7 +327,7 @@ public static class ContentPoliceControl
                 // is appended only when the caller passed a non-null collector — that way the
                 // data flows back through the call chain rather than living on BasisAvatar.
                 BasisConstraintConversion.Report constraintReport = default;
-                bool sanitizeMediaAutoStart = IsAvatarOrPropSelector(Selector) && TryGetMediaAutoStartPolicies();
+                bool sanitizeMediaFields = IsAvatarOrPropSelector(Selector) && TryGetMediaFieldPolicies();
                 for (int Index = 0; Index < count; Index++)
                 {
                     Component component = components[Index];
@@ -316,8 +335,8 @@ public static class ContentPoliceControl
                     //do this first before we nuke stuff
                     switch (component)
                     {
-                        case Component media when sanitizeMediaAutoStart && IsMediaAutoStartComponent(media, out MediaAutoStartPolicy policy):
-                            policy.Field.SetValue(media, false);
+                        case Component media when sanitizeMediaFields && IsMediaPolicyComponent(media, out MediaFieldPolicy policy):
+                            policy.Clear(media);
                             break;
                         case BasisHeadChop headChop:
                             // Authoring-only component: harvest its targets (when a collector
@@ -590,7 +609,7 @@ public static class ContentPoliceControl
         List<Renderer> renderersForPrewarm = new List<Renderer>();
         List<Component> components = new List<Component>();
         BasisConstraintConversion.Report constraintReport = default;
-        bool sanitizeMediaAutoStart = IsAvatarOrPropSelector(selector) && TryGetMediaAutoStartPolicies();
+        bool sanitizeMediaFields = IsAvatarOrPropSelector(selector) && TryGetMediaFieldPolicies();
         for (int RootIndex = 0; RootIndex < roots.Count; RootIndex++)
         {
             roots[RootIndex].transform.GetComponentsInChildren(includeInactive, components);
@@ -601,8 +620,8 @@ public static class ContentPoliceControl
                 //do this first before we nuke stuff
                 switch (component)
                 {
-                    case Component media when sanitizeMediaAutoStart && IsMediaAutoStartComponent(media, out MediaAutoStartPolicy policy):
-                        policy.Field.SetValue(media, false);
+                    case Component media when sanitizeMediaFields && IsMediaPolicyComponent(media, out MediaFieldPolicy policy):
+                        policy.Clear(media);
                         break;
                     case Animator animator:
                         // See the Animator case in the GameObject overload for the

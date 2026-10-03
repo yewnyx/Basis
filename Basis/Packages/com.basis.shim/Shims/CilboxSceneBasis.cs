@@ -285,14 +285,13 @@ namespace Cilbox
 			// VRSL DMX GPU readback surface (mirrors CilboxPropBasis).
 			{ typeof(UnityEngine.Graphics), new HashSet<string>{ "Blit" } },
 			{ typeof(UnityEngine.Rendering.AsyncGPUReadback), new HashSet<string>{ "Request" } },
-			// The media player: read-only video output access only. Blocks Open/OpenUserUrl/
-			// Play/Pause/Seek/Close so sandboxed scenes can't load arbitrary media,
+			// The media player: read-only video output access only. Blocks Open/LoadUrl/
+			// Play/Pause/Seek/Stop so sandboxed scenes can't load arbitrary media,
 			// bypassing the VideoPlayerShim URL trust prompt.
 			// OutputFrameIsTopLeftOrigin is the per-client orientation flag DMX/video sinks XOR
 			// into their flip so the grid isn't upside-down on GPUs that can't normalize it.
 			{ typeof(BasisMediaPlayer), new HashSet<string>{
 				$"get_{nameof(BasisMediaPlayer.OutputTexture)}",
-				$"get_{nameof(BasisMediaPlayer.Texture)}",
 				$"get_{nameof(BasisMediaPlayer.OutputFrameIsTopLeftOrigin)}",
 				} },
 			{ typeof(Basis.Shims.BasisVoiceRoutingShim), new HashSet<string>{

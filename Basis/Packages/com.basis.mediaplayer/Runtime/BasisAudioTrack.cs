@@ -24,6 +24,17 @@ public sealed class BasisAudioTrack
 
     public int SampleRate;
 
+    /// <summary>The track's codec. The engine's track list does not carry
+    /// it, so null.</summary>
+    public string Codec;
+
+    /// <summary>Bit rate. Not reported by the engine, so 0.</summary>
+    public int BitsPerSecond;
+
+    /// <summary>Whether two mono channels were muxed as one stereo track.
+    /// Not detected by the engine, so false.</summary>
+    public bool IsDualMono;
+
     /// <summary>What a picker should show. Prefers the track's own name,
     /// then its language. An unnamed track carries its position, so three
     /// unnamed stereo tracks from a screen recording do not render as three

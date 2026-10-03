@@ -16,6 +16,10 @@ public sealed class BasisVideoDisplay : MonoBehaviour, IBasisMediaTickConsumer
     [Tooltip("Player to subscribe to. If unassigned, GetComponentInParent<BasisMediaPlayer>() is used.")]
     public BasisMediaPlayer Player;
 
+    // The player subscribed to on enable. The field can be reassigned while
+    // enabled, so the handlers and the unsubscribe use this, not the field.
+    private BasisMediaPlayer subscribed;
+
     [Tooltip("RawImage that displays the player's video texture.")]
     public RawImage TargetRawImage;
 
@@ -67,22 +71,24 @@ public sealed class BasisVideoDisplay : MonoBehaviour, IBasisMediaTickConsumer
             return;
         }
 
-        Player.OutputTextureChanged += HandleTextureChanged;
-        Player.Ended += HandleEnded;
-        Player.AddTickConsumer(this);
+        subscribed = Player;
+        subscribed.OnOutputTextureChanged += HandleTextureChanged;
+        subscribed.OnEnded += HandleEnded;
+        subscribed.AddTickConsumer(this);
 
         // Apply current state immediately so attaching mid-playback works.
-        HandleTextureChanged(Player.Texture);
-        if (Player.VideoSize != Vector2Int.zero) ApplyAspect(Player.VideoSize.x, Player.VideoSize.y);
+        HandleTextureChanged(subscribed.Texture);
+        if (subscribed.VideoSize != Vector2Int.zero) ApplyAspect(subscribed.VideoSize.x, subscribed.VideoSize.y);
     }
 
     private void OnDisable()
     {
-        if (Player != null)
+        if (subscribed != null)
         {
-            Player.RemoveTickConsumer(this);
-            Player.OutputTextureChanged -= HandleTextureChanged;
-            Player.Ended -= HandleEnded;
+            subscribed.RemoveTickConsumer(this);
+            subscribed.OnOutputTextureChanged -= HandleTextureChanged;
+            subscribed.OnEnded -= HandleEnded;
+            subscribed = null;
         }
         if (RestorePlaceholderOnDetach && TargetRawImage != null)
         {
@@ -170,7 +176,9 @@ public sealed class BasisVideoDisplay : MonoBehaviour, IBasisMediaTickConsumer
 
     private void HandleEnded()
     {
-        if (!RestorePlaceholderOnDetach || TargetRawImage == null) return;
+        // A looping player is about to start again on the same texture; the
+        // last frame holds until it does.
+        if (!RestorePlaceholderOnDetach || TargetRawImage == null || (subscribed != null && subscribed.Loop)) return;
         TargetRawImage.texture = PlaceholderTexture;
         lastBoundTexture = PlaceholderTexture;
         ApplyUvRect(PlaceholderTexture);

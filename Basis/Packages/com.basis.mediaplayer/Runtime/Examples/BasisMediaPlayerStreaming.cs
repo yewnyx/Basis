@@ -62,7 +62,7 @@ public sealed class BasisMediaPlayerStreaming : MonoBehaviour
             return;
         }
 
-        player.OpenUserUrl(url);
+        player.LoadUrl(url);
     }
 
     public string ResolveUrl()
