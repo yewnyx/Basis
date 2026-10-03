@@ -86,6 +86,15 @@ public sealed class BasisMediaPlayerAudio : MonoBehaviour, IBasisMediaTickConsum
         }
     }
     public float RepresentativeVolume => bindings != null && bindings.Length > 0 && bindings[0].Source != null ? bindings[0].Source.volume : 0f;
+
+    /// <summary>Whether the player beside this sink has a position to report:
+    /// its load has reached playback.</summary>
+    public bool HasMediaTime => tickOwner != null && tickOwner.IsPrepared;
+
+    /// <summary>The player's playback position in microseconds, 0 before
+    /// playback: the engine clock's, the same number
+    /// <see cref="BasisMediaPlayer.Position"/> reports.</summary>
+    public long CurrentMediaTimeUs => HasMediaTime ? (long)(tickOwner.PositionSeconds * 1_000_000.0) : 0L;
     public float RepresentativeSpatialBlend => bindings != null && bindings.Length > 0 && bindings[0].Source != null ? bindings[0].Source.spatialBlend : 0f;
 
     /// <summary>

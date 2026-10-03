@@ -222,7 +222,7 @@ public sealed class BasisMediaPlayerDiagnostics : MonoBehaviour, IBasisMediaTick
     {
         if (!IsLogging || _writer == null || _player == null) return;
 
-        ulong presented = _player.FramesPresented;
+        ulong presented = (ulong)_player.PresentedFrameCount;
         ulong decoded = _player.FramesDecoded;
         long pulled = _player.AudioFramesPulled;
 

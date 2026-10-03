@@ -4,6 +4,15 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UrlSecurity = Basis.Scripts.Common.BasisUrlSecurity;
 
+/// <summary>How a sidecar subtitle fetch ended.</summary>
+enum BasisSubtitleLoad
+{
+    Loaded,
+    Failed,
+    /// <summary>A newer fetch or a clear overtook it: not a failure.</summary>
+    Superseded,
+}
+
 // Fetches an out-of-band subtitle track and answers "which cue is active at
 // this position" for the player's per-frame tick. Owned by BasisMediaPlayer;
 // not a MonoBehaviour. The lookup is stateless against playback (a binary
@@ -35,26 +44,27 @@ internal sealed class BasisSidecarSubtitleEngine
     }
 
     // Fetches and parses a track, replacing the held cue list on success.
-    // Returns false on any failure (gate refusal, network/HTTP error,
-    // oversized or unparseable payload) or when superseded by a newer
-    // LoadTrackAsync/Clear; the caller decides how to surface it. Redirects
+    // Failed covers the gate refusing the URL, a network or HTTP error, and
+    // an oversized or unparseable payload; Superseded means a newer
+    // LoadTrackAsync or Clear overtook this one, which is not a failure and
+    // nothing to report. The caller decides how to surface either. Redirects
     // are refused so a post-validation redirect can't reach a host the gate
     // never saw.
-    public async Task<bool> LoadTrackAsync(BasisSubtitleTrack track)
+    public async Task<BasisSubtitleLoad> LoadTrackAsync(BasisSubtitleTrack track)
     {
         int loadGeneration = ++generation;
         activeRequest?.Abort();
         cues = null;
         activeIndex = -1;
 
-        if (track == null || string.IsNullOrEmpty(track.Url)) return false;
+        if (track == null || string.IsNullOrEmpty(track.Url)) return BasisSubtitleLoad.Failed;
         string refusal = await ValidateUrlAsync(track.Url);
         if (refusal != null)
         {
             BasisDebug.LogWarning($"[BasisMedia] subtitle track refused: {refusal}", BasisDebug.LogTag.Video);
-            return false;
+            return BasisSubtitleLoad.Failed;
         }
-        if (loadGeneration != generation) return false;
+        if (loadGeneration != generation) return BasisSubtitleLoad.Superseded;
 
         string payload;
         using (var request = UnityWebRequest.Get(track.Url))
@@ -66,10 +76,10 @@ internal sealed class BasisSidecarSubtitleEngine
             {
                 UnityWebRequestAsyncOperation op = request.SendWebRequest();
                 while (!op.isDone) await Task.Yield();
-                if (loadGeneration != generation) return false;
-                if (request.result != UnityWebRequest.Result.Success) return false;
+                if (loadGeneration != generation) return BasisSubtitleLoad.Superseded;
+                if (request.result != UnityWebRequest.Result.Success) return BasisSubtitleLoad.Failed;
                 byte[] data = request.downloadHandler.data;
-                if (data == null || data.LongLength == 0 || data.LongLength > MaxPayloadBytes) return false;
+                if (data == null || data.LongLength == 0 || data.LongLength > MaxPayloadBytes) return BasisSubtitleLoad.Failed;
                 payload = request.downloadHandler.text;
             }
             finally
@@ -79,10 +89,10 @@ internal sealed class BasisSidecarSubtitleEngine
         }
 
         BasisCaptionCue[] parsed = await Task.Run(() => ParseTrack(track.Format, payload));
-        if (loadGeneration != generation) return false;
-        if (parsed == null || parsed.Length == 0) return false;
+        if (loadGeneration != generation) return BasisSubtitleLoad.Superseded;
+        if (parsed == null || parsed.Length == 0) return BasisSubtitleLoad.Failed;
         cues = parsed;
-        return true;
+        return BasisSubtitleLoad.Loaded;
     }
 
     // Reports the active cue whenever it differs from the last report,

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // Renderer/material sink for BasisMediaPlayer. Subscribes to the player's
-// OutputTextureChanged and binds the current Texture to one or more target
+// OnOutputTextureChanged and binds the current Texture to one or more target
 // Renderer material properties. The primary TargetRenderer/MaterialIndex
 // plus every entry in AdditionalTargets are all driven from the same output, so
 // one player can feed several screens or materials at once.
@@ -43,6 +43,10 @@ public sealed class BasisVideoMaterialOutput : MonoBehaviour
 
     [Tooltip("Player to subscribe to. If unassigned, GetComponentInParent<BasisMediaPlayer>() is used.")]
     public BasisMediaPlayer Player;
+
+    // The player subscribed to on enable. The field can be reassigned while
+    // enabled, so the handlers and the unsubscribe use this, not the field.
+    private BasisMediaPlayer subscribed;
 
     [Tooltip("Renderer whose material receives the video texture.")]
     public Renderer TargetRenderer;
@@ -122,18 +126,20 @@ public sealed class BasisVideoMaterialOutput : MonoBehaviour
 
         for (int i = 0; i < activeTargets.Count; i++) CaptureOriginal(activeTargets[i]);
 
-        Player.OutputTextureChanged += HandleTextureChanged;
-        Player.Ended += HandleEnded;
+        subscribed = Player;
+        subscribed.OnOutputTextureChanged += HandleTextureChanged;
+        subscribed.OnEnded += HandleEnded;
 
-        HandleTextureChanged(Player.Texture);
+        HandleTextureChanged(subscribed.Texture);
     }
 
     private void OnDisable()
     {
-        if (Player != null)
+        if (subscribed != null)
         {
-            Player.OutputTextureChanged -= HandleTextureChanged;
-            Player.Ended -= HandleEnded;
+            subscribed.OnOutputTextureChanged -= HandleTextureChanged;
+            subscribed.OnEnded -= HandleEnded;
+            subscribed = null;
         }
         for (int i = 0; i < activeTargets.Count; i++) RestoreOriginal(activeTargets[i]);
         activeTargets.Clear();
@@ -178,7 +184,9 @@ public sealed class BasisVideoMaterialOutput : MonoBehaviour
 
     private void HandleEnded()
     {
-        if (!RestorePlaceholderOnEnded) return;
+        // A looping player is about to start again on the same texture; the
+        // last frame holds until it does.
+        if (!RestorePlaceholderOnEnded || (subscribed != null && subscribed.Loop)) return;
         for (int i = 0; i < activeTargets.Count; i++) SetTexture(activeTargets[i], PlaceholderTexture);
     }
 

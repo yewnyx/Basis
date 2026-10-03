@@ -107,7 +107,12 @@ public static class BasisMediaSettings
         for (int i = 0; i < players.Count; i++)
         {
             BasisMediaPlayer player = players[i];
-            if (player != null && !player.BufferDepthOverrideMs.HasValue) player.ReopenAtPosition();
+            if (player == null || player.BufferDepthOverrideMs.HasValue) continue;
+            // A follower's session is placed by its owner, and a re-open would
+            // only cost it a rejoin; the new depth applies on its next load.
+            if (player.TryGetComponent(out BasisMediaPlayerNetworking networking) && networking.IsFollowerInSession)
+                continue;
+            player.ReopenAtPosition();
         }
     }
 }

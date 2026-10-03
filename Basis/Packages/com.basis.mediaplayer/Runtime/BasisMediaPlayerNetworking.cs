@@ -116,6 +116,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
     // Local playback state, sampled each frame: the player reports a state enum
     // rather than raising started/paused events, so transitions are detected here.
     private BmState lastObservedState = BmState.Idle;
+    private bool lastObservedPlayWhenReady = true;
     private int lastObservedLoadGeneration;
     private bool announcedThisLoad;
 
@@ -133,6 +134,10 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
     private bool deliberateControl;
 
     private bool IsDrivingOwner => IsOwnedLocallyOnClient && deliberateControl;
+
+    /// <summary>In a session and following its owner, whose position is the
+    /// truth for this player.</summary>
+    internal bool IsFollowerInSession => HasNetworkID && !IsDrivingOwner;
 
     // Answering a joiner or a state request with only the scene default would spread
     // that default over the instance; an implicit owner answers once custodians have
@@ -308,6 +313,9 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         // is the reopened load's near-zero one, not our real position. Broadcasting it would
         // drag resolving peers to the start.
         if (pendingRemoteApply) return;
+        // A re-open's new session reads near zero until its restore seek lands; a beat then
+        // would pull every follower back to the start.
+        if (mediaPlayer.RestoringPosition) return;
         if (GetLocalState() != SyncedPlaybackState.Playing) return;
         if (mediaPlayer.DurationSeconds <= 0d) return;
         heartbeatTimer += Time.deltaTime;
@@ -468,10 +476,15 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         ClearSyncTarget();
     }
 
+    /// <summary>Load a URL for the whole room.
+    /// <see cref="TrySetUrlAsync"/> is the same call reporting whether the
+    /// load went ahead.</summary>
+    public Task SetUrl(string url) => TrySetUrlAsync(url);
+
     /// <summary>Load a URL for the whole room. Completes with true once the load
     /// has been issued, and with false when the user declined the URL, it was
     /// refused, a later load superseded it, or control could not be taken.</summary>
-    public Task<bool> SetUrl(string url)
+    public Task<bool> TrySetUrlAsync(string url)
     {
         if (mediaPlayer == null || string.IsNullOrEmpty(url))
         {
@@ -501,9 +514,18 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         }
     }
 
-    /// <summary><see cref="SetUrl"/> for a URL the user has already answered
-    /// for: the one they typed into the Media Players panel.</summary>
+    /// <summary><see cref="TrySetUrlAsync"/> for a URL the user has already
+    /// answered for: the one they typed into the Media Players panel.</summary>
     internal Task<bool> SetApprovedUrl(string url) => SetApprovedUrl(url, ++setUrlOperation);
+
+    /// <summary>Does nothing: the engine's sync ladder decides when a follower
+    /// seeks rather than slews, from its own measurements.</summary>
+    [Obsolete("The Rust engine's sync ladder owns the seek threshold; SetDriftSeekThresholdSeconds does nothing. This member only exists so content written against the C player keeps loading.")]
+    public Task SetDriftSeekThresholdSeconds(float value)
+    {
+        BasisDebug.LogWarningOnce("[BasisMedia] SetDriftSeekThresholdSeconds does nothing on this engine; the sync ladder owns the threshold.", BasisDebug.LogTag.Video);
+        return Task.CompletedTask;
+    }
 
     private async Task<bool> SetApprovedUrl(string url, int operation)
     {
@@ -536,7 +558,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         BroadcastFullState(freshLoad: true);
 
         ClearSyncTarget();
-        mediaPlayer.OpenApprovedUrl(url);
+        mediaPlayer.LoadApprovedUrl(url);
         return true;
     }
 
@@ -653,7 +675,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         suppressResyncSettleBroadcast = true;
         ClearSyncTarget();
         NotePendingLoadRequest();
-        mediaPlayer.OpenApprovedUrl(currentSyncedUrl);
+        mediaPlayer.LoadApprovedUrl(currentSyncedUrl);
     }
 
     public async Task Play()
@@ -673,7 +695,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
             return;
         }
 
-        mediaPlayer.Close();
+        mediaPlayer.Stop();
         // Closing the session raises no event, so we broadcast directly.
         SendOwnerSimple(MessageId.Stop);
     }
@@ -1007,7 +1029,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         {
             ClearSyncTarget();
             pendingRemoteApply = false;
-            mediaPlayer.Close();
+            mediaPlayer.Stop();
         }
         finally
         {
@@ -1083,7 +1105,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
 
                 if (state == SyncedPlaybackState.Stopped)
                 {
-                    mediaPlayer.Close();
+                    mediaPlayer.Stop();
                     return;
                 }
 
@@ -1098,7 +1120,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
                 pendingRemoteStashedAt = Time.realtimeSinceStartup;
                 pendingRemoteApply = true;
                 NotePendingLoadRequest();
-                mediaPlayer.OpenApprovedUrl(url);
+                mediaPlayer.LoadApprovedUrl(url);
                 return;
             }
 
@@ -1106,7 +1128,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
             {
                 case SyncedPlaybackState.Stopped:
                     ClearSyncTarget();
-                    mediaPlayer.Close();
+                    mediaPlayer.Stop();
                     break;
 
                 case SyncedPlaybackState.Playing:
@@ -1148,8 +1170,10 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         bool loadStarted = mediaPlayer.LoadGeneration != pendingRemoteLoadGeneration;
         // Buffering is left out of `settling`. A seek and pause sent before the first frame
         // shows and the clock starts take effect before anything at 0 is seen or heard, and
-        // the engine holds the pause across the seek.
-        bool settling = state == BmState.Idle || state == BmState.Opening;
+        // the engine holds the pause across the seek. A page URL moves the generation when
+        // the resolver takes it, while the session being replaced plays on: LoadPending says
+        // the state on hand is still that session's.
+        bool settling = state == BmState.Idle || state == BmState.Opening || mediaPlayer.LoadPending;
         // A resolve that fails reports Error without ever opening, and that releases the
         // stash too.
         bool failedBeforeOpening = !loadStarted && state == BmState.Error && !pendingRemoteErrorAtRequest;
@@ -1290,11 +1314,11 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
 
                 if (approved)
                 {
-                    mediaPlayer.OpenApprovedUrl(url);
+                    mediaPlayer.LoadApprovedUrl(url);
                 }
                 else
                 {
-                    mediaPlayer.OpenUserUrl(url);
+                    mediaPlayer.LoadUrl(url);
                 }
 
                 return;
@@ -1308,10 +1332,11 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
             return;
         }
 
-        mediaPlayer.Seeked += HandleLocalSeeked;
+        mediaPlayer.OnSeeked += HandleLocalSeeked;
         lastObservedState = mediaPlayer.State;
+        lastObservedPlayWhenReady = mediaPlayer.PlayWhenReady;
         lastObservedLoadGeneration = mediaPlayer.LoadGeneration;
-        // Ended is deliberately not acted on: end-of-stream is per-client. Every peer
+        // OnEnded is deliberately not acted on: end-of-stream is per-client. Every peer
         // plays the same source and reaches its own end; broadcasting a stop on the
         // owner's end would cut off any client still behind its playhead (a late
         // joiner, by its join latency). Deliberate stops broadcast from Stop() directly.
@@ -1325,20 +1350,22 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
             return;
         }
 
-        mediaPlayer.Seeked -= HandleLocalSeeked;
+        mediaPlayer.OnSeeked -= HandleLocalSeeked;
         eventsHooked = false;
     }
 
     /// <summary>
-    /// Watches the player's own state for ready, pause and resume transitions,
-    /// and broadcasts them when we are the owner.
+    /// Watches the player for a load reaching playback, and for the viewer's
+    /// pause and resume, and broadcasts them when we are the owner.
     /// </summary>
     private void ObserveLocalPlayback()
     {
         BmState state = mediaPlayer.State;
         int generation = mediaPlayer.LoadGeneration;
-        BmState previous = lastObservedState;
         lastObservedState = state;
+        bool wantsPlay = mediaPlayer.PlayWhenReady;
+        bool previouslyWantedPlay = lastObservedPlayWhenReady;
+        lastObservedPlayWhenReady = wantsPlay;
 
         if (generation != lastObservedLoadGeneration)
         {
@@ -1352,8 +1379,10 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         }
 
         // First frame this load actually reached playback: settle peers on the real
-        // URL, state and position.
-        if (!announcedThisLoad && (state == BmState.Playing || state == BmState.Paused))
+        // URL, state and position. While a resolver holds the load, the state and position
+        // on hand are the session being replaced, not this load's.
+        if (!announcedThisLoad && !mediaPlayer.LoadPending
+            && (state == BmState.Playing || state == BmState.Paused))
         {
             announcedThisLoad = true;
             AdoptActiveUrlIfUnset();
@@ -1374,19 +1403,16 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
             return;
         }
 
-        if (state == previous)
+        // Transport replicates what the viewer asked for, not the engine's state. A seek on
+        // a paused session passes through Buffering and lands paused by itself, and a Play
+        // pressed before it lands is seen as Buffering to Playing, never Paused to Playing;
+        // the intent flag moves exactly when Pause and Play are called.
+        if (wantsPlay == previouslyWantedPlay)
         {
             return;
         }
 
-        if (state == BmState.Paused)
-        {
-            SendOwnerSimple(MessageId.Pause);
-        }
-        else if (state == BmState.Playing && previous == BmState.Paused)
-        {
-            SendOwnerSimple(MessageId.Play);
-        }
+        SendOwnerSimple(wantsPlay ? MessageId.Play : MessageId.Pause);
     }
 
     private void AdoptActiveUrlIfUnset()
@@ -1468,15 +1494,19 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
             case BmState.Opening:
             case BmState.Buffering:
             case BmState.Playing:
-                return SyncedPlaybackState.Playing;
+                // A session mid-seek or still opening with a pause asked for is paused as
+                // far as the room is concerned; the engine lands it paused.
+                return mediaPlayer.PlayWhenReady ? SyncedPlaybackState.Playing : SyncedPlaybackState.Paused;
             default:
                 return SyncedPlaybackState.Stopped;
         }
     }
 
+    // The viewer's place: during a reopen's restoration that is where the session is
+    // returning to, not the new session's start.
     private long PositionTicks() =>
         mediaPlayer.DurationSeconds > 0d
-            ? TimeSpan.FromSeconds(mediaPlayer.PositionSeconds).Ticks
+            ? TimeSpan.FromSeconds(mediaPlayer.RestoringPosition ? mediaPlayer.RestoringToSeconds : mediaPlayer.PositionSeconds).Ticks
             : 0L;
 
     /// <summary>The URL peers can act on: what the world or the menu asked for,

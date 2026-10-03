@@ -23,7 +23,7 @@ public class BasisMediaPlayerDebugWindow : EditorWindow
     // from a counter, because what matters is the rate right now.
     double _rateLastTime;
     ulong _rateLastDecoded;
-    ulong _rateLastPresented;
+    long _rateLastPresented;
     long _rateLastPulled;
     int _rateLastFrame;
     float _decodedRate, _presentedRate, _pullRate, _editorFrameRate;
@@ -160,10 +160,10 @@ public class BasisMediaPlayerDebugWindow : EditorWindow
         // Against the configured depth, or 3 s as a yardstick on Auto.
         Fill("VQ_BufferFill", depth > 0 ? banked / (float)depth : banked / 3000f, banked > 0 ? Tone.Good : Tone.Bad);
         Set("VQ_Depth", depth > 0 ? $"{depth} ms" : "Auto");
-        Set("VQ_Presented", _target.FramesPresented.ToString());
+        Set("VQ_Presented", _target.PresentedFrameCount.ToString());
         Set("VQ_FpsDisplayed", live ? $"{_presentedRate:F1} /s" : "—");
         Set("VQ_FpsRender", live ? $"{_editorFrameRate:F1} /s" : "—");
-        Set("VQ_InFlight", ((long)_target.FramesDecoded - (long)_target.FramesPresented).ToString());
+        Set("VQ_InFlight", ((long)_target.FramesDecoded - _target.PresentedFrameCount).ToString());
 
         // 5. Clock and sync
         Set("C_Position", live ? $"{_target.PositionSeconds:F3} s" : "—");
@@ -232,13 +232,13 @@ public class BasisMediaPlayerDebugWindow : EditorWindow
         if (_rateLastTime > 0 && elapsed < 5)
         {
             _decodedRate = (float)((_target.FramesDecoded - _rateLastDecoded) / elapsed);
-            _presentedRate = (float)((_target.FramesPresented - _rateLastPresented) / elapsed);
+            _presentedRate = (float)((_target.PresentedFrameCount - _rateLastPresented) / elapsed);
             _pullRate = (float)((_target.AudioFramesPulled - _rateLastPulled) / elapsed);
             _editorFrameRate = (float)((Time.frameCount - _rateLastFrame) / elapsed);
         }
         _rateLastTime = now;
         _rateLastDecoded = _target.FramesDecoded;
-        _rateLastPresented = _target.FramesPresented;
+        _rateLastPresented = _target.PresentedFrameCount;
         _rateLastPulled = _target.AudioFramesPulled;
         _rateLastFrame = Time.frameCount;
     }

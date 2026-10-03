@@ -446,7 +446,7 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
             if (normalized != u) _urlField.SetValueWithoutNotify(normalized);
             // A typed URL is the user's own choice and skips the prompt.
             if (_activeNetworking != null) _ = _activeNetworking.SetApprovedUrl(normalized);
-            else _activePlayer.OpenApprovedUrl(normalized);
+            else _activePlayer.LoadApprovedUrl(normalized);
         };
 
         PanelButton playBtn = PanelButton.CreateNew(actions);
@@ -473,7 +473,7 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
         {
             if (_activePlayer == null) return;
             if (_activeNetworking != null) _ = _activeNetworking.Stop();
-            else _activePlayer.Close();
+            else _activePlayer.Stop();
         };
 
         // Timeline scrubber, visible only for media with a seekable
@@ -523,7 +523,7 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
         if (player.State == BmState.Idle || player.State == BmState.Ended || player.State == BmState.Error)
         {
             string url = player.ResolvedUrl;
-            if (!string.IsNullOrEmpty(url)) player.OpenUserUrl(url);
+            if (!string.IsNullOrEmpty(url)) player.LoadUrl(url);
         }
     }
 
@@ -620,7 +620,7 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
                 return;
             }
             string url = _activePlayer.ResolvedUrl;
-            if (!string.IsNullOrEmpty(url)) _activePlayer.OpenUserUrl(url);
+            if (!string.IsNullOrEmpty(url)) _activePlayer.LoadUrl(url);
         };
 
         _advancedToggle = PanelToggle.CreateNewEntry(content);
@@ -667,7 +667,9 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
             BasisMediaPlayer p = BasisMediaPlayerRegistry.Players[i];
             if (p == null) continue;
             _entries.Add(p);
-            labels.Add($"{i + 1}. {(p.gameObject != null ? p.gameObject.name : "(destroyed)")}");
+            string label = !string.IsNullOrEmpty(p.DisplayName) ? p.DisplayName
+                : p.gameObject != null ? p.gameObject.name : "(destroyed)";
+            labels.Add($"{i + 1}. {label}");
         }
 
         _selector.AssignEntries(labels);
@@ -717,18 +719,18 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
     private void SubscribeToActivePlayer()
     {
         if (_activePlayer == null) return;
-        _activePlayer.SubtitleTrackChanged += HandleActiveSubtitleTrackChanged;
-        _activePlayer.AudioTrackChanged += HandleActiveAudioTrackChanged;
-        _activePlayer.MediaChanged += HandleActiveMediaChanged;
+        _activePlayer.OnSubtitleTrackChanged += HandleActiveSubtitleTrackChanged;
+        _activePlayer.OnAudioTrackIndexChanged += HandleActiveAudioTrackChanged;
+        _activePlayer.OnMediaChanged += HandleActiveMediaChanged;
         HandleActiveMediaChanged(_activePlayer.Media);
     }
 
     private void UnsubscribeFromActivePlayer()
     {
         if (_activePlayer == null) return;
-        _activePlayer.SubtitleTrackChanged -= HandleActiveSubtitleTrackChanged;
-        _activePlayer.AudioTrackChanged -= HandleActiveAudioTrackChanged;
-        _activePlayer.MediaChanged -= HandleActiveMediaChanged;
+        _activePlayer.OnSubtitleTrackChanged -= HandleActiveSubtitleTrackChanged;
+        _activePlayer.OnAudioTrackIndexChanged -= HandleActiveAudioTrackChanged;
+        _activePlayer.OnMediaChanged -= HandleActiveMediaChanged;
     }
 
     // A failed track fetch reverts the selection player-side; rebuilding
@@ -1247,7 +1249,7 @@ public class BasisMediaPlayerPanelProvider : BasisMenuActionProvider<BasisMainMe
         _debugBuilder.Append("Position: ").Append((long)(_activePlayer.PositionSeconds * 1000d)).Append(" ms\n");
         _debugBuilder.Append("Banked: ").Append(_activePlayer.BankedMilliseconds).Append(" ms\n");
         _debugBuilder.Append("Decoded: ").Append(_activePlayer.FramesDecoded)
-            .Append("  presented: ").Append(_activePlayer.FramesPresented).Append('\n');
+            .Append("  presented: ").Append(_activePlayer.PresentedFrameCount).Append('\n');
 
         int rate = _activePlayer.AudioSampleRate;
         _debugBuilder.Append("Audio: ").Append(rate > 0 ? $"{rate} Hz x{_activePlayer.AudioChannels}" : "—")

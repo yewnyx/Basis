@@ -12,7 +12,18 @@
                 <engine:TextField label="Android URL" name="AndroidUrlField" tooltip="Used on Android builds instead of the URL above. Empty means the URL above is used there too. The editor always uses the URL above, whatever the build target is set to."/>
             </engine:VisualElement>
             <engine:Toggle label="Play On Start" name="PlayOnStartField" tooltip="Opens the URL through the resolver on Start, so an authored page URL resolves rather than failing to open."/>
+            <engine:TextField label="Display Name" name="DisplayNameField" tooltip="What the Media Players menu calls this player. Empty uses the GameObject's name."/>
         </engine:VisualElement>
+
+        <engine:Foldout text="Playback" name="PlaybackFoldout" value="false" class="bvp-foldout">
+            <engine:Toggle label="Auto Play On Source Assigned" name="AutoPlayField" tooltip="Play as soon as a source opens. Off, the session opens and holds on its first frame until Play."/>
+            <engine:Toggle label="Loop" name="LoopField" tooltip="Start again from the beginning when an on-demand source ends."/>
+            <engine:FloatField label="Loop Restart Delay (s)" name="LoopRestartDelayField" tooltip="Seconds to hold on the last frame before looping."/>
+            <engine:FloatField label="Stop After (s)" name="StopAfterField" tooltip="Stop after this much playback; 0 never stops. Paused time does not count."/>
+            <engine:Toggle label="Stop On Disable" name="StopOnDisableField" tooltip="Stop the session when this component is disabled. Off, it keeps decoding, unpolled, until it is enabled again or stopped."/>
+            <engine:Slider label="Volume" name="VolumeField" low-value="0" high-value="1" show-input-field="true" tooltip="Gain for the audio sink beside this player. A change here is handed to the sink's own Volume Gain; the sink's value is what the audio reads."/>
+            <engine:Toggle label="Mute" name="MuteField" tooltip="Silence the audio sink beside this player without stopping it."/>
+        </engine:Foldout>
 
         <engine:VisualElement name="NowPlayingCard" class="bvp-card">
             <engine:Label text="Now Playing" class="bvp-section-title"/>
@@ -57,6 +68,12 @@
                 <engine:Toggle label="Append Sessions" name="EngineCaptureAppendField" tooltip="Append each session to that file instead of replacing it, so a player that opens and closes repeatedly keeps every run. The header is written once, when the file is created."/>
                 <engine:Label text="—" name="EngineCapturePath" class="bvp-counters"/>
                 <engine:Label text="Written when the session ends, not while it plays." name="EngineCaptureHint" class="bvp-help-info"/>
+            </engine:VisualElement>
+
+            <engine:VisualElement name="LoggingGroup" class="bvp-subgroup">
+                <engine:Label text="Logging and screenshots" class="bvp-subgroup-title"/>
+                <engine:Toggle label="Verbose Logging" name="VerboseLoggingField" tooltip="Log this player's own actions to the Console: state changes, seeks, loops, the sleep timer. Engine events are logged regardless."/>
+                <engine:Toggle label="Flip Screenshots Vertically" name="FlipScreenshotField" tooltip="Invert the rows of a CaptureScreenshot image relative to what the player works out for this graphics API. Set it only if screenshots still come out upside down."/>
             </engine:VisualElement>
 
             <engine:VisualElement name="NetworkGroup" class="bvp-subgroup">

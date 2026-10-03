@@ -59,6 +59,16 @@ public class BasisMediaPlayerEditor : Editor
         BindByName("EngineCaptureFileField", "engineCaptureFileName");
         BindByName("EngineCaptureAppendField", "engineCaptureAppend");
         BindByName("AllowLocalField", "allowLocalAddresses");
+        BindByName("DisplayNameField", "DisplayName");
+        BindByName("AutoPlayField", "AutoPlayOnSourceAssigned");
+        BindByName("LoopField", "Loop");
+        BindByName("LoopRestartDelayField", "LoopRestartDelaySeconds");
+        BindByName("StopAfterField", "StopAfterSeconds");
+        BindByName("StopOnDisableField", "StopOnDisable");
+        BindByName("VolumeField", "Volume");
+        BindByName("MuteField", "Mute");
+        BindByName("VerboseLoggingField", "VerboseLogging");
+        BindByName("FlipScreenshotField", "FlipVerticallyForScreenshot");
         _root.Bind(serializedObject);
         SetUpPerPlatformUrls();
 
@@ -89,12 +99,12 @@ public class BasisMediaPlayerEditor : Editor
 
         // Through the router, so an authored page URL resolves here the same
         // way it would at Start rather than failing to open.
-        Wire(_open, () => _target.OpenUserUrl(_target.ResolvedUrl));
+        Wire(_open, () => _target.LoadUrl(_target.ResolvedUrl));
         Wire(_play, () => _target.Play());
         Wire(_pause, () => _target.Pause());
         Wire(_back, () => _target.Seek(_target.PositionSeconds - 10.0));
         Wire(_forward, () => _target.Seek(_target.PositionSeconds + 10.0));
-        Wire(_close, () => _target.Close());
+        Wire(_close, () => _target.Stop());
 
         var debug = _root.Q<Button>("OpenDebugWindowButton");
         if (debug != null) debug.clicked += BasisMediaPlayerDebugWindow.ShowWindow;
@@ -149,7 +159,7 @@ public class BasisMediaPlayerEditor : Editor
             ? $"{_target.VideoSize.x}×{_target.VideoSize.y}"
             : "—");
         SetText(_frames, live
-            ? $"{_target.FramesPresented} presented, {_target.FramesDecoded} decoded"
+            ? $"{_target.PresentedFrameCount} presented, {_target.FramesDecoded} decoded"
             : "—");
         SetText(_audio, live ? $"{_target.AudioFramesPulled} frames" : "—");
 
