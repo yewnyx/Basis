@@ -103,7 +103,6 @@ namespace Basis.Tests.IK
             job.handleChest = skeleton.Bind(bones[2]);
             job.handleNeck = skeleton.Bind(bones[3]);
             job.handleHead = skeleton.Bind(bones[4]);
-            job.ikLockMode = BasisIKLockMode.LockHead;
             job.minHeadSpineHeight = 0.62f;
             job.tposeLengthNeckToHips = new Vector3(0f, 0.5f, 0f);
             job.offsetRotationChest = Quaternion.identity;

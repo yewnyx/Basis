@@ -79,7 +79,6 @@ namespace Basis.Tests.IK
                 chestIkIterations = 8,
                 chestIkHeadRestoreSweeps = 2,
                 chestPullMaxDist = 0.5f,
-                ikLockMode = BasisIKLockMode.LockHead,
                 minHeadSpineHeight = 0.62f,
                 tposeLengthNeckToHips = new Vector3(0f, 0.5f, 0f),
                 offsetRotationHead = Quaternion.identity,

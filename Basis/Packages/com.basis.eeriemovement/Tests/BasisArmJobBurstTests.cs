@@ -95,7 +95,7 @@ namespace Basis.Tests.IK
             var job = new BasisEerieMovement
             {
                 chainHeadToSpine = chain, chainChestIdx = 2, spineMaxIterations = 20, spineTolerance = 0.001f, spineCCDRelax = 1.0f, spineTwistKeep = 0.25f, spineNeckTwistKeep = 0.9f, neckMaxConeDeg = 45f, maxChestDeltaDeg = 30f,
-                thoracicBendStiffen = 0.3f, spineTautBandFrac = 0.015f, chestIkWeight = 0.5f, chestIkIterations = 8, chestIkHeadRestoreSweeps = 2, chestPullMaxDist = 0.5f, ikLockMode = BasisIKLockMode.LockHead, minHeadSpineHeight = 0.62f,
+                thoracicBendStiffen = 0.3f, spineTautBandFrac = 0.015f, chestIkWeight = 0.5f, chestIkIterations = 8, chestIkHeadRestoreSweeps = 2, chestPullMaxDist = 0.5f, minHeadSpineHeight = 0.62f,
                 tposeLengthNeckToHips = new Vector3(0f, 0.5f, 0f), offsetRotationHead = Quaternion.identity, offsetRotationHips = Quaternion.identity, offsetRotationChest = Quaternion.identity, offsetRotationLeftHand = Quaternion.identity, offsetRotationRightHand = Quaternion.identity,
                 offsetRotationLeftFoot = Quaternion.identity, offsetRotationRightFoot = Quaternion.identity, offsetRotationLeftShoulder = Quaternion.identity, offsetRotationRightShoulder = Quaternion.identity, targetRotationHips = Quaternion.identity, targetRotationChest = Quaternion.identity,
                 targetPositionHips = hips.position, targetPositionHead = head.position, targetRotationHead = Quaternion.identity, playerUp = Vector3.up,

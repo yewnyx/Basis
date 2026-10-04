@@ -81,7 +81,7 @@ namespace Basis.Tests.IK
             r.Eye = r.Head + new Vector3(0f, 0.07f, 0.09f);
             return r;
         }
-        static Rig BuildRig(in Rest rest, BasisIKLockMode lockMode)
+        static Rig BuildRig(in Rest rest)
         {
             var rig = new Rig { Root = new GameObject("HeadDetachProbeRig"), Rest = rest };
             Vector3[] positions = { rest.Hips, rest.Spine, rest.Chest, rest.UpperChest, rest.Neck, rest.Head };
@@ -133,7 +133,6 @@ namespace Basis.Tests.IK
                 handleHead = rig.Skeleton.Bind(rig.Bones[5]),
                 offsetRotationHead = Quaternion.identity, offsetRotationHips = Quaternion.identity, offsetRotationChest = Quaternion.identity,
                 playerUp = Vector3.up,
-                ikLockMode = lockMode,
                 minHeadSpineHeight = rig.PathRest,
                 minFactor = 0.95f, maxFactor = 1.05f,
                 spineMaxIterations = 20, spineTolerance = 0.001f,
@@ -345,27 +344,24 @@ namespace Basis.Tests.IK
             var report = new StringBuilder();
             foreach ((string rigName, Rest rest) in new[] { ("curved rest", CurvedRest()), ("straight rest", StraightRest()) })
             {
-                foreach (BasisIKLockMode mode in new[] { BasisIKLockMode.LockHead, BasisIKLockMode.LockBoth })
+                using Rig probe = BuildRig(rest);
+                report.AppendLine($"=== {rigName} | chain reach {probe.ChainReach * 100f:F2} cm, control path (minHeadSpineHeight) {probe.PathRest * 100f:F2} cm, chord {Vector3.Distance(rest.Hips, rest.Head) * 100f:F2} cm, vspine lenTotal {probe.LenTotal * 100f:F2} cm");
+                foreach (Scenario s in Scenarios(rest))
                 {
-                    using Rig probe = BuildRig(rest, mode);
-                    report.AppendLine($"=== {rigName} | {mode} | chain reach {probe.ChainReach * 100f:F2} cm, control path (minHeadSpineHeight) {probe.PathRest * 100f:F2} cm, chord {Vector3.Distance(rest.Hips, rest.Head) * 100f:F2} cm, vspine lenTotal {probe.LenTotal * 100f:F2} cm");
-                    foreach (Scenario s in Scenarios(rest))
+                    using Rig rig = BuildRig(rest);
+                    List<Sample> samples = Run(rig, s, new System.Random(1234), 0.0003f);
+                    foreach (Sample smp in samples)
                     {
-                        using Rig rig = BuildRig(rest, mode);
-                        List<Sample> samples = Run(rig, s, new System.Random(1234), 0.0003f);
-                        foreach (Sample smp in samples)
-                        {
-                            Assert.IsFalse(float.IsNaN(smp.HeadErr) || float.IsInfinity(smp.HeadErr), $"{rigName}/{mode}/{s.Name}: non-finite head error");
-                        }
-                        report.AppendLine(Row(s.Name, samples));
-                        if (!s.Name.StartsWith("FBT"))
-                        {
-                            Assert.AreEqual(0, samples.Count(x => x.MaxStep > FlipStepDeg), $"{rigName}/{mode}/{s.Name}: a chain bone stepped more than {FlipStepDeg} deg in one frame.");
-                            Assert.Less(samples.Max(x => x.HeadErr), HeadsetOnlyHeadErrCeiling, $"{rigName}/{mode}/{s.Name}: the head bone sits {samples.Max(x => x.HeadErr) * 100f:F1} cm off the HMD.");
-                        }
+                        Assert.IsFalse(float.IsNaN(smp.HeadErr) || float.IsInfinity(smp.HeadErr), $"{rigName}/{s.Name}: non-finite head error");
                     }
-                    report.AppendLine();
+                    report.AppendLine(Row(s.Name, samples));
+                    if (!s.Name.StartsWith("FBT"))
+                    {
+                        Assert.AreEqual(0, samples.Count(x => x.MaxStep > FlipStepDeg), $"{rigName}/{s.Name}: a chain bone stepped more than {FlipStepDeg} deg in one frame.");
+                        Assert.Less(samples.Max(x => x.HeadErr), HeadsetOnlyHeadErrCeiling, $"{rigName}/{s.Name}: the head bone sits {samples.Max(x => x.HeadErr) * 100f:F1} cm off the HMD.");
+                    }
                 }
+                report.AppendLine();
             }
             TestContext.WriteLine(report.ToString());
         }
@@ -393,7 +389,7 @@ namespace Basis.Tests.IK
                     List<Sample> production = null;
                     foreach (Toggles tg in new[] { new Toggles { Name = "production" }, new Toggles { Name = "lift", TrackingLiftY = off } })
                     {
-                        using Rig rig = BuildRig(rest, BasisIKLockMode.LockHead);
+                        using Rig rig = BuildRig(rest);
                         List<Sample> samples = Run(rig, s, new System.Random(1234), 0.0003f, tg);
                         Assert.IsFalse(rig.Job.plan.chestTarget, $"{rigName}: no chest tracker, yet the plan enabled the chest IK target.");
                         if (production == null) production = samples;
@@ -432,7 +428,7 @@ namespace Basis.Tests.IK
                     var cells = new List<string>();
                     foreach (string w in wanted)
                     {
-                        using Rig rig = BuildRig(rest, BasisIKLockMode.LockHead);
+                        using Rig rig = BuildRig(rest);
                         Scenario s = Scenarios(rest).First(x => x.Name == w);
                         List<Sample> samples = Run(rig, s, new System.Random(1234), 0.0003f, tg);
                         int flips = samples.Count(x => x.MaxStep > FlipStepDeg);

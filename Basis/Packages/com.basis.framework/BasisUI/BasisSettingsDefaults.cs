@@ -893,8 +893,6 @@ namespace Basis.BasisUI
 
         public static BasisSettingsBinding<string> IKMode = new("ikmode", new BasisPlatformDefault<string>("auto"));
 
-        public static BasisSettingsBinding<string> IKLockMode = new("iklockmode_v3", new BasisPlatformDefault<string>("lock head"));
-
         public static BasisSettingsBinding<bool> CalibrationMirror = new("calibrationmirror", new BasisPlatformDefault<bool>(false));
 
         // Arm-to-height ratio: scale the avatar by a percentage between the two measurements instead of a
@@ -2529,7 +2527,6 @@ namespace Basis.BasisUI
             PoseLOD.LoadBindingValue();
             SelectedBone.LoadBindingValue();
             IKMode.LoadBindingValue();
-            IKLockMode.LoadBindingValue();
             CalibrationMirror.LoadBindingValue();
             EnableArmToHeightBlend.LoadBindingValue();
             ArmToHeightBlend.LoadBindingValue();

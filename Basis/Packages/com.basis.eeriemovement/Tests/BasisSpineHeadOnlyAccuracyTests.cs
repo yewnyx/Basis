@@ -144,7 +144,6 @@ namespace Basis.Tests.IK
                 offsetRotationHips = Quaternion.identity,
                 offsetRotationChest = Quaternion.identity,
                 playerUp = Vector3.up,
-                ikLockMode = BasisIKLockMode.LockHead,
                 minHeadSpineHeight = math.distance(rest.Head, rest.Hips),
                 chestIkTarget = true,
                 spineAnatomicalRom = false,

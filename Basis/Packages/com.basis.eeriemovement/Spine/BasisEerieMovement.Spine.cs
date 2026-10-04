@@ -1,7 +1,5 @@
-using System.Runtime.CompilerServices;
-using Basis.Scripts.Common;
-using Unity.Collections;
 using UnityEngine;
+using static Basis.IK.RalivIKSpine;
 namespace Basis.IK
 {
     public partial struct BasisEerieMovement
@@ -9,18 +7,10 @@ namespace Basis.IK
         void SolveSpinePass()
         {
             SolveSpine();
-            if (plan.lordosis)
-            {
-                BasisEerieMarkers.SpineLordosis.Begin();
-                ApplyCervicalLordosis();
-                BasisEerieMarkers.SpineLordosis.End();
-            }
         }
         public void SolveSpine()
         {
             BasisEerieMarkers.SpineHipsPlacement.Begin();
-
-            Quaternion chestDesired = targetRotationChest * offsetRotationChest;
 
             if (plan.prone)
             {
@@ -33,57 +23,15 @@ namespace Basis.IK
             {
                 ResetSpineChainToRest();
                 Vector3 headTargetPos = targetPositionHead, hipsTargetPos = targetPositionHips;
-                Quaternion headTargetRot = targetRotationHead, hipsTargetRot = targetRotationHips;
+                Quaternion hipsTargetRot = targetRotationHips;
                 Quaternion offsetHips = offsetRotationHips, hipDesired = hipsTargetRot * offsetHips;
-                float restDist = minHeadSpineHeight;
-                BasisIKLockMode lockMode = ikLockMode;
                 Vector3 up = playerUp;
-
-                switch (lockMode)
-                {
-                    case BasisIKLockMode.LockHips: break;
-
-                    case BasisIKLockMode.LockHead:
-                        {
-                            Vector3 headToHips = hipsTargetPos - headTargetPos;
-                            float spineLen = headToHips.magnitude;
-                            if (spineLen < restDist)
-                            {
-                                Vector3 spineDir = spineLen > epsilon ? headToHips / spineLen : hipsTargetRot * Vector3.down;
-                                hipsTargetPos = headTargetPos + spineDir * restDist;
-                            }
-
-                            if (!plan.hipsTracked)
-                            {
-                                hipsTargetPos = ClampHipsUnderHead(headTargetPos, hipsTargetPos, restDist * HipsUnderHeadMaxLeanFrac, up);
-                            }
-                        }
-                        break;
-
-                    default: hipsTargetPos = AntiContortionist(headTargetPos, headTargetRot, hipsTargetPos, hipsTargetRot, restDist);
-                        hipsTargetPos = MitigateSpineBuckling(headTargetPos, hipsTargetRot, hipsTargetPos, restDist, up);
-                        float MaxBendDeg = maxBendDeg;
-                        hipsTargetPos = EnforceSpineBendLimit(headTargetPos, hipsTargetPos, MaxBendDeg, up);
-                        hipsTargetPos = ClampHipsAroundHead(headTargetPos, hipsTargetPos, restDist, minFactor, maxFactor, up);
-                        break;
-                }
-                Vector3 neckCue = ComputeNeckCue(headTargetPos);
                 float crouchFade = 1f;
-                if (!plan.hipsTracked)
-                {
-                    BasisTrunkCounterbalanceCore.Solve(hipsTargetPos, neckCue, up, trunkCounterbalance, trunkCounterbalanceMaxSpineFrac * minHeadSpineHeight, out hipsTargetPos, out float flexionFrac, out _);
-                    crouchFade = 1f - flexionFrac;
-                }
                 if (plan.crouchOffset)
                 {
                     hipsTargetPos = ApplyCrouchBodyOffset(headTargetPos, hipsTargetPos, hipDesired, up, crouchFade);
                 }
                 targetPositionHips = hipsTargetPos;
-                if (!plan.hipsTracked)
-                {
-                    BasisHipHingeCore.Solve(neckCue, hipsTargetPos, hipDesired, up, hipHingeStartDeg, hipHingeMaxAddDeg, out hipDesired, out _, out _);
-                }
-
                 if (plan.hasHips)
                 {
                     poseStream.SetPosition(handleHips, hipsTargetPos);
@@ -91,48 +39,131 @@ namespace Basis.IK
                 }
             }
             BasisEerieMarkers.SpineHipsPlacement.End();
-            if (plan.chestChain)
+            if (plan.hasSpineChain && (plan.chestChain || plan.headChain))
             {
-                BasisEerieMarkers.SpineChainPrep.Begin();
-
-                float Value = maxChestDeltaDeg;
-                Quaternion clampedChestRot = chestDesired;
-                if (plan.hasNeck)
-                {
-                    clampedChestRot = ClampRotation(clampedChestRot, poseStream.GetRotation(handleNeck), Value);
-                }
-                if (plan.hasSpine)
-                {
-                    clampedChestRot = ClampRotation(clampedChestRot, poseStream.GetRotation(handleSpine), Value);
-                }
-
-                poseStream.SetRotation(handleChest, clampedChestRot);
-
-                Vector3 headPos = targetPositionHead;
-                Quaternion headRot = targetRotationHead;
-
-                DistributeSpineBend(headPos);
-                BiasSpineTowardChest();
-                GuardSpineChain();
-                BasisEerieMarkers.SpineChainPrep.End();
                 BasisEerieMarkers.SpineSequentialIK.Begin();
-                SolveSequentialSpineIK(headPos, headRot);
+                SolveRalivSpineIK(targetPositionHead, targetRotationHead * offsetRotationHead);
                 BasisEerieMarkers.SpineSequentialIK.End();
             }
-            else if (plan.headChain)
+        }
+        void SolveRalivSpineIK(Vector3 headTargetPosition, Quaternion headTargetRotation)
+        {
+            int count = chainHeadToSpine.Length;
+            if (count < 2)
             {
-                Vector3 headPos = targetPositionHead;
-                Quaternion headRot = targetRotationHead;
-
-                BasisEerieMarkers.SpineChainPrep.Begin();
-                DistributeSpineBend(headPos);
-                if (plan.armSwingChestFollow) ApplyArmSwingChestFollow();
-                GuardSpineChain();
-                BasisEerieMarkers.SpineChainPrep.End();
-                BasisEerieMarkers.SpineSequentialIK.Begin();
-                SolveSequentialSpineIK(headPos, headRot);
-                BasisEerieMarkers.SpineSequentialIK.End();
+                return;
             }
+            if (SpineData.Length <= epsilon || SpineData.Positions.Length != count)
+            {
+                InitalizeRalivSpineIK();
+            }
+            if (SpineData.Length <= epsilon || SpineData.Positions.Length != count)
+            {
+                return;
+            }
+            SpineData.HipTargetPosition = plan.hasHips ? poseStream.GetPosition(handleHips) : SpineData.Positions[0];
+            SpineData.HipTargetRotation = plan.hasHips ? poseStream.GetRotation(handleHips) : SpineData.Rotations[0];
+            SpineData.HeadTargetPosition = headTargetPosition;
+            SpineData.HeadTargetRotation = headTargetRotation;
+            int chestIndex = count - 1 - plan.chestIdx;
+            bool hasTrackedChest = plan.chestTracked && plan.chestChain && chestIndex > 0 && chestIndex < count - 1;
+            bool chestTargetIsSane = hasTrackedChest && chestPullMaxDist > epsilon &&
+                (targetPositionChest - SpineData.Positions[chestIndex]).sqrMagnitude <= chestPullMaxDist * chestPullMaxDist;
+            SpineData.HasChestPositionTarget = chestTargetIsSane && plan.chestTarget;
+            SpineData.ChestIndex = hasTrackedChest ? chestIndex : -1;
+            SpineData.ChestTargetPosition = targetPositionChest;
+            SpineData.ChestPositionWeight = Mathf.Clamp01(chestIkWeight);
+            SpineData.ChestMaxPullDistance = SpineData.Length * RalivIKSpine.MaxChestPositionPullFraction;
+
+            RalivIKSpine.Solve(ref SpineData);
+
+            if (hasTrackedChest)
+            {
+                Quaternion predictedChestRotation = SpineData.Rotations[chestIndex];
+                Quaternion desiredChestRotation = targetRotationChest * offsetRotationChest;
+                SpineData.Rotations[chestIndex] = RalivIKSpine.ConstrainChestRotation(predictedChestRotation, desiredChestRotation);
+            }
+
+            for (int index = 0; index < count; index++)
+            {
+                BasisBoneHandle handle = chainHeadToSpine[count - 1 - index];
+                poseStream.SetPosition(handle, SpineData.Positions[index]);
+                poseStream.SetRotation(handle, SpineData.Rotations[index]);
+            }
+        }
+        public void InitalizeRalivSpineIK()
+        {
+            int count = chainHeadToSpine.Length;
+            if (count < 2 || !poseStream.LocalPosition.IsCreated)
+            {
+                return;
+            }
+            SpineData = default;
+            SpineData.Positions.Length = count;
+            SpineData.Rotations.Length = count;
+            SpineData.RestPositions.Length = count;
+            SpineData.RestRotations.Length = count;
+            SpineData.T.Length = count;
+
+            float hiplessSpineLength = 0f;
+            for (int index = 0; index < count; index++)
+            {
+                BasisBoneHandle handle = chainHeadToSpine[count - 1 - index];
+                if (!poseStream.IsValid(handle))
+                {
+                    SpineData = default;
+                    return;
+                }
+                poseStream.GetPositionAndRotation(handle, out Vector3 position, out Quaternion rotation);
+                SpineData.Positions[index] = position;
+                SpineData.Rotations[index] = rotation;
+                SpineData.RestPositions[index] = position;
+                SpineData.RestRotations[index] = rotation;
+
+                // Match SpineTest: do not include the hips-to-first-spine-bone
+                // segment in the interpolation length.
+                if (index > 1)
+                {
+                    hiplessSpineLength += (SpineData.RestPositions[index] - SpineData.RestPositions[index - 1]).magnitude;
+                }
+                SpineData.T[index] = hiplessSpineLength;
+            }
+
+            if (hiplessSpineLength <= epsilon)
+            {
+                SpineData = default;
+                return;
+            }
+            SpineData.Length = hiplessSpineLength;
+            for (int index = 0; index < count; index++)
+            {
+                SpineData.T[index] = SpineData.T[index] / hiplessSpineLength * 0.8f;
+            }
+
+            SpineData.HipTargetPosition = SpineData.Positions[0];
+            SpineData.HipTargetRotation = SpineData.Rotations[0];
+            SpineData.HeadTargetPosition = SpineData.Positions[count - 1];
+            SpineData.HeadTargetRotation = SpineData.Rotations[count - 1];
+            SpineData.ChestIndex = -1;
+        }
+
+        void RescaleRalivSpineIK(float scale)
+        {
+            int count = SpineData.RestPositions.Length;
+            if (count < 2 || SpineData.Positions.Length != count ||
+                !(scale > 0f) || float.IsNaN(scale) || float.IsInfinity(scale))
+            {
+                return;
+            }
+
+            Vector3 restRoot = SpineData.RestPositions[0];
+            Vector3 workingRoot = SpineData.Positions[0];
+            for (int index = 1; index < count; index++)
+            {
+                SpineData.RestPositions[index] = restRoot + (SpineData.RestPositions[index] - restRoot) * scale;
+                SpineData.Positions[index] = workingRoot + (SpineData.Positions[index] - workingRoot) * scale;
+            }
+            SpineData.Length *= scale;
         }
         void ResetSpineChainToRest()
         {

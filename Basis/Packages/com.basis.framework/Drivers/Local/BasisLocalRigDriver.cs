@@ -991,7 +991,7 @@ namespace Basis.Scripts.Drivers
             facts.seated = localPlayer.LocalSeatDriver.IsSeated;
             facts.upright = BasisLocalPlayspaceMover.FlipUpSign > 0f;
             facts.hipsTracked = fbt && BasisLocalBoneDriver.HipsControl.HasTracked == BasisHasTracked.HasTracker;
-            facts.chestTracked = HasRigLayer(BasisLocalBoneDriver.ChestControl);
+            facts.chestTracked = fbt && BasisLocalBoneDriver.ChestControl.HasTracked == BasisHasTracked.HasTracker;
             facts.leftFootTracked = leftFoot;
             facts.rightFootTracked = rightFoot;
             facts.leftLegTracked = leftFoot || (fbt && BasisLocalBoneDriver.LeftUpperLegControl.HasTracked == BasisHasTracked.HasTracker);
