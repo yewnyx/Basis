@@ -77,11 +77,22 @@ namespace Basis.IK
                 SpineData.Rotations[chestIndex] = RalivIKSpine.ConstrainChestRotation(predictedChestRotation, desiredChestRotation);
             }
 
+            // Preserve the authored local translations of every vertebra. Writing
+            // world positions into each mapped bone mutates local bone lengths and
+            // breaks avatars with helper transforms between humanoid spine bones.
+            BasisBoneHandle rootHandle = chainHeadToSpine[count - 1];
+            poseStream.SetPosition(rootHandle, SpineData.Positions[0]);
             for (int index = 0; index < count; index++)
             {
                 BasisBoneHandle handle = chainHeadToSpine[count - 1 - index];
-                poseStream.SetPosition(handle, SpineData.Positions[index]);
                 poseStream.SetRotation(handle, SpineData.Rotations[index]);
+            }
+
+            BasisBoneHandle headHandle = chainHeadToSpine[0];
+            Vector3 headCorrection = headTargetPosition - poseStream.GetPosition(headHandle);
+            if (headCorrection.sqrMagnitude > sqrEpsilon)
+            {
+                poseStream.SetPosition(rootHandle, poseStream.GetPosition(rootHandle) + headCorrection);
             }
         }
         public void InitalizeRalivSpineIK()

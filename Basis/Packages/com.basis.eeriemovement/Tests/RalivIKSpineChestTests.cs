@@ -1,5 +1,6 @@
 using Basis.IK;
 using NUnit.Framework;
+using Unity.Collections;
 using UnityEngine;
 
 namespace Basis.Tests.IK
@@ -46,6 +47,80 @@ namespace Basis.Tests.IK
                 float restLength = Vector3.Distance(data.RestPositions[index - 1], data.RestPositions[index]);
                 float solvedLength = Vector3.Distance(data.Positions[index - 1], data.Positions[index]);
                 Assert.AreEqual(restLength, solvedLength, 0.00001f, $"segment {index - 1}->{index} stretched");
+            }
+        }
+
+        [Test]
+        public void ApplyingExtremeHipTargetPreservesAuthoredSpineTranslations()
+        {
+            GameObject root = new GameObject("RalivApplyTest");
+            Transform[] bones = new Transform[5];
+            Transform parent = root.transform;
+            for (int index = 0; index < bones.Length; index++)
+            {
+                GameObject bone = new GameObject($"Bone{index}");
+                bone.transform.SetParent(parent, false);
+                bone.transform.localPosition = index == 0 ? Vector3.zero : new Vector3(0f, 0.2f, 0f);
+                bones[index] = bone.transform;
+                parent = bone.transform;
+            }
+
+            BasisPoseSkeleton skeleton = new BasisPoseSkeleton();
+            NativeArray<BasisBoneHandle> chain = default;
+            try
+            {
+                skeleton.Build(bones[0], bones);
+                skeleton.GatherNow();
+                chain = new NativeArray<BasisBoneHandle>(bones.Length, Allocator.TempJob);
+                for (int index = 0; index < bones.Length; index++)
+                {
+                    chain[index] = skeleton.Bind(bones[bones.Length - 1 - index]);
+                }
+
+                BasisEerieMovement job = new BasisEerieMovement
+                {
+                    chainHeadToSpine = chain,
+                    chainChestIdx = 2,
+                    handleHips = skeleton.Bind(bones[0]),
+                    handleSpine = skeleton.Bind(bones[1]),
+                    handleChest = skeleton.Bind(bones[2]),
+                    handleNeck = skeleton.Bind(bones[3]),
+                    handleHead = skeleton.Bind(bones[4]),
+                    offsetRotationHips = Quaternion.identity,
+                    offsetRotationHead = Quaternion.identity,
+                    offsetRotationChest = Quaternion.identity,
+                    targetRotationHips = Quaternion.identity,
+                    targetRotationHead = Quaternion.identity,
+                    playerUp = Vector3.up,
+                    tposeBakeScale = 1f,
+                    poseStream = skeleton.Stream,
+                };
+                job.InitalizeRalivSpineIK();
+                BasisEeriePlanner.Bind(ref job);
+                BasisEeriePlanner.Frame(ref job, new BasisEerieFrameFacts { hipsTracked = true });
+                job.targetPositionHips = new Vector3(0f, -5f, 0f);
+                job.targetPositionHead = bones[4].position;
+
+                Vector3[] authoredLocalPositions = new Vector3[bones.Length];
+                for (int index = 1; index < bones.Length; index++)
+                {
+                    authoredLocalPositions[index] = skeleton.Stream.LocalPosition[skeleton.Bind(bones[index]).Index];
+                }
+
+                job.SolveSpine();
+
+                for (int index = 1; index < bones.Length; index++)
+                {
+                    Vector3 solvedLocalPosition = skeleton.Stream.LocalPosition[skeleton.Bind(bones[index]).Index];
+                    Assert.AreEqual(authoredLocalPositions[index], solvedLocalPosition, $"bone {index} local translation changed");
+                }
+                Assert.That(Vector3.Distance(skeleton.Stream.GetPosition(job.handleHead), job.targetPositionHead), Is.LessThan(0.0001f));
+            }
+            finally
+            {
+                if (chain.IsCreated) chain.Dispose();
+                skeleton.Dispose();
+                Object.DestroyImmediate(root);
             }
         }
 
