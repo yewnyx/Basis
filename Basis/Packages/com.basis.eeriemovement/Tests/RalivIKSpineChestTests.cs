@@ -127,11 +127,92 @@ namespace Basis.Tests.IK
         [Test]
         public void ChestRotationCannotExceedNinetyDegreesFromPrediction()
         {
-            Quaternion predicted = Quaternion.Euler(0f, 10f, 0f);
-            Quaternion target = Quaternion.Euler(0f, 170f, 0f);
-            Quaternion constrained = RalivIKSpine.ConstrainChestRotation(predicted, target);
-            Assert.AreEqual(90f, Quaternion.Angle(predicted, constrained), 0.001f);
-            Assert.Less(Quaternion.Angle(constrained, target), Quaternion.Angle(predicted, target));
+            RalivIKSpine.SpineData data = CreateStraightSpine();
+            data.ChestIndex = 2;
+            data.ChestForward = Vector3.forward;
+            data.ChestTargetRotation = Quaternion.Euler(0f, 170f, 0f);
+            data.ChestHintWeight = 1f;
+
+            RalivIKSpine.Solve(ref data);
+
+            Assert.AreEqual(45f, Quaternion.Angle(Quaternion.identity, data.Rotations[1]), 0.001f);
+            Assert.AreEqual(90f, Quaternion.Angle(Quaternion.identity, data.Rotations[2]), 0.001f);
+            Assert.AreEqual(45f, Quaternion.Angle(Quaternion.identity, data.Rotations[3]), 0.001f);
+        }
+
+        [Test]
+        public void ChestRotationDoesNotAlterSolvedPositions()
+        {
+            RalivIKSpine.SpineData baseline = CreateStraightSpine();
+            RalivIKSpine.SpineData tracked = baseline;
+            tracked.ChestIndex = 2;
+            tracked.ChestForward = Vector3.forward;
+            tracked.ChestTargetRotation = Quaternion.Euler(0f, 75f, 0f);
+            tracked.ChestHintWeight = 1f;
+
+            RalivIKSpine.Solve(ref baseline);
+            RalivIKSpine.Solve(ref tracked);
+
+            for (int index = 0; index < baseline.Positions.Length; index++)
+            {
+                Assert.AreEqual(baseline.Positions[index], tracked.Positions[index], $"chest rotation moved spine point {index}");
+            }
+        }
+
+        [Test]
+        public void ChestPositionPullsSolvedChestTowardTrackerAndKeepsHeadPinned()
+        {
+            RalivIKSpine.SpineData baseline = CreateStraightSpine();
+            RalivIKSpine.SpineData tracked = baseline;
+            tracked.ChestIndex = 2;
+            tracked.ChestTargetPosition = tracked.Positions[2] + new Vector3(0.2f, 0f, 0f);
+            tracked.ChestPositionWeight = 0.5f;
+
+            RalivIKSpine.Solve(ref baseline);
+            RalivIKSpine.Solve(ref tracked);
+
+            Assert.Greater(tracked.Positions[2].x, baseline.Positions[2].x, "tracked chest did not move toward its positional target");
+            Assert.That(Vector3.Distance(tracked.Positions[tracked.Positions.Length - 1], tracked.HeadTargetPosition), Is.LessThan(0.00001f));
+            for (int index = 1; index < tracked.Positions.Length; index++)
+            {
+                float restLength = Vector3.Distance(tracked.RestPositions[index - 1], tracked.RestPositions[index]);
+                float solvedLength = Vector3.Distance(tracked.Positions[index - 1], tracked.Positions[index]);
+                Assert.AreEqual(restLength, solvedLength, 0.00001f, $"segment {index - 1}->{index} stretched");
+            }
+        }
+
+        [Test]
+        public void ChestPositionIsIgnoredWithoutTrackedChestWeight()
+        {
+            RalivIKSpine.SpineData baseline = CreateStraightSpine();
+            RalivIKSpine.SpineData untracked = baseline;
+            untracked.ChestIndex = 2;
+            untracked.ChestTargetPosition = new Vector3(10f, 10f, 10f);
+            untracked.ChestPositionWeight = 0f;
+
+            RalivIKSpine.Solve(ref baseline);
+            RalivIKSpine.Solve(ref untracked);
+
+            for (int index = 0; index < baseline.Positions.Length; index++)
+            {
+                Assert.AreEqual(baseline.Positions[index], untracked.Positions[index], $"untracked chest moved spine point {index}");
+            }
+        }
+
+        [Test]
+        public void ChestRotationIsIgnoredWithoutTrackedChestWeight()
+        {
+            RalivIKSpine.SpineData data = CreateStraightSpine();
+            data.ChestIndex = 2;
+            data.ChestForward = Vector3.forward;
+            data.ChestTargetRotation = Quaternion.Euler(0f, 90f, 0f);
+            data.ChestHintWeight = 0f;
+
+            RalivIKSpine.Solve(ref data);
+
+            Assert.AreEqual(Quaternion.identity, data.Rotations[1]);
+            Assert.AreEqual(Quaternion.identity, data.Rotations[2]);
+            Assert.AreEqual(Quaternion.identity, data.Rotations[3]);
         }
     }
 }

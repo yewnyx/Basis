@@ -36,6 +36,8 @@ namespace Basis.IK
         {
             public Vector3 HipTargetPosition;
             public Quaternion HipTargetRotation;
+            public Vector3 ChestTargetPosition;
+            public Quaternion ChestTargetRotation;
             public Vector3 HeadTargetPosition;
             public Quaternion HeadTargetRotation;
             public FixedList512Bytes<Vector3> Positions;
@@ -44,6 +46,10 @@ namespace Basis.IK
             public FixedList512Bytes<Quaternion> RestRotations;
             public float Length;
             public FixedList128Bytes<float> T;
+            public Vector3 ChestForward;
+            public float ChestHintWeight;
+            public float ChestPositionWeight;
+            public int ChestIndex;
         }
 
         public static void Solve(ref SpineData spineData)
@@ -118,6 +124,7 @@ namespace Basis.IK
                 {
                     spineData.Positions[index] = Vector3.Lerp(spineData.Positions[index], targets[index], curveConstraint);
                 }
+                ApplyChestPositionHint(ref spineData, headIndex, curveConstraint);
                 for (int index = count - 2; index >= 0; index--)
                 {
                     ConstrainSegment(ref spineData, index, index + 1, lengthConstraint);
@@ -147,6 +154,66 @@ namespace Basis.IK
                 spineData.Rotations[index] = fromTo * preRotation * spineData.RestRotations[index];
             }
             spineData.Rotations[headIndex] = spineData.HeadTargetRotation;
+            ApplyChestTwist(ref spineData, headIndex);
+        }
+
+        static void ApplyChestPositionHint(ref SpineData spineData, int headIndex, float curveConstraint)
+        {
+            int chestIndex = spineData.ChestIndex;
+            float positionWeight = Mathf.Clamp01(spineData.ChestPositionWeight);
+            if (positionWeight <= 0f || chestIndex <= 0 || chestIndex >= headIndex)
+            {
+                return;
+            }
+
+            // Match Raliv's chest hint: pull the chest point toward the tracker and
+            // carry half of that displacement into the next point toward the head.
+            Vector3 chestOffset = (spineData.ChestTargetPosition - spineData.Positions[chestIndex]) * positionWeight * curveConstraint;
+            spineData.Positions[chestIndex] += chestOffset;
+            if (chestIndex + 1 < headIndex)
+            {
+                spineData.Positions[chestIndex + 1] += chestOffset * 0.5f;
+            }
+        }
+
+        static void ApplyChestTwist(ref SpineData spineData, int headIndex)
+        {
+            int chestIndex = spineData.ChestIndex;
+            float hintWeight = Mathf.Clamp01(spineData.ChestHintWeight);
+            if (hintWeight <= 0f || chestIndex <= 0 || chestIndex >= headIndex)
+            {
+                return;
+            }
+
+            Vector3 twistAxis = spineData.Positions[chestIndex + 1] - spineData.Positions[chestIndex];
+            Vector3 chestForward = spineData.ChestForward;
+            if (twistAxis.sqrMagnitude <= BasisEerieMovement.sqrEpsilon || chestForward.sqrMagnitude <= BasisEerieMovement.sqrEpsilon)
+            {
+                return;
+            }
+
+            twistAxis.Normalize();
+            Vector3 predictedForward = Vector3.ProjectOnPlane(spineData.Rotations[chestIndex] * chestForward, twistAxis);
+            Vector3 targetForward = Vector3.ProjectOnPlane(spineData.ChestTargetRotation * chestForward, twistAxis);
+            if (predictedForward.sqrMagnitude <= BasisEerieMovement.sqrEpsilon || targetForward.sqrMagnitude <= BasisEerieMovement.sqrEpsilon)
+            {
+                return;
+            }
+
+            float twistDegrees = Mathf.Clamp(
+                Vector3.SignedAngle(predictedForward, targetForward, twistAxis),
+                -MaxChestRotationDeltaDegrees,
+                MaxChestRotationDeltaDegrees) * hintWeight;
+
+            for (int index = chestIndex - 1; index <= chestIndex + 1 && index < headIndex; index++)
+            {
+                float distribution = index == chestIndex ? 1f : 0.5f;
+                Vector3 boneAxis = spineData.Positions[index + 1] - spineData.Positions[index];
+                if (boneAxis.sqrMagnitude > BasisEerieMovement.sqrEpsilon)
+                {
+                    spineData.Rotations[index] = Quaternion.AngleAxis(twistDegrees * distribution, boneAxis.normalized) * spineData.Rotations[index];
+                }
+            }
         }
 
         public static Quaternion ConstrainChestRotation(Quaternion predictedRotation, Quaternion targetRotation)

@@ -67,15 +67,14 @@ namespace Basis.IK
             SpineData.HeadTargetRotation = headTargetRotation;
             int chestIndex = count - 1 - plan.chestIdx;
             bool hasTrackedChest = plan.chestTracked && plan.chestChain && chestIndex > 0 && chestIndex < count - 1;
+            SpineData.ChestIndex = chestIndex;
+            SpineData.ChestTargetPosition = targetPositionChest;
+            SpineData.ChestTargetRotation = targetRotationChest * offsetRotationChest;
+            SpineData.ChestForward = Vector3.forward;
+            SpineData.ChestHintWeight = hasTrackedChest ? 1f : 0f;
+            SpineData.ChestPositionWeight = hasTrackedChest ? Mathf.Clamp01(chestIkWeight) : 0f;
 
             RalivIKSpine.Solve(ref SpineData);
-
-            if (hasTrackedChest)
-            {
-                Quaternion predictedChestRotation = SpineData.Rotations[chestIndex];
-                Quaternion desiredChestRotation = targetRotationChest * offsetRotationChest;
-                SpineData.Rotations[chestIndex] = RalivIKSpine.ConstrainChestRotation(predictedChestRotation, desiredChestRotation);
-            }
 
             // Preserve the authored local translations of every vertebra. Writing
             // world positions into each mapped bone mutates local bone lengths and
@@ -148,6 +147,8 @@ namespace Basis.IK
             SpineData.HipTargetRotation = SpineData.Rotations[0];
             SpineData.HeadTargetPosition = SpineData.Positions[count - 1];
             SpineData.HeadTargetRotation = SpineData.Rotations[count - 1];
+            SpineData.ChestTargetPosition = SpineData.Positions[Mathf.Clamp(count - 1 - chainChestIdx, 0, count - 1)];
+            SpineData.ChestForward = Vector3.forward;
         }
 
         void RescaleRalivSpineIK(float scale)
