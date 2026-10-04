@@ -83,6 +83,11 @@ namespace Basis.Tests.IK
             using var rig = BuildRig(0.7f);
             Assert.AreEqual(BasisEerieMovementSetup.AppliedAvatarScale(), rig.Job.tposeBakeScale, tolerance);
             AssertMeasuredLengths(rig);
+            Assert.AreEqual(6, rig.Job.SpineData.Positions.Length);
+            Assert.AreEqual(0.51f, rig.Job.SpineData.Length, tolerance);
+            Assert.AreEqual(0f, rig.Job.SpineData.T[0], tolerance);
+            Assert.AreEqual(0f, rig.Job.SpineData.T[1], tolerance);
+            Assert.AreEqual(0.8f, rig.Job.SpineData.T[5], tolerance);
         }
         [Test]
         public void FirstHeightCallbackAfterAnAvatarSwap_LeavesTheMeasuredLengthsAlone()
@@ -106,9 +111,14 @@ namespace Basis.Tests.IK
         {
             using var rig = BuildRig(0.7f);
             float scale = BasisEerieMovementSetup.AppliedAvatarScale();
+            float ralivLength = rig.Job.SpineData.Length;
+            Vector3 ralivRoot = rig.Job.SpineData.RestPositions[0];
+            Vector3 ralivHeadOffset = rig.Job.SpineData.RestPositions[5] - ralivRoot;
             rig.Job.RescaleTposeScalars(scale * 1.25f);
             Assert.AreEqual(rig.NeckToHips * 1.25f, rig.Job.tposeLengthNeckToHips.magnitude, tolerance);
             Assert.AreEqual(rig.ShoulderToHandLeft * 1.25f, rig.Job.tposeShoulderToHandLeft, tolerance);
+            Assert.AreEqual(ralivLength * 1.25f, rig.Job.SpineData.Length, tolerance);
+            Assert.AreEqual(ralivHeadOffset * 1.25f, rig.Job.SpineData.RestPositions[5] - ralivRoot);
         }
     }
 }

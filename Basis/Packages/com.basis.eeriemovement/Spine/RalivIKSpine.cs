@@ -31,7 +31,6 @@ namespace Basis.IK
     {
         public const int Iterations = 10;
         public const float MaxChestRotationDeltaDegrees = 90f;
-        public const float MaxChestPositionPullFraction = 0.1f;
 
         public struct SpineData
         {
@@ -39,11 +38,6 @@ namespace Basis.IK
             public Quaternion HipTargetRotation;
             public Vector3 HeadTargetPosition;
             public Quaternion HeadTargetRotation;
-            public bool HasChestPositionTarget;
-            public int ChestIndex;
-            public Vector3 ChestTargetPosition;
-            public float ChestPositionWeight;
-            public float ChestMaxPullDistance;
             public FixedList512Bytes<Vector3> Positions;
             public FixedList512Bytes<Quaternion> Rotations;
             public FixedList512Bytes<Vector3> RestPositions;
@@ -62,11 +56,21 @@ namespace Basis.IK
 
             int headIndex = count - 1;
             float hipHeadRestDistance = (spineData.RestPositions[headIndex] - spineData.RestPositions[0]).magnitude;
+            float totalRestLength = 0f;
+            for (int index = 1; index < count; index++)
+            {
+                totalRestLength += (spineData.RestPositions[index] - spineData.RestPositions[index - 1]).magnitude;
+            }
             Vector3 headToHip = spineData.HipTargetPosition - spineData.HeadTargetPosition;
             if (headToHip.sqrMagnitude > BasisEerieMovement.sqrEpsilon)
             {
                 headToHip = headToHip.normalized * hipHeadRestDistance;
                 spineData.HipTargetPosition = Vector3.Lerp(spineData.HipTargetPosition, spineData.HeadTargetPosition + headToHip, 0.5f);
+                Vector3 clampedHeadToHip = spineData.HipTargetPosition - spineData.HeadTargetPosition;
+                if (totalRestLength > BasisEerieMovement.epsilon && clampedHeadToHip.sqrMagnitude > totalRestLength * totalRestLength)
+                {
+                    spineData.HipTargetPosition = spineData.HeadTargetPosition + clampedHeadToHip.normalized * totalRestLength;
+                }
             }
 
             Quaternion hipRotationOffset = Quaternion.Inverse(spineData.RestRotations[0]) * spineData.HipTargetRotation;
@@ -106,25 +110,6 @@ namespace Basis.IK
                 targets[index] = Vector3.Lerp(hipAligned[index], headAligned[index], Mathf.Clamp01(spineData.T[index]));
             }
 
-            int chestIndex = spineData.ChestIndex;
-            if (spineData.HasChestPositionTarget && chestIndex > 0 && chestIndex < headIndex)
-            {
-                Vector3 chestDelta = spineData.ChestTargetPosition - targets[chestIndex];
-                float maxPullDistance = Mathf.Max(0f, spineData.ChestMaxPullDistance);
-                if (chestDelta.sqrMagnitude > maxPullDistance * maxPullDistance && chestDelta.sqrMagnitude > BasisEerieMovement.sqrEpsilon)
-                {
-                    chestDelta = chestDelta.normalized * maxPullDistance;
-                }
-                chestDelta *= Mathf.Clamp01(spineData.ChestPositionWeight);
-                for (int index = 1; index < headIndex; index++)
-                {
-                    float chestWeight = index <= chestIndex
-                        ? index / (float)chestIndex
-                        : (headIndex - index) / (float)(headIndex - chestIndex);
-                    targets[index] += chestDelta * chestWeight;
-                }
-            }
-
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 float lengthConstraint = (float)iteration / Iterations;
@@ -143,6 +128,16 @@ namespace Basis.IK
                 }
             }
 
+            // Soft FABRIK intentionally eases toward its length constraints and can
+            // leave large residual stretch when an endpoint becomes unreachable.
+            // Pin the head, then make one exact backward pass so no vertebral
+            // segment can exceed its cached rest length.
+            spineData.Positions[headIndex] = spineData.HeadTargetPosition;
+            for (int index = headIndex - 1; index >= 0; index--)
+            {
+                ConstrainSegment(ref spineData, index, index + 1, 1f);
+            }
+
             for (int index = 0; index < headIndex; index++)
             {
                 Quaternion preRotation = Quaternion.Slerp(hipRotationOffset, headRotationOffset, spineData.T[index]);
@@ -152,12 +147,6 @@ namespace Basis.IK
                 spineData.Rotations[index] = fromTo * preRotation * spineData.RestRotations[index];
             }
             spineData.Rotations[headIndex] = spineData.HeadTargetRotation;
-
-            Vector3 headPinCorrection = spineData.HeadTargetPosition - spineData.Positions[headIndex];
-            for (int index = 0; index < count; index++)
-            {
-                spineData.Positions[index] += headPinCorrection;
-            }
         }
 
         public static Quaternion ConstrainChestRotation(Quaternion predictedRotation, Quaternion targetRotation)
@@ -171,10 +160,15 @@ namespace Basis.IK
         static void ConstrainSegment(ref SpineData spineData, int index, int targetIndex, float weight)
         {
             Vector3 targetOffset = spineData.Positions[index] - spineData.Positions[targetIndex];
-            float boneLength = (spineData.RestPositions[targetIndex] - spineData.RestPositions[index]).magnitude;
-            if (targetOffset.sqrMagnitude <= BasisEerieMovement.sqrEpsilon || boneLength <= BasisEerieMovement.epsilon)
+            Vector3 restOffset = spineData.RestPositions[index] - spineData.RestPositions[targetIndex];
+            float boneLength = restOffset.magnitude;
+            if (boneLength <= BasisEerieMovement.epsilon)
             {
                 return;
+            }
+            if (targetOffset.sqrMagnitude <= BasisEerieMovement.sqrEpsilon)
+            {
+                targetOffset = restOffset;
             }
             Vector3 targetPosition = spineData.Positions[targetIndex] + targetOffset.normalized * boneLength;
             spineData.Positions[index] = Vector3.Lerp(spineData.Positions[index], targetPosition, weight);

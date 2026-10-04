@@ -67,13 +67,6 @@ namespace Basis.IK
             SpineData.HeadTargetRotation = headTargetRotation;
             int chestIndex = count - 1 - plan.chestIdx;
             bool hasTrackedChest = plan.chestTracked && plan.chestChain && chestIndex > 0 && chestIndex < count - 1;
-            bool chestTargetIsSane = hasTrackedChest && chestPullMaxDist > epsilon &&
-                (targetPositionChest - SpineData.Positions[chestIndex]).sqrMagnitude <= chestPullMaxDist * chestPullMaxDist;
-            SpineData.HasChestPositionTarget = chestTargetIsSane && plan.chestTarget;
-            SpineData.ChestIndex = hasTrackedChest ? chestIndex : -1;
-            SpineData.ChestTargetPosition = targetPositionChest;
-            SpineData.ChestPositionWeight = Mathf.Clamp01(chestIkWeight);
-            SpineData.ChestMaxPullDistance = SpineData.Length * RalivIKSpine.MaxChestPositionPullFraction;
 
             RalivIKSpine.Solve(ref SpineData);
 
@@ -144,7 +137,6 @@ namespace Basis.IK
             SpineData.HipTargetRotation = SpineData.Rotations[0];
             SpineData.HeadTargetPosition = SpineData.Positions[count - 1];
             SpineData.HeadTargetRotation = SpineData.Rotations[count - 1];
-            SpineData.ChestIndex = -1;
         }
 
         void RescaleRalivSpineIK(float scale)

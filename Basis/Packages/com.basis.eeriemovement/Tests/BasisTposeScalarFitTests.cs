@@ -8,7 +8,7 @@ namespace Basis.Tests.IK
         const float tolerance = 1e-5f;
         static BasisEerieMovement Baked()
         {
-            return new BasisEerieMovement
+            var job = new BasisEerieMovement
             {
                 tposeBakeScale = 1f,
                 tposeArmFitScale = 1f,
@@ -23,6 +23,13 @@ namespace Basis.Tests.IK
                 tposeHeadToNeckLocal = new Vector3(0f, -0.1f, 0f),
                 minHeadSpineHeight = 0.62f,
             };
+            job.SpineData.Positions.Length = 3;
+            job.SpineData.RestPositions.Length = 3;
+            job.SpineData.Positions[0] = job.SpineData.RestPositions[0] = new Vector3(1f, 2f, 3f);
+            job.SpineData.Positions[1] = job.SpineData.RestPositions[1] = new Vector3(1f, 2.25f, 3f);
+            job.SpineData.Positions[2] = job.SpineData.RestPositions[2] = new Vector3(1f, 2.75f, 3f);
+            job.SpineData.Length = 0.5f;
+            return job;
         }
         [Test]
         public void ArmFit_ScalesTheArmBeyondTheClavicle()
@@ -71,9 +78,16 @@ namespace Basis.Tests.IK
             Assert.AreEqual(2f * (0.1f + 0.5f * 1.2f), job.tposeShoulderToHandLeft, tolerance);
             Assert.AreEqual(0.2f, job.tposeClavicleLenLeft, tolerance);
             Assert.AreEqual(0.9f, job.tposeLengthNeckToHips.y, tolerance);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), job.SpineData.RestPositions[0]);
+            Assert.AreEqual(new Vector3(1f, 2.5f, 3f), job.SpineData.RestPositions[1]);
+            Assert.AreEqual(new Vector3(1f, 3.5f, 3f), job.SpineData.RestPositions[2]);
+            Assert.AreEqual(job.SpineData.RestPositions[2], job.SpineData.Positions[2]);
+            Assert.AreEqual(1f, job.SpineData.Length, tolerance);
             job.RescaleTposeFit(1f, 1f);
             Assert.AreEqual(1.2f, job.tposeShoulderToHandLeft, tolerance);
             Assert.AreEqual(1f, job.tposeLengthNeckToHips.y, tolerance);
+            Assert.AreEqual(new Vector3(1f, 2.75f, 3f), job.SpineData.RestPositions[2]);
+            Assert.AreEqual(0.5f, job.SpineData.Length, tolerance);
         }
         [Test]
         public void InvalidScales_AreIgnored()
