@@ -181,6 +181,12 @@ namespace Basis.Scripts.Drivers
             // that rebuild the previous avatar's binds. Everything downstream (arm span, offset capture
             // references, offset reprojection) derives from this data instead of live bone reads.
             CaptureTposeBoneSnapshot();
+            // PutAvatarIntoTPose measured the avatar before this snapshot existed, so the segment
+            // calculator necessarily returned no leg/spine/shoulder data on a fresh avatar. Re-run
+            // the snapshot-backed measurements now, before BuildBuilder/RefreshBodyFit consumes them.
+            BasisLocalHeightCalculator.CalculateAvatarArmSpan();
+            BasisLocalHeightCalculator.CalculateAvatarBodySegments();
+            BasisLocalHeightCalculator.ValidateEyeToArmSizesAvatar();
 
             player.AvatarTransform.rotation = player.transform.rotation;
             CalculateTransformPositions(player, player.LocalBoneDriver);
@@ -377,7 +383,10 @@ namespace Basis.Scripts.Drivers
         {
             var Avatar = LocalPlayer.BasisAvatar;
             FindSkinnedMeshRenders(LocalPlayer);
-            BasisTransformMapping.AutoDetectReferences(LocalPlayer.BasisAvatar.Animator, Avatar.transform, ref Mapping, humanoidBones: Avatar.TransformStorage?.HumanoidBones);
+            // AnimatorRoot is the coordinate root for every mapped bone. BasisAvatar may be an outer
+            // wrapper, so using Avatar.transform here makes local T-pose snapshots and tracker offsets
+            // disagree with both the actual skeleton and the remote-avatar path.
+            BasisTransformMapping.AutoDetectReferences(LocalPlayer.BasisAvatar.Animator, LocalPlayer.BasisAvatar.Animator.transform, ref Mapping, humanoidBones: Avatar.TransformStorage?.HumanoidBones);
             BasisAvatarModelCache.RecordPosesCached(Mapping, LocalPlayer.BasisAvatar.Animator);
             LocalPlayer.FaceIsVisible = false;
 

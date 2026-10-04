@@ -129,6 +129,23 @@ namespace Basis.Tests.IK
             job.poseStream = skeleton.Stream;
             return job;
         }
+        [Test]
+        public void FittedRestPosition_IsPoseIndependentAndIncludesSegmentFit()
+        {
+            BuildRig();
+
+            skeleton.SetFitScale(leftLowerArm, 1.5f);
+            skeleton.SetFitScale(leftHand, 1.5f);
+
+            // The query must not accidentally sample the current animation/Transform pose.
+            leftLowerArm.localPosition = new Vector3(20f, 30f, 40f);
+            leftHand.localPosition = new Vector3(-50f, 60f, -70f);
+
+            Assert.That(skeleton.TryGetRestPositionRelativeTo(leftHand, hips, out Vector3 fitted), Is.True);
+            Assert.That(fitted.x, Is.EqualTo(-0.99f).Within(positionTolerance));
+            Assert.That(fitted.y, Is.EqualTo(0.45f).Within(positionTolerance));
+            Assert.That(fitted.z, Is.EqualTo(0f).Within(positionTolerance));
+        }
         static void RollAboutBoneAxis(Transform bone, Transform child, float degrees)
         {
             Vector3 axis = (child.position - bone.position).normalized;

@@ -1,4 +1,3 @@
-using Basis.Scripts.BasisSdk.Players;
 using System;
 using UnityEngine;
 namespace Basis.Scripts.Drivers
@@ -9,6 +8,7 @@ namespace Basis.Scripts.Drivers
         public Vector3 DuringCalibrationScale = Vector3.one;
         public float ApplyScale = 1f;
         public Vector3 FinalScale = Vector3.one;
+        [NonSerialized] private Transform scaleTarget;
         private static bool IsFinite(float v) => !(float.IsNaN(v) || float.IsInfinity(v));
         private static Vector3 SanitizeCalibrationScale(Vector3 v)
         {
@@ -26,6 +26,7 @@ namespace Basis.Scripts.Drivers
         }
         public void ReInitialize(Animator animator)
         {
+            scaleTarget = animator != null ? animator.transform : null;
             if (animator == null)
             {
                 DuringCalibrationScale = Vector3.one;
@@ -45,10 +46,13 @@ namespace Basis.Scripts.Drivers
             ApplyScale = scale;
             FinalScale = DuringCalibrationScale * ApplyScale;
 
-            var lp = BasisLocalPlayer.Instance;
-            if (lp != null && lp.BasisAvatar != null)
+            if (scaleTarget != null)
             {
-                lp.BasisAvatar.transform.localScale = FinalScale;
+                // ReInitialize samples the Animator root, so the result must be written back to that
+                // same transform. BasisAvatar may live on a wrapper object; applying the Animator's
+                // authored scale to the wrapper compounds both transforms and makes the rendered body
+                // (and every tracker-to-bone reference) too large or too small.
+                scaleTarget.localScale = FinalScale;
             }
         }
     }

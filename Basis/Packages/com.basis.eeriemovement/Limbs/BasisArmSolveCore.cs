@@ -6,7 +6,7 @@ namespace Basis.IK
     public static class BasisArmSolveCore
     {
         public const int Samples = 36, RefineIterations = 8;
-        public const float SampleStepDeg = 360f / Samples, MinElbowInteriorDeg = 22f, LimitMarginDeg = 12f, HardLimitWeight = 0.006f;
+        public const float SampleStepDeg = 360f / Samples, MinElbowInteriorDeg = 35f, LimitMarginDeg = 12f, HardLimitWeight = 0.006f;
         public const float HumeralWeight = 0.6f, PronationWeight = 0.6f, WristFlexWeight = 0.35f, WristDevWeight = 0.35f, WristStrainWeight = 0.12f;
         public const float TorsoWeight = 1.5f, TrackerPriorWeight = 4f, SwitchMarginCost = 0.12f, LocalBasinDeg = 60f, BasinJumpDeg = 100f;
         public const float HeadFadeStartSin = 0.15f, HeadFadeFullSin = 0.45f, ElevationFadeStart = 0.85f, ElevationFadeFull = 0.97f, RestOutward = 0.35f, RestBack = 0.25f;
@@ -85,7 +85,9 @@ namespace Basis.IK
             {
                 axis = state.Seeded && state.LastAxis.sqrMagnitude > sqrEpsilon ? state.LastAxis : (d > epsilon ? toTarget / d : (i.RestHand - i.Shoulder).normalized);
             }
-            float dEff = Mathf.Max(SoftReach(d, upper, lower, i.ReachSoftness), minReach);
+            // The tracked hand is a hard endpoint. Only move it off the controller
+            // when the target is outside the arm's anatomical reach interval.
+            float dEff = Mathf.Clamp(d, minReach, upper + lower);
             r.TargetDistance = d;
             r.EffectiveDistance = dEff;
             r.ReachRatio = d / (upper + lower);

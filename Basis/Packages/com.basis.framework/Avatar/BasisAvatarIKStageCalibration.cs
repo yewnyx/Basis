@@ -306,6 +306,32 @@ namespace Basis.Scripts.Avatar
             return HasCalibrationHeadSnapshot;
         }
 
+        /// <summary>
+        /// Resolves the head and target bone from the fitted rest skeleton at the avatar's current
+        /// rendered scale. This is the calibration reference after body fitting has changed segment
+        /// lengths; the raw load-time snapshot remains untouched for avatar measurement.
+        /// </summary>
+        public static bool TryGetFittedTposePositions(BasisBoneTrackedRole role, out Vector3 headTpose, out Vector3 boneTpose)
+        {
+            headTpose = Vector3.zero;
+            boneTpose = Vector3.zero;
+            BasisLocalPlayer player = BasisLocalPlayer.Instance;
+            BasisLocalRigDriver rig = player != null ? player.LocalRigDriver : null;
+            BasisLocalAvatarDriver avatar = player != null ? player.LocalAvatarDriver : null;
+            if (rig == null || avatar == null || rig.basisTransformMapping == null
+                || avatar.StoredRolesTransforms == null
+                || !avatar.StoredRolesTransforms.TryGetValue(role, out Transform bone)
+                || bone == null)
+            {
+                return false;
+            }
+
+            Transform head = rig.basisTransformMapping.head;
+            return head != null
+                && rig.TryGetFittedTposeLocalScaled(head, out headTpose)
+                && rig.TryGetFittedTposeLocalScaled(bone, out boneTpose);
+        }
+
         public static void ReprojectTrackerOffsetsForCurrentAvatar()
         {
             BasisLocalPlayer player = BasisLocalPlayer.Instance;
@@ -313,9 +339,8 @@ namespace Basis.Scripts.Avatar
             {
                 return;
             }
-            // Head anchor uses the head CONTROL's T-pose (what DriveTpose itself anchors the root with);
-            // each bone reference uses the RAW-joint load-time snapshot (what CalculateOffset captures
-            // against), scaled by the current avatar scale — the same two sources the live capture uses.
+            // Raw snapshot values are the fallback. When body fit is active, each tracker instead uses
+            // the fitted rest skeleton so offsets follow the final arm/leg/torso lengths.
             Vector3 headTpose = BasisLocalBoneDriver.HeadControl.TposeLocalScaled.position;
             float avatarScale = player.LocalAvatarDriver != null && player.LocalAvatarDriver.ScaleAvatarModification != null
                 ? player.LocalAvatarDriver.ScaleAvatarModification.ApplyScale : 1f;
@@ -348,12 +373,18 @@ namespace Basis.Scripts.Avatar
                     && BasisLocalAvatarDriver.TposeBoneSnapshot.TryGetValue(role, out var bind)
                     ? bind.position * avatarScale
                     : input.Control.TposeLocalScaled.position;
+                Vector3 roleHeadTpose = headTpose;
+                if (TryGetFittedTposePositions(role, out Vector3 fittedHeadTpose, out Vector3 fittedBoneTpose))
+                {
+                    roleHeadTpose = fittedHeadTpose;
+                    boneTpose = fittedBoneTpose;
+                }
 
                 BasisCalibrationMath.ReprojectInverseOffsetPosition(
                     input.CalibratedUnscaledPosition, input.CalibratedUnscaledRotation,
                     input.CalibratedUnscaledHeadPosition, input.CalibratedUnscaledHeadRotation,
                     BasisHeightDriver.DeviceScale, BasisInput.OffsetCoords.position, BasisInput.OffsetCoords.rotation,
-                    headTpose, boneTpose,
+                    roleHeadTpose, boneTpose,
                     out Vector3 inverseOffsetPosition);
                 input.Control.SetInverseOffset(inverseOffsetPosition, input.Control.InverseOffsetFromBone.rotation);
             }
@@ -904,10 +935,10 @@ namespace Basis.Scripts.Avatar
             Dictionary<BasisBoneTrackedRole, Transform> transforms = new Dictionary<BasisBoneTrackedRole, Transform>
     {
         { BasisBoneTrackedRole.Hips,Mapping.Hips },
-      //  { BasisBoneTrackedRole.Spine, Mapping.spine },
+        { BasisBoneTrackedRole.Spine, Mapping.spine },
         { BasisBoneTrackedRole.Chest, Mapping.chest },
     //    { BasisBoneTrackedRole.Upperchest, BasisLocalPlayer.Instance.AvatarDriver.References.Upperchest },
-      //  { BasisBoneTrackedRole.Neck, Mapping.neck },
+        { BasisBoneTrackedRole.Neck, Mapping.neck },
         { BasisBoneTrackedRole.Head, Mapping.head },
        // { BasisBoneTrackedRole.CenterEye, LeftEye },
        // { BasisBoneTrackedRole.RightEye, RightEye },
@@ -915,8 +946,8 @@ namespace Basis.Scripts.Avatar
         { BasisBoneTrackedRole.LeftShoulder, Mapping.leftShoulder },
         { BasisBoneTrackedRole.RightShoulder, Mapping.RightShoulder },
 
-      // { BasisBoneTrackedRole.LeftUpperArm, Mapping.leftUpperArm },
-      // { BasisBoneTrackedRole.RightUpperArm,Mapping. RightUpperArm },
+        { BasisBoneTrackedRole.LeftUpperArm, Mapping.leftUpperArm },
+        { BasisBoneTrackedRole.RightUpperArm,Mapping. RightUpperArm },
 
         { BasisBoneTrackedRole.RightLowerArm, Mapping.RightLowerArm },
         { BasisBoneTrackedRole.LeftLowerArm, Mapping.leftLowerArm },
@@ -924,9 +955,9 @@ namespace Basis.Scripts.Avatar
         { BasisBoneTrackedRole.LeftHand, Mapping.leftHand },
         { BasisBoneTrackedRole.RightHand, Mapping.rightHand },
 
-      //  { BasisBoneTrackedRole.LeftUpperLeg,Mapping.LeftUpperLeg },
+        { BasisBoneTrackedRole.LeftUpperLeg,Mapping.LeftUpperLeg },
        { BasisBoneTrackedRole.LeftLowerLeg,Mapping. LeftLowerLeg },
-      //  { BasisBoneTrackedRole.RightUpperLeg, Mapping.RightUpperLeg },
+        { BasisBoneTrackedRole.RightUpperLeg, Mapping.RightUpperLeg },
         { BasisBoneTrackedRole.RightLowerLeg,Mapping. RightLowerLeg },
 
         { BasisBoneTrackedRole.LeftFoot, Mapping.leftFoot },
@@ -1207,21 +1238,10 @@ namespace Basis.Scripts.Avatar
                 }
             }
 
-            // Push magnitudes are world metres, so they must scale with the avatar's RENDERED size.
-            // ScaledToMatchValue is only the authored->target ratio (1.0 for any unscaled avatar, and
-            // inversely proportional to the authored size when custom scale is on), so authored units
-            // leaked into the push: a 0.5m-authored avatar scaled to 1.6m got a ~33cm knee hint.
-            float calibrationScaleY = 1f;
-            BasisLocalAvatarDriver hintAvatarDriver = BasisLocalPlayer.Instance != null ? BasisLocalPlayer.Instance.LocalAvatarDriver : null;
-            if (hintAvatarDriver != null && hintAvatarDriver.ScaleAvatarModification != null)
-            {
-                calibrationScaleY = hintAvatarDriver.ScaleAvatarModification.DuringCalibrationScale.y;
-            }
-            if (float.IsNaN(calibrationScaleY) || float.IsInfinity(calibrationScaleY) || calibrationScaleY <= 0f)
-            {
-                calibrationScaleY = 1f;
-            }
-            float renderedEyeHeight = calibrationScaleY * BasisHeightDriver.AvatarEyeHeight * BasisHeightDriver.AppliedUpScale;
+            // AvatarEyeHeight is already authored in metres after import/root scaling. The rendered
+            // size therefore adds only the runtime override; applying DuringCalibrationScale.y again
+            // made tracker hint offsets 100x too small on common 0.01-imported rigs.
+            float renderedEyeHeight = BasisHeightDriver.AvatarEyeHeight * BasisHeightDriver.AppliedUpScale;
             float hs = (float.IsNaN(renderedEyeHeight) || float.IsInfinity(renderedEyeHeight) || renderedEyeHeight <= 0f)
                 ? 1f
                 : renderedEyeHeight / BasisHeightDriver.FallbackHeightInMeters;

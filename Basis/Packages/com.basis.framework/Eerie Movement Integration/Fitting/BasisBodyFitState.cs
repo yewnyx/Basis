@@ -264,10 +264,19 @@ public static class BasisPerAvatarScale
     public const float None = 1f;
     public static float Current { get; private set; } = None;
     static string loadedForAvatar;
-    static string KeyFor(string avatarId)
+    public static string KeyFor(string avatarId)
     {
-        return $"avatarscale::{(uint)avatarId.GetHashCode():X8}";
+        // string.GetHashCode is not a persistence format: its result may differ by runtime,
+        // process, or platform. A stable FNV-1a key keeps the nudge attached to this avatar.
+        uint hash = 2166136261u;
+        for (int i = 0; i < avatarId.Length; i++)
+        {
+            hash ^= avatarId[i];
+            hash *= 16777619u;
+        }
+        return $"avatarscale::{hash:X8}";
     }
+    static string LegacyKeyFor(string avatarId) => $"avatarscale::{(uint)avatarId.GetHashCode():X8}";
     public static void RefreshForCurrentAvatar()
     {
         string avatarId = BasisLocalPlayer.CurrentAvatarUniqueID;
@@ -284,7 +293,24 @@ public static class BasisPerAvatarScale
 
         loadedForAvatar = avatarId;
         string key = KeyFor(avatarId);
-        Current = BasisSettingsSystem.HasSaveData(key) ? Sanitize(BasisSettingsSystem.LoadFloat(key, None)) : None;
+        if (BasisSettingsSystem.HasSaveData(key))
+        {
+            Current = Sanitize(BasisSettingsSystem.LoadFloat(key, None));
+        }
+        else
+        {
+            // One-time best-effort migration from the old runtime-dependent hash. This recovers saves
+            // when the current runtime happens to reproduce the legacy value, without keeping new data
+            // tied to that unstable key.
+            string legacyKey = LegacyKeyFor(avatarId);
+            Current = BasisSettingsSystem.HasSaveData(legacyKey)
+                ? Sanitize(BasisSettingsSystem.LoadFloat(legacyKey, None))
+                : None;
+            if (!Mathf.Approximately(Current, None))
+            {
+                BasisSettingsSystem.SaveFloat(key, Current);
+            }
+        }
         if (!Mathf.Approximately(Current, None))
         {
             BasisDebug.Log($"Per-avatar size nudge for this avatar: {Current:P0}", BasisDebug.LogTag.Avatar);

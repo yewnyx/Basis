@@ -76,12 +76,26 @@ namespace Basis.Tests.IK
                     BasisArmState state = default;
                     BasisArmSolveCore.Solve(i, ref state, out BasisArmSolveResult r);
                     Assert.That(r.Valid, Is.True);
-                    if (r.ReachRatio < 0.9f) Assert.That(Vector3.Distance(r.Hand, target), Is.LessThan(1e-3f), $"hand missed {target}");
+                    float targetDistance = Vector3.Distance(i.Shoulder, target);
+                    bool reachable = targetDistance >= BasisArmSolveCore.MinReach(upper, lower) && targetDistance <= upper + lower;
+                    if (reachable) Assert.That(Vector3.Distance(r.Hand, target), Is.LessThan(1e-3f), $"reachable hand missed {target}");
                     Assert.That(Vector3.Distance(r.Elbow, i.Shoulder), Is.EqualTo(upper).Within(1e-3f));
                     Assert.That(Vector3.Distance(r.Hand, r.Elbow), Is.EqualTo(lower).Within(1e-3f));
                     Assert.That(r.ElbowDeg, Is.GreaterThan(BasisArmSolveCore.MinElbowInteriorDeg - 0.5f));
                     Assert.That(r.ElbowDeg, Is.LessThan(180f));
                 }
+        }
+        [Test]
+        public void Solve_TooCloseTargetStopsAtAnatomicalElbowLimit()
+        {
+            BasisArmSolveInput i = Input(false, target: shoulder + new Vector3(0.01f, 0f, 0f), targetRot: Quaternion.identity);
+            BasisArmState state = default;
+
+            BasisArmSolveCore.Solve(i, ref state, out BasisArmSolveResult r);
+
+            Assert.That(r.Valid, Is.True);
+            Assert.That(r.ElbowDeg, Is.GreaterThanOrEqualTo(BasisArmSolveCore.MinElbowInteriorDeg - 0.01f), "the elbow folded into an impossible pinched rotation");
+            Assert.That(Vector3.Distance(r.Hand, i.Shoulder), Is.EqualTo(BasisArmSolveCore.MinReach(upper, lower)).Within(0.0001f));
         }
         [Test]
         public void Solve_HeadTargetRule_ElbowHangsForChestHand_AndFlaresForRaisedHand()

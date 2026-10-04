@@ -162,6 +162,21 @@ namespace Basis.Tests.IK
             Assert.That(Vector3.Distance(rightElbow, job.poseStream.GetPosition(job.handleRightUpperArm)), Is.EqualTo(0.28f).Within(0.01f));
         }
         [Test]
+        public void ActiveTrackedHandsRemainExactDuringWeightTransition()
+        {
+            BuildRig();
+            Vector3 left = new Vector3(-0.25f, 1.15f, 0.35f), right = new Vector3(0.30f, 1.60f, 0.20f);
+            var job = Job(left, right);
+            BasisEeriePlanner.Frame(ref job, new BasisEerieFrameFacts { hipsTracked = true, leftHandWeight = 0.2f, rightHandWeight = 0.2f, deltaTime = 1f / 90f });
+
+            job.ProcessAnimation();
+
+            Assert.That(Vector3.Distance(job.poseStream.GetPosition(job.handleLeftHand), left), Is.LessThan(0.001f), "reachable left hand came off its controller during weight transition");
+            Assert.That(Vector3.Distance(job.poseStream.GetPosition(job.handleRightHand), right), Is.LessThan(0.001f), "reachable right hand came off its controller during weight transition");
+            Assert.That(Quaternion.Angle(job.poseStream.GetRotation(job.handleLeftHand), job.targetRotationLeftHand * job.offsetRotationLeftHand), Is.LessThan(0.01f), "left hand rotation no longer matches its controller");
+            Assert.That(Quaternion.Angle(job.poseStream.GetRotation(job.handleRightHand), job.targetRotationRightHand * job.offsetRotationRightHand), Is.LessThan(0.01f), "right hand rotation no longer matches its controller");
+        }
+        [Test]
         public void ArmPass_ManagedAndBurst_Agree()
         {
             BuildRig();
