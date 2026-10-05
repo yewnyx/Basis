@@ -11,25 +11,25 @@ namespace Basis.Tests.IK
         {
             const int count = 5;
             RalivIKSpine.SpineData data = default;
-            data.Positions.Length = count;
-            data.Rotations.Length = count;
-            data.RestPositions.Length = count;
-            data.RestRotations.Length = count;
-            data.T.Length = count;
+            data.positions.Length = count;
+            data.rotations.Length = count;
+            data.restPositions.Length = count;
+            data.restRotations.Length = count;
+            data.t.Length = count;
             for (int index = 0; index < count; index++)
             {
                 Vector3 position = new Vector3(0f, index * 0.2f, 0f);
-                data.Positions[index] = position;
-                data.RestPositions[index] = position;
-                data.Rotations[index] = Quaternion.identity;
-                data.RestRotations[index] = Quaternion.identity;
-                data.T[index] = index / (float)(count - 1) * 0.8f;
+                data.positions[index] = position;
+                data.restPositions[index] = position;
+                data.rotations[index] = Quaternion.identity;
+                data.restRotations[index] = Quaternion.identity;
+                data.t[index] = index / (float)(count - 1) * 0.8f;
             }
-            data.Length = 0.6f;
-            data.HipTargetPosition = data.Positions[0];
-            data.HipTargetRotation = Quaternion.identity;
-            data.HeadTargetPosition = data.Positions[count - 1];
-            data.HeadTargetRotation = Quaternion.identity;
+            data.length = 0.6f;
+            data.hipTargetPosition = data.positions[0];
+            data.hipTargetRotation = Quaternion.identity;
+            data.headTargetPosition = data.positions[count - 1];
+            data.headTargetRotation = Quaternion.identity;
             return data;
         }
 
@@ -37,15 +37,15 @@ namespace Basis.Tests.IK
         public void UnreachableHipTargetCannotStretchSpineSegments()
         {
             RalivIKSpine.SpineData data = CreateStraightSpine();
-            data.HipTargetPosition = new Vector3(0f, -5f, 0f);
+            data.hipTargetPosition = new Vector3(0f, -5f, 0f);
 
-            RalivIKSpine.Solve(ref data);
+            RalivIKSpine.SolveSpine(ref data);
 
-            Assert.That(Vector3.Distance(data.Positions[data.Positions.Length - 1], data.HeadTargetPosition), Is.LessThan(0.00001f));
-            for (int index = 1; index < data.Positions.Length; index++)
+            Assert.That(Vector3.Distance(data.positions[data.positions.Length - 1], data.headTargetPosition), Is.LessThan(0.00001f));
+            for (int index = 1; index < data.positions.Length; index++)
             {
-                float restLength = Vector3.Distance(data.RestPositions[index - 1], data.RestPositions[index]);
-                float solvedLength = Vector3.Distance(data.Positions[index - 1], data.Positions[index]);
+                float restLength = Vector3.Distance(data.restPositions[index - 1], data.restPositions[index]);
+                float solvedLength = Vector3.Distance(data.positions[index - 1], data.positions[index]);
                 Assert.AreEqual(restLength, solvedLength, 0.00001f, $"segment {index - 1}->{index} stretched");
             }
         }
@@ -128,16 +128,16 @@ namespace Basis.Tests.IK
         public void ChestRotationCannotExceedNinetyDegreesFromPrediction()
         {
             RalivIKSpine.SpineData data = CreateStraightSpine();
-            data.ChestIndex = 2;
-            data.ChestForward = Vector3.forward;
-            data.ChestTargetRotation = Quaternion.Euler(0f, 170f, 0f);
-            data.ChestHintWeight = 1f;
+            data.chestIndex = 2;
+            data.chestForward = Vector3.forward;
+            data.chestTargetRotation = Quaternion.Euler(0f, 170f, 0f);
+            data.chestHintWeight = 1f;
 
-            RalivIKSpine.Solve(ref data);
+            RalivIKSpine.SolveSpine(ref data);
 
-            Assert.AreEqual(45f, Quaternion.Angle(Quaternion.identity, data.Rotations[1]), 0.001f);
-            Assert.AreEqual(90f, Quaternion.Angle(Quaternion.identity, data.Rotations[2]), 0.001f);
-            Assert.AreEqual(45f, Quaternion.Angle(Quaternion.identity, data.Rotations[3]), 0.001f);
+            Assert.AreEqual(45f, Quaternion.Angle(Quaternion.identity, data.rotations[1]), 0.001f);
+            Assert.AreEqual(90f, Quaternion.Angle(Quaternion.identity, data.rotations[2]), 0.001f);
+            Assert.AreEqual(45f, Quaternion.Angle(Quaternion.identity, data.rotations[3]), 0.001f);
         }
 
         [Test]
@@ -145,17 +145,17 @@ namespace Basis.Tests.IK
         {
             RalivIKSpine.SpineData baseline = CreateStraightSpine();
             RalivIKSpine.SpineData tracked = baseline;
-            tracked.ChestIndex = 2;
-            tracked.ChestForward = Vector3.forward;
-            tracked.ChestTargetRotation = Quaternion.Euler(0f, 75f, 0f);
-            tracked.ChestHintWeight = 1f;
+            tracked.chestIndex = 2;
+            tracked.chestForward = Vector3.forward;
+            tracked.chestTargetRotation = Quaternion.Euler(0f, 75f, 0f);
+            tracked.chestHintWeight = 1f;
 
-            RalivIKSpine.Solve(ref baseline);
-            RalivIKSpine.Solve(ref tracked);
+            RalivIKSpine.SolveSpine(ref baseline);
+            RalivIKSpine.SolveSpine(ref tracked);
 
-            for (int index = 0; index < baseline.Positions.Length; index++)
+            for (int index = 0; index < baseline.positions.Length; index++)
             {
-                Assert.AreEqual(baseline.Positions[index], tracked.Positions[index], $"chest rotation moved spine point {index}");
+                Assert.AreEqual(baseline.positions[index], tracked.positions[index], $"chest rotation moved spine point {index}");
             }
         }
 
@@ -164,19 +164,19 @@ namespace Basis.Tests.IK
         {
             RalivIKSpine.SpineData baseline = CreateStraightSpine();
             RalivIKSpine.SpineData tracked = baseline;
-            tracked.ChestIndex = 2;
-            tracked.ChestTargetPosition = tracked.Positions[2] + new Vector3(0.2f, 0f, 0f);
-            tracked.ChestPositionWeight = 0.5f;
+            tracked.chestIndex = 2;
+            tracked.chestTargetPosition = tracked.positions[2] + new Vector3(0.2f, 0f, 0f);
+            tracked.chestHintWeight = 0.5f;
 
-            RalivIKSpine.Solve(ref baseline);
-            RalivIKSpine.Solve(ref tracked);
+            RalivIKSpine.SolveSpine(ref baseline);
+            RalivIKSpine.SolveSpine(ref tracked);
 
-            Assert.Greater(tracked.Positions[2].x, baseline.Positions[2].x, "tracked chest did not move toward its positional target");
-            Assert.That(Vector3.Distance(tracked.Positions[tracked.Positions.Length - 1], tracked.HeadTargetPosition), Is.LessThan(0.00001f));
-            for (int index = 1; index < tracked.Positions.Length; index++)
+            Assert.Greater(tracked.positions[2].x, baseline.positions[2].x, "tracked chest did not move toward its positional target");
+            Assert.That(Vector3.Distance(tracked.positions[tracked.positions.Length - 1], tracked.headTargetPosition), Is.LessThan(0.00001f));
+            for (int index = 1; index < tracked.positions.Length; index++)
             {
-                float restLength = Vector3.Distance(tracked.RestPositions[index - 1], tracked.RestPositions[index]);
-                float solvedLength = Vector3.Distance(tracked.Positions[index - 1], tracked.Positions[index]);
+                float restLength = Vector3.Distance(tracked.restPositions[index - 1], tracked.restPositions[index]);
+                float solvedLength = Vector3.Distance(tracked.positions[index - 1], tracked.positions[index]);
                 Assert.AreEqual(restLength, solvedLength, 0.00001f, $"segment {index - 1}->{index} stretched");
             }
         }
@@ -186,16 +186,16 @@ namespace Basis.Tests.IK
         {
             RalivIKSpine.SpineData baseline = CreateStraightSpine();
             RalivIKSpine.SpineData untracked = baseline;
-            untracked.ChestIndex = 2;
-            untracked.ChestTargetPosition = new Vector3(10f, 10f, 10f);
-            untracked.ChestPositionWeight = 0f;
+            untracked.chestIndex = 2;
+            untracked.chestTargetPosition = new Vector3(10f, 10f, 10f);
+            untracked.chestHintWeight = 0f;
 
-            RalivIKSpine.Solve(ref baseline);
-            RalivIKSpine.Solve(ref untracked);
+            RalivIKSpine.SolveSpine(ref baseline);
+            RalivIKSpine.SolveSpine(ref untracked);
 
-            for (int index = 0; index < baseline.Positions.Length; index++)
+            for (int index = 0; index < baseline.positions.Length; index++)
             {
-                Assert.AreEqual(baseline.Positions[index], untracked.Positions[index], $"untracked chest moved spine point {index}");
+                Assert.AreEqual(baseline.positions[index], untracked.positions[index], $"untracked chest moved spine point {index}");
             }
         }
 
@@ -203,16 +203,16 @@ namespace Basis.Tests.IK
         public void ChestRotationIsIgnoredWithoutTrackedChestWeight()
         {
             RalivIKSpine.SpineData data = CreateStraightSpine();
-            data.ChestIndex = 2;
-            data.ChestForward = Vector3.forward;
-            data.ChestTargetRotation = Quaternion.Euler(0f, 90f, 0f);
-            data.ChestHintWeight = 0f;
+            data.chestIndex = 2;
+            data.chestForward = Vector3.forward;
+            data.chestTargetRotation = Quaternion.Euler(0f, 90f, 0f);
+            data.chestHintWeight = 0f;
 
-            RalivIKSpine.Solve(ref data);
+            RalivIKSpine.SolveSpine(ref data);
 
-            Assert.AreEqual(Quaternion.identity, data.Rotations[1]);
-            Assert.AreEqual(Quaternion.identity, data.Rotations[2]);
-            Assert.AreEqual(Quaternion.identity, data.Rotations[3]);
+            Assert.AreEqual(Quaternion.identity, data.rotations[1]);
+            Assert.AreEqual(Quaternion.identity, data.rotations[2]);
+            Assert.AreEqual(Quaternion.identity, data.rotations[3]);
         }
     }
 }
