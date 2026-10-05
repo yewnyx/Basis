@@ -107,6 +107,9 @@ namespace Basis.IK
             SpineData.restPositions.Length = count;
             SpineData.restRotations.Length = count;
             SpineData.t.Length = count;
+            SpineData.targetSpinePositions.Length = count;
+            SpineData.hipTargetAlignedSpinePositions.Length = count;
+            SpineData.headTargetAlignedSpinePositions.Length = count;
 
             float hiplessSpineLength = 0f;
             for (int index = 0; index < count; index++)
