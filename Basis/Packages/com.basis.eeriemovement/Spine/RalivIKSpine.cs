@@ -187,9 +187,18 @@ public class RalivIKSpine
                 if (index < spineData.positions.Length - 1)
                 {
                     var w = 0f;
-                    if (index == 1) w = spineData.chestHintWeight * 0.5f;
-                    if (index == 2) w = spineData.chestHintWeight * 1f;
-                    if (index == 3) w = spineData.chestHintWeight * 0.5f;
+                    if (index == 1)
+                    {
+                        w = spineData.chestHintWeight * 0.5f;
+                    }
+                    if (index == 2)
+                    {
+                        w = spineData.chestHintWeight * 1f;
+                    }
+                    if (index == 3)
+                    {
+                        w = spineData.chestHintWeight * 0.5f;
+                    }
                     var downBone = spineData.positions[index + 1] - spineData.positions[index];
                     spineData.rotations[index] = Quaternion.AngleAxis(chestRotate * w, downBone.normalized) * spineData.rotations[index];
                 }
@@ -204,9 +213,7 @@ public class RalivIKSpine
 
         static Quaternion SafeFromToRotation(Vector3 from, Vector3 to)
         {
-            return from.sqrMagnitude > BasisEerieMovement.sqrEpsilon && to.sqrMagnitude > BasisEerieMovement.sqrEpsilon
-                ? BasisQuaternionExt.FromToRotation(from, to)
-                : Quaternion.identity;
+            return from.sqrMagnitude > BasisEerieMovement.sqrEpsilon && to.sqrMagnitude > BasisEerieMovement.sqrEpsilon ? BasisQuaternionExt.FromToRotation(from, to) : Quaternion.identity;
         }
     }
 }

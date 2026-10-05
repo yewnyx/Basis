@@ -4,11 +4,7 @@ namespace Basis.IK
 {
     public partial struct BasisEerieMovement
     {
-        void SolveSpinePass()
-        {
-            SolveSpine();
-        }
-        public void SolveSpine()
+        public void SolveSpinePass()
         {
             BasisEerieMarkers.SpineHipsPlacement.Begin();
 
@@ -16,12 +12,34 @@ namespace Basis.IK
             {
                 if (plan.hasHips && plan.hasHead)
                 {
-                    ApplyProneBodyYaw();
+                    Vector3 up = playerUp, hipsPos = poseStream.GetPosition(handleHips);
+                    Vector3 headPos = poseStream.GetPosition(handleHead), bodyFwd = headPos - hipsPos;
+                    bodyFwd -= up * Vector3.Dot(bodyFwd, up);
+                    Vector3 desiredFwd = targetRotationHips * Vector3.forward;
+                    desiredFwd -= up * Vector3.Dot(desiredFwd, up);
+                    if (bodyFwd.sqrMagnitude < sqrEpsilon || desiredFwd.sqrMagnitude < sqrEpsilon)
+                    {
+                        return;
+                    }
+
+                    float deltaYaw = Vector3.SignedAngle(bodyFwd, desiredFwd, up);
+                    Quaternion swing = Quaternion.AngleAxis(deltaYaw, up);
+                    Vector3 toTarget = targetPositionHead - headPos;
+                    toTarget -= up * Vector3.Dot(toTarget, up);
+                    poseStream.SetPosition(handleHips, headPos + swing * (hipsPos - headPos) + toTarget);
+                    poseStream.SetRotation(handleHips, swing * poseStream.GetRotation(handleHips));
                 }
             }
             else
             {
-                ResetSpineChainToRest();
+                if (!plan.hasSpineChain)
+                {
+                    return;
+                }
+                for (int Index = chainHeadToSpine.Length - 1; Index >= 0; Index--)
+                {
+                    poseStream.ResetToRest(chainHeadToSpine[Index]);
+                }
                 Vector3 headTargetPos = targetPositionHead, hipsTargetPos = targetPositionHips;
                 Quaternion hipsTargetRot = targetRotationHips;
                 Quaternion offsetHips = offsetRotationHips, hipDesired = hipsTargetRot * offsetHips;
@@ -73,12 +91,7 @@ namespace Basis.IK
             SpineData.chestForward = Vector3.forward;
             SpineData.chestHintWeight = hasTrackedChest ? 1f : 0f;
             //SpineData.chestPositionWeight = hasTrackedChest ? Mathf.Clamp01(chestIkWeight) : 0f;
-
             RalivIKSpine.SolveSpine(ref SpineData);
-
-            // Preserve the authored local translations of every vertebra. Writing
-            // world positions into each mapped bone mutates local bone lengths and
-            // breaks avatars with helper transforms between humanoid spine bones.
             BasisBoneHandle rootHandle = chainHeadToSpine[count - 1];
             poseStream.SetPosition(rootHandle, SpineData.positions[0]);
             for (int index = 0; index < count; index++)
@@ -157,50 +170,17 @@ namespace Basis.IK
         void RescaleRalivSpineIK(float scale)
         {
             int count = SpineData.restPositions.Length;
-            if (count < 2 || SpineData.positions.Length != count ||
-                !(scale > 0f) || float.IsNaN(scale) || float.IsInfinity(scale))
+            if (count >= 2 && SpineData.positions.Length == count && scale > 0f && !float.IsNaN(scale) && !float.IsInfinity(scale))
             {
-                return;
+                Vector3 restRoot = SpineData.restPositions[0];
+                Vector3 workingRoot = SpineData.positions[0];
+                for (int index = 1; index < count; index++)
+                {
+                    SpineData.restPositions[index] = restRoot + (SpineData.restPositions[index] - restRoot) * scale;
+                    SpineData.positions[index] = workingRoot + (SpineData.positions[index] - workingRoot) * scale;
+                }
+                SpineData.length *= scale;
             }
-
-            Vector3 restRoot = SpineData.restPositions[0];
-            Vector3 workingRoot = SpineData.positions[0];
-            for (int index = 1; index < count; index++)
-            {
-                SpineData.restPositions[index] = restRoot + (SpineData.restPositions[index] - restRoot) * scale;
-                SpineData.positions[index] = workingRoot + (SpineData.positions[index] - workingRoot) * scale;
-            }
-            SpineData.length *= scale;
-        }
-        void ResetSpineChainToRest()
-        {
-            if (!plan.hasSpineChain)
-            {
-                return;
-            }
-            for (int i = chainHeadToSpine.Length - 1; i >= 0; i--)
-            {
-                poseStream.ResetToRest(chainHeadToSpine[i]);
-            }
-        }
-        void ApplyProneBodyYaw()
-        {
-            Vector3 up = playerUp, hipsPos = poseStream.GetPosition(handleHips);
-            Vector3 headPos = poseStream.GetPosition(handleHead), bodyFwd = headPos - hipsPos;
-            bodyFwd -= up * Vector3.Dot(bodyFwd, up);
-            Vector3 desiredFwd = targetRotationHips * Vector3.forward;
-            desiredFwd -= up * Vector3.Dot(desiredFwd, up);
-            if (bodyFwd.sqrMagnitude < sqrEpsilon || desiredFwd.sqrMagnitude < sqrEpsilon)
-            {
-                return;
-            }
-
-            float deltaYaw = Vector3.SignedAngle(bodyFwd, desiredFwd, up);
-            Quaternion swing = Quaternion.AngleAxis(deltaYaw, up);
-            Vector3 toTarget = targetPositionHead - headPos;
-            toTarget -= up * Vector3.Dot(toTarget, up);
-            poseStream.SetPosition(handleHips, headPos + swing * (hipsPos - headPos) + toTarget);
-            poseStream.SetRotation(handleHips, swing * poseStream.GetRotation(handleHips));
         }
         Vector3 ApplyCrouchBodyOffset(Vector3 headTargetPos, Vector3 hipsPos, Quaternion hipsRot, Vector3 playerUpDir, float fade)
         {
