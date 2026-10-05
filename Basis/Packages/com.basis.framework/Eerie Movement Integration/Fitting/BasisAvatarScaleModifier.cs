@@ -24,16 +24,21 @@ namespace Basis.Scripts.Drivers
 
             return v;
         }
-        public void ReInitialize(Animator animator)
+        public void ReInitialize(Animator animator, Transform avatarRoot = null)
         {
-            scaleTarget = animator != null ? animator.transform : null;
-            if (animator == null)
+            // AvatarTransform is the scale/network root used by BasisAvatarFactory and the network
+            // compressor. The Animator may sit below that root (for example under an import-scale
+            // node), so measuring one transform and writing the other corrupts both local size and
+            // remote scale replication. Prefer the explicit avatar root and retain the Animator-root
+            // fallback for callers/tests that do not have a BasisAvatar wrapper.
+            scaleTarget = avatarRoot != null ? avatarRoot : animator != null ? animator.transform : null;
+            if (scaleTarget == null)
             {
                 DuringCalibrationScale = Vector3.one;
             }
             else
             {
-                DuringCalibrationScale = SanitizeCalibrationScale(animator.transform.localScale);
+                DuringCalibrationScale = SanitizeCalibrationScale(scaleTarget.localScale);
             }
 
             ApplyScale = 1f;
@@ -48,10 +53,7 @@ namespace Basis.Scripts.Drivers
 
             if (scaleTarget != null)
             {
-                // ReInitialize samples the Animator root, so the result must be written back to that
-                // same transform. BasisAvatar may live on a wrapper object; applying the Animator's
-                // authored scale to the wrapper compounds both transforms and makes the rendered body
-                // (and every tracker-to-bone reference) too large or too small.
+                // Always write back to the exact transform sampled by ReInitialize.
                 scaleTarget.localScale = FinalScale;
             }
         }

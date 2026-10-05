@@ -14,7 +14,7 @@ public sealed class BasisAvatarScaleModifierTests
     }
 
     [Test]
-    public void Override_WritesBackToTheAnimatorTransformThatWasMeasured()
+    public void Override_WritesBackToTheExplicitAvatarRootThatWasMeasured()
     {
         GameObject wrapper = new GameObject("AvatarWrapper");
         GameObject animatorObject = new GameObject("AnimatorRoot");
@@ -27,12 +27,12 @@ public sealed class BasisAvatarScaleModifierTests
             animatorObject.transform.localScale = new Vector3(0.5f, 0.75f, 1.25f);
 
             var modifier = new BasisAvatarScaleModifier();
-            modifier.ReInitialize(animator);
+            modifier.ReInitialize(animator, wrapper.transform);
             modifier.SetAvatarheightOverride(2f);
 
-            Assert.That(animatorObject.transform.localScale, Is.EqualTo(new Vector3(1f, 1.5f, 2.5f)));
-            Assert.That(wrapper.transform.localScale, Is.EqualTo(new Vector3(3f, 3f, 3f)),
-                "an avatar wrapper is not the measured scale space and must not receive the animator's authored scale");
+            Assert.That(wrapper.transform.localScale, Is.EqualTo(new Vector3(6f, 6f, 6f)));
+            Assert.That(animatorObject.transform.localScale, Is.EqualTo(new Vector3(0.5f, 0.75f, 1.25f)),
+                "the nested Animator/import node must not be rewritten when AvatarTransform owns runtime scale");
         }
         finally
         {
@@ -56,7 +56,7 @@ public sealed class BasisAvatarScaleModifierTests
             eye.transform.localPosition = Vector3.up * 160f;
 
             var modifier = new BasisAvatarScaleModifier();
-            modifier.ReInitialize(animator);
+            modifier.ReInitialize(animator, wrapper.transform);
             modifier.SetAvatarheightOverride(1.5f);
 
             Assert.That(eye.transform.position.y, Is.EqualTo(2.4f).Within(1e-4f),

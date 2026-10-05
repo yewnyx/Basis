@@ -91,7 +91,7 @@ namespace Basis.Scripts.Drivers
 
             player.LocalRigDriver.CleanupBeforeContinue();
             GameObject AvatarAnimatorParent = player.BasisAvatar.Animator.gameObject;
-            ScaleAvatarModification.ReInitialize(player.BasisAvatar.Animator);
+            ScaleAvatarModification.ReInitialize(player.BasisAvatar.Animator, player.AvatarTransform);
 
             player.BasisAvatar.Animator.updateMode = AnimatorUpdateMode.Normal;
             player.BasisAvatar.Animator.logWarnings = false;
@@ -383,10 +383,10 @@ namespace Basis.Scripts.Drivers
         {
             var Avatar = LocalPlayer.BasisAvatar;
             FindSkinnedMeshRenders(LocalPlayer);
-            // AnimatorRoot is the coordinate root for every mapped bone. BasisAvatar may be an outer
-            // wrapper, so using Avatar.transform here makes local T-pose snapshots and tracker offsets
-            // disagree with both the actual skeleton and the remote-avatar path.
-            BasisTransformMapping.AutoDetectReferences(LocalPlayer.BasisAvatar.Animator, LocalPlayer.BasisAvatar.Animator.transform, ref Mapping, humanoidBones: Avatar.TransformStorage?.HumanoidBones);
+            // AvatarTransform is the shared local/network coordinate root. The Animator may be nested
+            // below an import-scale node, but mapped positions must remain in the same rendered-metre
+            // frame used by avatar eye height, tracker offsets, and remote replication.
+            BasisTransformMapping.AutoDetectReferences(LocalPlayer.BasisAvatar.Animator, Avatar.transform, ref Mapping, humanoidBones: Avatar.TransformStorage?.HumanoidBones);
             BasisAvatarModelCache.RecordPosesCached(Mapping, LocalPlayer.BasisAvatar.Animator);
             LocalPlayer.FaceIsVisible = false;
 
