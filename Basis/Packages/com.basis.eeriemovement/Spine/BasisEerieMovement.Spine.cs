@@ -1,5 +1,5 @@
 using UnityEngine;
-using static Basis.IK.RalivIKSpine;
+using static RalivIKSpine;
 namespace Basis.IK
 {
     public partial struct BasisEerieMovement
@@ -53,38 +53,38 @@ namespace Basis.IK
             {
                 return;
             }
-            if (SpineData.Length <= epsilon || SpineData.Positions.Length != count)
+            if (SpineData.length <= epsilon || SpineData.positions.Length != count)
             {
                 InitalizeRalivSpineIK();
             }
-            if (SpineData.Length <= epsilon || SpineData.Positions.Length != count)
+            if (SpineData.length <= epsilon || SpineData.positions.Length != count)
             {
                 return;
             }
-            SpineData.HipTargetPosition = plan.hasHips ? poseStream.GetPosition(handleHips) : SpineData.Positions[0];
-            SpineData.HipTargetRotation = plan.hasHips ? poseStream.GetRotation(handleHips) : SpineData.Rotations[0];
-            SpineData.HeadTargetPosition = headTargetPosition;
-            SpineData.HeadTargetRotation = headTargetRotation;
+            SpineData.hipTargetPosition = plan.hasHips ? poseStream.GetPosition(handleHips) : SpineData.positions[0];
+            SpineData.hipTargetRotation = plan.hasHips ? poseStream.GetRotation(handleHips) : SpineData.rotations[0];
+            SpineData.headTargetPosition = headTargetPosition;
+            SpineData.headTargetRotation = headTargetRotation;
             int chestIndex = count - 1 - plan.chestIdx;
             bool hasTrackedChest = plan.chestTracked && plan.chestChain && chestIndex > 0 && chestIndex < count - 1;
-            SpineData.ChestIndex = chestIndex;
-            SpineData.ChestTargetPosition = targetPositionChest;
-            SpineData.ChestTargetRotation = targetRotationChest * offsetRotationChest;
-            SpineData.ChestForward = Vector3.forward;
-            SpineData.ChestHintWeight = hasTrackedChest ? 1f : 0f;
-            SpineData.ChestPositionWeight = hasTrackedChest ? Mathf.Clamp01(chestIkWeight) : 0f;
+            SpineData.chestIndex = chestIndex;
+            SpineData.chestTargetPosition = targetPositionChest;
+            SpineData.chestTargetRotation = targetRotationChest * offsetRotationChest;
+            SpineData.chestForward = Vector3.forward;
+            SpineData.chestHintWeight = hasTrackedChest ? 1f : 0f;
+            //SpineData.chestPositionWeight = hasTrackedChest ? Mathf.Clamp01(chestIkWeight) : 0f;
 
-            RalivIKSpine.Solve(ref SpineData);
+            RalivIKSpine.SolveSpine(ref SpineData);
 
             // Preserve the authored local translations of every vertebra. Writing
             // world positions into each mapped bone mutates local bone lengths and
             // breaks avatars with helper transforms between humanoid spine bones.
             BasisBoneHandle rootHandle = chainHeadToSpine[count - 1];
-            poseStream.SetPosition(rootHandle, SpineData.Positions[0]);
+            poseStream.SetPosition(rootHandle, SpineData.positions[0]);
             for (int index = 0; index < count; index++)
             {
                 BasisBoneHandle handle = chainHeadToSpine[count - 1 - index];
-                poseStream.SetRotation(handle, SpineData.Rotations[index]);
+                poseStream.SetRotation(handle, SpineData.rotations[index]);
             }
 
             BasisBoneHandle headHandle = chainHeadToSpine[0];
@@ -102,11 +102,11 @@ namespace Basis.IK
                 return;
             }
             SpineData = default;
-            SpineData.Positions.Length = count;
-            SpineData.Rotations.Length = count;
-            SpineData.RestPositions.Length = count;
-            SpineData.RestRotations.Length = count;
-            SpineData.T.Length = count;
+            SpineData.positions.Length = count;
+            SpineData.rotations.Length = count;
+            SpineData.restPositions.Length = count;
+            SpineData.restRotations.Length = count;
+            SpineData.t.Length = count;
 
             float hiplessSpineLength = 0f;
             for (int index = 0; index < count; index++)
@@ -118,18 +118,18 @@ namespace Basis.IK
                     return;
                 }
                 poseStream.GetPositionAndRotation(handle, out Vector3 position, out Quaternion rotation);
-                SpineData.Positions[index] = position;
-                SpineData.Rotations[index] = rotation;
-                SpineData.RestPositions[index] = position;
-                SpineData.RestRotations[index] = rotation;
+                SpineData.positions[index] = position;
+                SpineData.rotations[index] = rotation;
+                SpineData.restPositions[index] = position;
+                SpineData.restRotations[index] = rotation;
 
                 // Match SpineTest: do not include the hips-to-first-spine-bone
                 // segment in the interpolation length.
                 if (index > 1)
                 {
-                    hiplessSpineLength += (SpineData.RestPositions[index] - SpineData.RestPositions[index - 1]).magnitude;
+                    hiplessSpineLength += (SpineData.restPositions[index] - SpineData.restPositions[index - 1]).magnitude;
                 }
-                SpineData.T[index] = hiplessSpineLength;
+                SpineData.t[index] = hiplessSpineLength;
             }
 
             if (hiplessSpineLength <= epsilon)
@@ -137,37 +137,37 @@ namespace Basis.IK
                 SpineData = default;
                 return;
             }
-            SpineData.Length = hiplessSpineLength;
+            SpineData.length = hiplessSpineLength;
             for (int index = 0; index < count; index++)
             {
-                SpineData.T[index] = SpineData.T[index] / hiplessSpineLength * 0.8f;
+                SpineData.t[index] = SpineData.t[index] / hiplessSpineLength * 0.8f;
             }
 
-            SpineData.HipTargetPosition = SpineData.Positions[0];
-            SpineData.HipTargetRotation = SpineData.Rotations[0];
-            SpineData.HeadTargetPosition = SpineData.Positions[count - 1];
-            SpineData.HeadTargetRotation = SpineData.Rotations[count - 1];
-            SpineData.ChestTargetPosition = SpineData.Positions[Mathf.Clamp(count - 1 - chainChestIdx, 0, count - 1)];
-            SpineData.ChestForward = Vector3.forward;
+            SpineData.hipTargetPosition = SpineData.positions[0];
+            SpineData.hipTargetRotation = SpineData.rotations[0];
+            SpineData.headTargetPosition = SpineData.positions[count - 1];
+            SpineData.headTargetRotation = SpineData.rotations[count - 1];
+            SpineData.chestTargetPosition = SpineData.positions[Mathf.Clamp(count - 1 - chainChestIdx, 0, count - 1)];
+            SpineData.chestForward = Vector3.forward;
         }
 
         void RescaleRalivSpineIK(float scale)
         {
-            int count = SpineData.RestPositions.Length;
-            if (count < 2 || SpineData.Positions.Length != count ||
+            int count = SpineData.restPositions.Length;
+            if (count < 2 || SpineData.positions.Length != count ||
                 !(scale > 0f) || float.IsNaN(scale) || float.IsInfinity(scale))
             {
                 return;
             }
 
-            Vector3 restRoot = SpineData.RestPositions[0];
-            Vector3 workingRoot = SpineData.Positions[0];
+            Vector3 restRoot = SpineData.restPositions[0];
+            Vector3 workingRoot = SpineData.positions[0];
             for (int index = 1; index < count; index++)
             {
-                SpineData.RestPositions[index] = restRoot + (SpineData.RestPositions[index] - restRoot) * scale;
-                SpineData.Positions[index] = workingRoot + (SpineData.Positions[index] - workingRoot) * scale;
+                SpineData.restPositions[index] = restRoot + (SpineData.restPositions[index] - restRoot) * scale;
+                SpineData.positions[index] = workingRoot + (SpineData.positions[index] - workingRoot) * scale;
             }
-            SpineData.Length *= scale;
+            SpineData.length *= scale;
         }
         void ResetSpineChainToRest()
         {
