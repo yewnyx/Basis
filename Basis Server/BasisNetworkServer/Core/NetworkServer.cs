@@ -82,6 +82,10 @@ public static class NetworkServer
     public static bool StartServer(Configuration configuration)
     {
         StopServer();
+        if (string.IsNullOrWhiteSpace(configuration.ServerUUID))
+        {
+            configuration.ServerUUID = Guid.NewGuid().ToString("N");
+        }
         Configuration = configuration;
 
         // Rejoin-only lockdown means "the players here right now" — meaningless after a restart, and a

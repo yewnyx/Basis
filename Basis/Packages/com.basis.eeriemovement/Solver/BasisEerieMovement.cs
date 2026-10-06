@@ -21,6 +21,7 @@ namespace Basis.IK
         public BasisBoneHandle handleLeftToe, handleRightUpperLeg, handleRightLowerLeg, handleRightFoot, handleRightToe;
         public NativeArray<BasisBoneHandle> chainHeadToSpine;
         public NativeArray<BasisSpineRestFrame> chainSpineRestFrames;
+        public RalivIKSpine.SpineData SpineData;
         public int chainChestIdx;
         public Vector3 targetPositionHead, targetPositionHips;
         public Quaternion targetRotationHead, targetRotationHips, targetRotationChest;
@@ -51,7 +52,6 @@ namespace Basis.IK
         public Quaternion tposeLeftLowerArmTwistBind, tposeLeftLowerArmChildBind, tposeRightLowerArmTwistBind;
         public Quaternion tposeRightLowerArmChildBind, tposeLeftUpperArmTwistBind, tposeLeftUpperArmChildBind;
         public Quaternion tposeRightUpperArmTwistBind, tposeRightUpperArmChildBind;
-        public BasisIKLockMode ikLockMode;
         public int spineMaxIterations;
         public float spineTolerance, minHeadSpineHeight, maxBendDeg, minFactor, maxFactor, maxChestDeltaDeg;
         public float spineBendPitch, spineBendYaw, spineBendRoll, upperChestBendPitch, upperChestBendYaw;
@@ -225,6 +225,7 @@ namespace Basis.IK
             tposeShoulderToElbowRight *= k;
             tposeHeadToNeckLocal *= k;
             tposeLengthNeckToHips *= k;
+            RescaleRalivSpineIK(k);
 
             tposeBakeScale = newScale;
         }
@@ -247,6 +248,7 @@ namespace Basis.IK
                 tposeHeadToNeckLocal *= kt;
                 tposeLengthNeckToHips *= kt;
                 minHeadSpineHeight *= kt;
+                RescaleRalivSpineIK(kt);
             }
             tposeArmFitScale = armScale;
             tposeTorsoFitScale = torsoScale;

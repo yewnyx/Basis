@@ -275,6 +275,14 @@ public class BasisBundleGenerated
     public string Password;//this unlocks the bundle
     public string Platform;//Deployed Platform
     public long EndByte;
+    // Length of the encrypted Unity AssetBundle at the start of this section. When zero, the
+    // whole section is the AssetBundle (the layout used by every BEE produced before PSO
+    // sidecars). New sections may append independently encrypted graphics-state files after it.
+    public long AssetBundleEndByte;
+    // Optional content-scoped GraphicsStateCollection captures. These are shader/graphics-state
+    // descriptions, not driver binaries: the receiving GPU still creates its own PSOs locally.
+    // Entries are generated from the content's mesh/material pairs during BEE construction.
+    public BasisGraphicsStatePayload[] GraphicsStatePayloads;
     // Graphics APIs this section's shaders were compiled against, in PlayerSettings
     // priority order (e.g. ["Direct3D11", "Direct3D12", "Vulkan"] for Windows64,
     // ["Vulkan", "OpenGLES3"] for Android). Verbatim GraphicsDeviceType.ToString()
@@ -302,4 +310,17 @@ public class BasisBundleGenerated
         EndByte = endbyte;
         GraphicsAPIs = graphicsAPIs;
     }
+}
+
+[System.Serializable]
+public class BasisGraphicsStatePayload
+{
+    public string GraphicsAPI;
+    public string RuntimePlatform;
+    public string QualityLevelName;
+    // Byte range relative to the beginning of this platform section. The payload is encrypted
+    // independently with the BEE password so the AssetBundle and sidecar can be decrypted alone.
+    public long Offset;
+    public long Length;
+    public int VariantCount;
 }

@@ -72,6 +72,9 @@ namespace Basis.Scripts.Networking
                     NetworkStackId = networkStackId ?? string.Empty,
                     ServerName = string.IsNullOrWhiteSpace(BasisNetworkManagement.HostServerName) ? "Basis Server" : BasisNetworkManagement.HostServerName,
                     ServerMotd = BasisNetworkManagement.HostServerMotd ?? string.Empty,
+                    ServerUUID = string.IsNullOrWhiteSpace(BasisNetworkManagement.HostServerUUID)
+                        ? Guid.NewGuid().ToString("N")
+                        : BasisNetworkManagement.HostServerUUID,
                     CompanyName = companyName,
                     ProductName = productName,
                     PeerLimit = BasisNetworkManagement.HostPeerLimit <= 0 ? ushort.MaxValue : BasisNetworkManagement.HostPeerLimit,

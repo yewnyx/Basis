@@ -341,8 +341,10 @@ public static class BasisHeightDriver
             return false;
         }
 
-        // Mirror the REMOTE avatar's rendered eye height: its authored (already rendered-space) eye height
-        // at its current network root scale. Reading local measurements was the bug.
+        // Mirror the REMOTE avatar's rendered eye height. AvatarEyePosition is already authored in
+        // metres with the model/import root scale baked in, while the network sends the full current
+        // Animator-root scale. Only their ratio is a runtime override; multiplying by the full network
+        // scale applied a common 0.01 import scale twice.
         target.NetworkReceiver.GetLatestNetworkPose(out _, out _, out var networkScale);
         float remoteAuthoredEye = target.BasisAvatar.AvatarEyePosition.x;
         if (float.IsNaN(remoteAuthoredEye) || float.IsInfinity(remoteAuthoredEye) || remoteAuthoredEye <= 0f)
@@ -350,13 +352,11 @@ public static class BasisHeightDriver
             return false;
         }
 
-        float remoteRootScale = networkScale.y;
-        if (float.IsNaN(remoteRootScale) || float.IsInfinity(remoteRootScale) || remoteRootScale <= 0f)
-        {
-            remoteRootScale = 1f;
-        }
-
-        eyeHeightMeters = remoteAuthoredEye * remoteRootScale;
+        float authoredRootScale = target.RemoteAvatarDriver != null
+            ? target.RemoteAvatarDriver.ColliderScaleReference.y
+            : 1f;
+        eyeHeightMeters = BasisCalibrationMath.ScaleAuthoredMetricByRootRatio(
+            remoteAuthoredEye, networkScale.y, authoredRootScale);
         return !float.IsNaN(eyeHeightMeters) && !float.IsInfinity(eyeHeightMeters) && eyeHeightMeters > 0f;
     }
 
@@ -878,12 +878,6 @@ public static class BasisHeightDriver
             return;
         }
 
-        Vector3 calibrationScale = avatarDriver.ScaleAvatarModification.DuringCalibrationScale;
-
-        // sanitize calibration scale to prevent divide-by-zero / negative surprises.
-        float calY = SanitizePositive(calibrationScale.y, 1f);
-        calibrationScale.y = calY;
-
         // Current applied avatar scale (1 = unscaled).
         AppliedUpScale = SanitizePositive(avatarDriver.ScaleAvatarModification.ApplyScale, 1f);
 
@@ -908,8 +902,8 @@ public static class BasisHeightDriver
             float avatarBlendMetric = BasisCalibrationMath.BlendEyeSpanMetric(AvatarEyeHeight, EffectiveAvatarArmSpan, armToHeightBlend);
             float playerBlendMetric = BasisCalibrationMath.BlendEyeSpanMetric(PlayerEyeHeight, PlayerArmSpan, armToHeightBlend);
 
-            SelectedScaledPlayerHeight = calY * ((eyeScaleOffset + playerBlendMetric) * AppliedUpScale);
-            SelectedScaledAvatarHeight = calY * (avatarBlendMetric * AppliedUpScale);
+            SelectedScaledPlayerHeight = (eyeScaleOffset + playerBlendMetric) * AppliedUpScale;
+            SelectedScaledAvatarHeight = avatarBlendMetric * AppliedUpScale;
 
             SelectedUnScaledAvatarHeight = SanitizePositive(avatarBlendMetric, FallbackHeightInMeters);
             SelectedUnScaledPlayerHeight = SanitizePositive(playerBlendMetric, FallbackHeightInMeters);
@@ -918,16 +912,16 @@ public static class BasisHeightDriver
         {
             case BasisSelectedHeightMode.ArmSpan:
                 float fittedArmSpan = EffectiveAvatarArmSpan;
-                SelectedScaledPlayerHeight = calY * (PlayerArmSpan * AppliedUpScale);
-                SelectedScaledAvatarHeight = calY * (fittedArmSpan * AppliedUpScale);
+                SelectedScaledPlayerHeight = PlayerArmSpan * AppliedUpScale;
+                SelectedScaledAvatarHeight = fittedArmSpan * AppliedUpScale;
 
                 SelectedUnScaledAvatarHeight = SanitizePositive(fittedArmSpan, FallbackHeightInMeters);
                 SelectedUnScaledPlayerHeight = SanitizePositive(PlayerArmSpan, FallbackHeightInMeters);
                 break;
 
             case BasisSelectedHeightMode.EyeHeight:
-                SelectedScaledPlayerHeight = calY * ((eyeScaleOffset + PlayerEyeHeight) * AppliedUpScale);
-                SelectedScaledAvatarHeight = calY * (AvatarEyeHeight * AppliedUpScale);
+                SelectedScaledPlayerHeight = (eyeScaleOffset + PlayerEyeHeight) * AppliedUpScale;
+                SelectedScaledAvatarHeight = AvatarEyeHeight * AppliedUpScale;
 
                 SelectedUnScaledAvatarHeight = SanitizePositive(AvatarEyeHeight, FallbackHeightInMeters);
                 SelectedUnScaledPlayerHeight = SanitizePositive(PlayerEyeHeight, FallbackHeightInMeters);
@@ -935,8 +929,8 @@ public static class BasisHeightDriver
 
             case BasisSelectedHeightMode.BestFit:
                 BestFitMetrics(out float bestAvatar, out float bestPlayer);
-                SelectedScaledPlayerHeight = calY * ((eyeScaleOffset + bestPlayer) * AppliedUpScale);
-                SelectedScaledAvatarHeight = calY * (bestAvatar * AppliedUpScale);
+                SelectedScaledPlayerHeight = (eyeScaleOffset + bestPlayer) * AppliedUpScale;
+                SelectedScaledAvatarHeight = bestAvatar * AppliedUpScale;
 
                 SelectedUnScaledAvatarHeight = bestAvatar;
                 SelectedUnScaledPlayerHeight = bestPlayer;
@@ -947,8 +941,10 @@ public static class BasisHeightDriver
         SelectedScaledPlayerHeight = SanitizePositive(SelectedScaledPlayerHeight, 1.6f);
         SelectedScaledAvatarHeight = SanitizePositive(SelectedScaledAvatarHeight, 1.6f);
 
-        // "Default" denominator in the same space as SelectedScaled* (which currently includes calY)
-        float defaultScaled = SanitizePositive(FallbackHeightInMeters * calY, FallbackHeightInMeters);
+        // Avatar measurements are authored in metres and already include the import/root scale that
+        // existed when the SDK captured them. Only the runtime override belongs here; multiplying by
+        // DuringCalibrationScale again turns a 0.01-imported 1.6 m avatar into a 1.6 cm metric.
+        float defaultScaled = FallbackHeightInMeters;
 
         PlayerToDefaultRatioScaled = SafeDivide(SelectedScaledPlayerHeight, FallbackHeightInMeters, 1f);
         AvatarToDefaultRatioScaled = SafeDivide(SelectedScaledAvatarHeight, FallbackHeightInMeters, 1f);

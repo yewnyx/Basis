@@ -17,6 +17,7 @@ namespace Basis.Rendering.RTAO
         public static readonly int AOSize = Shader.PropertyToID("_BasisRtaoAOSize");
         public static readonly int Size = Shader.PropertyToID("_BasisRtaoSize");
         public static readonly int Scale = Shader.PropertyToID("_BasisRtaoScale");
+        public static readonly int UseCameraNormals = Shader.PropertyToID("_BasisRtaoUseCameraNormals");
         public static readonly int Trace = Shader.PropertyToID("_BasisRtaoTrace");
         public static readonly int Bias = Shader.PropertyToID("_BasisRtaoBias");
         public static readonly int RayCount = Shader.PropertyToID("_BasisRtaoRayCount");
@@ -314,7 +315,7 @@ namespace Basis.Rendering.RTAO
         private class PrepassData
         {
             public Material material;
-            public TextureHandle position, normal, depth;
+            public TextureHandle position, normal, depth, cameraNormals;
         }
 
         private class TraceData
@@ -446,7 +447,10 @@ namespace Basis.Rendering.RTAO
             previousViewProjection[1] = historyEntry.previousViewProjection[1];
             previousViewPlane[0] = historyEntry.previousViewPlane[0];
             previousViewPlane[1] = historyEntry.previousViewPlane[1];
-            bool hasHistory = historyEntry.framesRendered > 0;
+            bool resetHistory = camera != null && camera.TryGetComponent(out UniversalAdditionalCameraData additionalCameraData) && additionalCameraData.resetHistory;
+            bool hasHistory = historyEntry.framesRendered > 0 && !resetHistory;
+            if (resetHistory)
+                historyEntry.framesRendered = 0;
 
             Vector4 referenceVector = new Vector4(reference.x, reference.y, reference.z, 0f);
             Vector4 fullSize = new Vector4(fullWidth, fullHeight, 1f / fullWidth, 1f / fullHeight);
@@ -549,15 +553,20 @@ namespace Basis.Rendering.RTAO
                 prepassMaterial.SetVector(BasisRTAOShaderIds.FullSize, fullSize);
                 prepassMaterial.SetVector(BasisRTAOShaderIds.Composite, composite);
                 prepassMaterial.SetInteger(BasisRTAOShaderIds.Scale, scale);
+                bool hasCameraNormals = resourceData.cameraNormalsTexture.IsValid();
+                prepassMaterial.SetInteger(BasisRTAOShaderIds.UseCameraNormals, hasCameraNormals ? 1 : 0);
 
                 data.material = prepassMaterial;
                 data.position = position;
                 data.normal = normal;
                 data.depth = resourceData.cameraDepthTexture;
+                data.cameraNormals = hasCameraNormals ? resourceData.cameraNormalsTexture : TextureHandle.nullHandle;
 
                 builder.SetRenderAttachment(position, 0, AccessFlags.WriteAll);
                 builder.SetRenderAttachment(normal, 1, AccessFlags.WriteAll);
                 builder.UseTexture(data.depth, AccessFlags.Read);
+                if (data.cameraNormals.IsValid())
+                    builder.UseTexture(data.cameraNormals, AccessFlags.Read);
                 builder.AllowPassCulling(false);
 
                 builder.SetRenderFunc(static (PrepassData data, RasterGraphContext ctx) =>

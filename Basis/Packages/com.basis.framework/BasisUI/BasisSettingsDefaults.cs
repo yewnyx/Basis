@@ -791,14 +791,14 @@ namespace Basis.BasisUI
         public static BasisSettingsBinding<bool> EnableMaterialCorrection = new("enablematerialcorrection", new BasisPlatformDefault<bool>(false));
         public static BasisSettingsBinding<bool> EnableShaderBlocklist = new("enableshaderblocklist", new BasisPlatformDefault<bool>(false));
         public static BasisSettingsBinding<string> ShaderBlocklistPatterns = new("shaderblocklistpatterns", new BasisPlatformDefault<string>(string.Empty));
-        public static BasisSettingsBinding<bool> EnableGraphicsStatePrewarm = new("enablegraphicsstateprewarm_v2", new BasisPlatformDefault<bool> { windows = true, android = false, ios = false, linux = false, other = false });
+        public static BasisSettingsBinding<bool> EnableGraphicsStatePrewarm = new("enablegraphicsstateprewarm_v2", new BasisPlatformDefault<bool> { windows = true, android = false, ios = false, linux = true, other = false });
         // Default OFF everywhere, unlike EnableGraphicsStatePrewarm above: staggering renderer
         // visibility let avatars read as nude while loading (BasisAvatarPsoReveal.BeginStagedReveal
         // is hard-disabled regardless of this value now). Key bumped _v2 so installs that already
         // persisted the old windows=true default actually pick up "off" instead of keeping it.
         public static BasisSettingsBinding<bool> EnableStagedAvatarReveal = new("enablestagedavatarreveal_v2", new BasisPlatformDefault<bool>(false));
         // MB, not bytes — matches AvatarDownloadSize's convention for a PanelSlider.ValueDisplayMode.MemorySize binding.
-        public static BasisSettingsBinding<float> PsoCacheSizeMb = new("psocachesizemb", new BasisPlatformDefault<float>(10240f));
+        public static BasisSettingsBinding<float> PsoCacheSizeMb = new("psocachesizemb_v2", new BasisPlatformDefault<float>(512f));
         public static BasisSettingsBinding<bool> ContentPoliceLogging = new("contentpolicelogging", new BasisPlatformDefault<bool>(false));
 
         /// <summary>
@@ -892,8 +892,6 @@ namespace Basis.BasisUI
         public static BasisSettingsBinding<bool> MicrophoneRangeIndicator = new("microphonerangeindicator", new BasisPlatformDefault<bool>(false));
 
         public static BasisSettingsBinding<string> IKMode = new("ikmode", new BasisPlatformDefault<string>("auto"));
-
-        public static BasisSettingsBinding<string> IKLockMode = new("iklockmode_v3", new BasisPlatformDefault<string>("lock head"));
 
         public static BasisSettingsBinding<bool> CalibrationMirror = new("calibrationmirror", new BasisPlatformDefault<bool>(false));
 
@@ -2529,7 +2527,6 @@ namespace Basis.BasisUI
             PoseLOD.LoadBindingValue();
             SelectedBone.LoadBindingValue();
             IKMode.LoadBindingValue();
-            IKLockMode.LoadBindingValue();
             CalibrationMirror.LoadBindingValue();
             EnableArmToHeightBlend.LoadBindingValue();
             ArmToHeightBlend.LoadBindingValue();
@@ -2898,10 +2895,8 @@ namespace Basis.BasisUI
             //TrueBinding.LoadBindingValue();
             LimitThreshold.LoadBindingValue();
             LimitKnee.LoadBindingValue();
-
-
-
-          DepthOfFieldThreshold.LoadBindingValue();
+            DepthOfFieldThreshold.LoadBindingValue();
+            LookAtPointerTriggerThreshold.LoadBindingValue();
             FlyPitchTriggerThreshold.LoadBindingValue();
             SnapInteractableThreshold.LoadBindingValue();
             TriggerDownThreshold.LoadBindingValue();
@@ -2914,7 +2909,6 @@ namespace Basis.BasisUI
             Calibrationtrigger.LoadBindingValue();
             IsHoldDropTriggeredThreshold.LoadBindingValue();
             triggerUpThreshold.LoadBindingValue();
-
             DisableSeats.LoadBindingValue();
             HideRemoteCameraPucks.LoadBindingValue();
             BasisNetworkPIPCameraDriver.SetHideRemoteCameraPucks(HideRemoteCameraPucks.RawValue);

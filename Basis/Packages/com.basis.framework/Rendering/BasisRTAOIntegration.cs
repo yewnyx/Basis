@@ -155,6 +155,7 @@ namespace Basis.Scripts.Rendering
 #if BASIS_HAS_GI
             BasisRTAOFeature.SharedStructureProvider = ProvideSharedStructure;
             BasisRTAOFeature.SharedStructureBuilder = BuildSharedStructure;
+            BasisGlobalIlluminationFeature.ExternalAmbientOcclusionActive = ExternalAmbientOcclusionActive;
 #endif
             BasisSettingsSystem.OnSettingChanged += OnSettingChanged;
             BasisSettingsSystem.OnSettingsFinishedChanges += Apply;
@@ -204,11 +205,20 @@ namespace Basis.Scripts.Rendering
 #if BASIS_HAS_GI
             BasisRTAOFeature.SharedStructureProvider = null;
             BasisRTAOFeature.SharedStructureBuilder = null;
+            BasisGlobalIlluminationFeature.ExternalAmbientOcclusionActive = null;
 #endif
             ClearOverrides();
         }
 
 #if BASIS_HAS_GI
+        private static bool ExternalAmbientOcclusionActive(Camera camera)
+        {
+            return BasisRTAOFeature.RuntimeEnabled
+                && AcceptsCamera(camera)
+                && BasisRTAOFeature.HasIntensityOverride
+                && BasisRTAOFeature.IntensityOverride > 0f;
+        }
+
         /// <summary>
         /// The acceleration structure global illumination is already tracing, when it holds everything
         /// ambient occlusion asked for.

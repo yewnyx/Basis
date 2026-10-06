@@ -10,6 +10,8 @@ namespace Basis.Network.Core
         // 54: CompactMerged mixed framing adds raw Ack/Channeled entries (wire-format change).
         // 55: connection request carries the client's company and product name after the
         // protocol version; the server rejects any pair it does not support (wire-format change).
+        // ServerUUID is an optional trailing ServerMetaDataMessage field: protocol-55 clients
+        // ignore it, while newer clients treat its absence from a protocol-55 server as empty.
         public static ushort ServerVersion = 55;
     }
 }

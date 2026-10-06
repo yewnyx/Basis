@@ -1332,6 +1332,7 @@ namespace BasisPermissions
                     UplinkDeltaEnabled = config.EnableUplinkAvatarDelta,
                     ImageShareEgressMegabitsPerSecond = config.ImageShareEgressMegabitsPerSecond,
                     ImagePickupRangeMeters = Math.Max(0f, config.ImagePickupRangeMeters),
+                    ServerUUID = config.ServerUUID,
                 };
                 msg.SetPermissions(Manager.GetAllAllowedRules(uuid), Manager.GetAllDeniedRules(uuid));
 

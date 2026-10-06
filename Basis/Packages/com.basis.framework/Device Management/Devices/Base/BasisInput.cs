@@ -615,7 +615,11 @@ namespace Basis.Scripts.Device_Management.Devices
         {
             BasisInverseOffsetData = new BasisInverseOffsetFromBoneData();
 
-            BasisCalibratedCoords tracker = ScaledDeviceCoord;
+            // Runtime drives the bone from GetFinalScaledPose, which includes a configured tracker
+            // mount/device offset for backends that do not bake it at source. Calibration must use
+            // that same virtual tracker pose or the mount offset appears a second time after capture.
+            GetFinalScaledPose(out Vector3 trackerPosition, out Quaternion trackerRotation);
+            BasisCalibratedCoords tracker = new BasisCalibratedCoords(trackerPosition, trackerRotation);
             BasisCalibratedCoords bone = Control.OutGoingData;
 
             BasisInverseOffsetData.TrackerPosition = tracker.position;
@@ -627,17 +631,24 @@ namespace Basis.Scripts.Device_Management.Devices
             // DriveTpose), converted from world into the bone-sim/player-root frame. The bone sim's
             // degenerate yaw doesn't reliably track the head at large angles, so this uses the real
             // T-pose pose for the head/body direction actually calibrated in, then follows tracker
-            // deltas. The bone position comes from the load-time raw-joint T-pose snapshot anchored at
-            // the live (DriveTpose'd) avatar root — identical to reading the live T-posed bone, but
-            // from captured data, and the SAME source ReprojectTrackerOffsetsForCurrentAvatar rebuilds
-            // from, so capture and reprojection agree exactly. Falls back to the live bone transform,
-            // then to the bone-sim pose, when the snapshot/avatar isn't resolvable.
+            // deltas. Prefer the fitted rest skeleton: body fit changes segment lengths before this
+            // capture, and using the raw authored snapshot here left trackers attached to the old-sized
+            // body. Reprojection uses this same fitted reference. Falls back to the raw snapshot, then
+            // the live bone transform, then the bone-sim pose when the fitted reference is unavailable.
             Vector3 referencePosition = bone.position;
             BasisLocalAvatarDriver avatarDriver = BasisLocalPlayer.Instance != null ? BasisLocalPlayer.Instance.LocalAvatarDriver : null;
             if (avatarDriver != null && TryGetRole(out BasisBoneTrackedRole role))
             {
                 BasisLocalBoneControl headControl = BasisLocalBoneDriver.HeadControl;
-                if (BasisLocalAvatarDriver.HasTposeBoneSnapshot
+                if (headControl != null
+                    && BasisAvatarIKStageCalibration.TryGetFittedTposePositions(role, out Vector3 fittedHeadTpose, out Vector3 fittedBoneTpose))
+                {
+                    var headWorld = headControl.OutgoingWorldData;
+                    BasisCalibrationMath.ComputeTposeAnchor(headWorld.position, headWorld.rotation, fittedHeadTpose, out Vector3 anchorPos, out Quaternion anchorRot);
+                    Vector3 world = anchorPos + anchorRot * fittedBoneTpose;
+                    referencePosition = BasisLocalPlayer.localToWorldMatrix.inverse.MultiplyPoint3x4(world);
+                }
+                else if (BasisLocalAvatarDriver.HasTposeBoneSnapshot
                     && BasisLocalAvatarDriver.TposeBoneSnapshot.TryGetValue(role, out var bind)
                     && headControl != null)
                 {

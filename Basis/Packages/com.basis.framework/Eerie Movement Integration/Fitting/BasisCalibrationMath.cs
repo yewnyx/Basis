@@ -55,6 +55,18 @@ public static class BasisCalibrationMath
         }
         return avatarScaledMetric / denominator;
     }
+    public static float ScaleAuthoredMetricByRootRatio(float authoredMetric, float currentRootScale, float authoredRootScale)
+    {
+        if (float.IsNaN(authoredMetric) || float.IsInfinity(authoredMetric) || authoredMetric <= 0f)
+        {
+            return 0f;
+        }
+        bool currentValid = !float.IsNaN(currentRootScale) && !float.IsInfinity(currentRootScale) && currentRootScale > 1e-6f;
+        bool authoredValid = !float.IsNaN(authoredRootScale) && !float.IsInfinity(authoredRootScale) && authoredRootScale > 1e-6f;
+        float runtimeScale = currentValid && authoredValid ? currentRootScale / authoredRootScale : 1f;
+        float rendered = authoredMetric * runtimeScale;
+        return !float.IsNaN(rendered) && !float.IsInfinity(rendered) && rendered > 0f ? rendered : authoredMetric;
+    }
     public static float ArmSpanFloorGroundingLift(float avatarUnscaledEye, float appliedUpScale, float deviceScale, float playerMeasuredEye)
     {
         if (deviceScale <= 1e-5f)

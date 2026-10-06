@@ -1106,53 +1106,8 @@ namespace Basis.Scripts.BasisSdk.Interactions
 
                 if (constrainToAxis != BasisAxisType.None)
                 {
-                    transform.GetLocalPositionAndRotation(out Vector3 currentPos, out Quaternion currentRot);
-
-                    // Convert world space result to local space for constraint comparison
-                    Vector3 localPos = transform.parent != null
-                        ? transform.parent.InverseTransformPoint(pos)
-                        : pos;
-
-                    // Apply axis constraint in local space
-                    switch (constrainToAxis)
-                    {
-                        case BasisAxisType.X:
-                            localPos = IsWithinTravelLimit(localPos.x, _positionAtStart.x, negativeTravelLimit, positiveTravelLimit)
-                                ? new Vector3(localPos.x, currentPos.y, currentPos.z)
-                                : currentPos;
-                            rot = currentRot; // Lock rotation when constrained
-                            break;
-
-                        case BasisAxisType.Y:
-                            localPos = IsWithinTravelLimit(localPos.y, _positionAtStart.y, negativeTravelLimit, positiveTravelLimit)
-                                ? new Vector3(currentPos.x, localPos.y, currentPos.z)
-                                : currentPos;
-                            rot = currentRot;
-                            break;
-
-                        case BasisAxisType.Z:
-                            localPos = IsWithinTravelLimit(localPos.z, _positionAtStart.z, negativeTravelLimit, positiveTravelLimit)
-                                ? new Vector3(currentPos.x, currentPos.y, localPos.z)
-                                : currentPos;
-                            rot = currentRot;
-                            break;
-
-                        case BasisAxisType.None:
-                        default:
-                            break;
-                    }
-
-                    // Convert back to world space for final application
-                    pos = transform.parent != null
-                        ? transform.parent.TransformPoint(localPos)
-                        : localPos;
-
-                    // Helper method to check travel limits
-                    bool IsWithinTravelLimit(float current, float start, float negativeLimit, float positiveLimit)
-                    {
-                        float delta = math.abs(current - start);
-                        return (current < start && delta <= negativeLimit) || (current > start && delta <= positiveLimit);
-                    }
+                    ConstrainPoseToAxis(transform, constrainToAxis, _positionAtStart,
+                        negativeTravelLimit, positiveTravelLimit, ref pos, ref rot);
                 }
 
                 // Prefer Rigidbody movement when present to preserve physics consistency.
@@ -1166,6 +1121,54 @@ namespace Basis.Scripts.BasisSdk.Interactions
                 }
                 CalculateVelocity(pos, rot);
             }
+        }
+
+        /// <summary>
+        /// Constrains a proposed world-space pose to one axis in the target's parent space and keeps the
+        /// target's current world rotation. The rotation must remain in world space because the resulting
+        /// pose is applied through <see cref="Transform.SetPositionAndRotation(Vector3, Quaternion)"/> or
+        /// <see cref="Rigidbody.Move(Vector3, Quaternion)"/>.
+        /// </summary>
+        internal static void ConstrainPoseToAxis(Transform target, BasisAxisType axis, Vector3 startLocalPosition,
+            float negativeLimit, float positiveLimit, ref Vector3 position, ref Quaternion rotation)
+        {
+            Vector3 currentLocalPosition = target.localPosition;
+            Vector3 proposedLocalPosition = target.parent != null
+                ? target.parent.InverseTransformPoint(position)
+                : position;
+
+            switch (axis)
+            {
+                case BasisAxisType.X:
+                    proposedLocalPosition = IsWithinTravelLimit(proposedLocalPosition.x, startLocalPosition.x, negativeLimit, positiveLimit)
+                        ? new Vector3(proposedLocalPosition.x, currentLocalPosition.y, currentLocalPosition.z)
+                        : currentLocalPosition;
+                    break;
+                case BasisAxisType.Y:
+                    proposedLocalPosition = IsWithinTravelLimit(proposedLocalPosition.y, startLocalPosition.y, negativeLimit, positiveLimit)
+                        ? new Vector3(currentLocalPosition.x, proposedLocalPosition.y, currentLocalPosition.z)
+                        : currentLocalPosition;
+                    break;
+                case BasisAxisType.Z:
+                    proposedLocalPosition = IsWithinTravelLimit(proposedLocalPosition.z, startLocalPosition.z, negativeLimit, positiveLimit)
+                        ? new Vector3(currentLocalPosition.x, currentLocalPosition.y, proposedLocalPosition.z)
+                        : currentLocalPosition;
+                    break;
+                case BasisAxisType.None:
+                default:
+                    return;
+            }
+
+            position = target.parent != null
+                ? target.parent.TransformPoint(proposedLocalPosition)
+                : proposedLocalPosition;
+            rotation = target.rotation;
+        }
+
+        private static bool IsWithinTravelLimit(float current, float start, float negativeLimit, float positiveLimit)
+        {
+            float delta = math.abs(current - start);
+            return (current < start && delta <= negativeLimit) || (current > start && delta <= positiveLimit);
         }
 
         /// <summary>

@@ -203,7 +203,7 @@ MonoBehaviour:
   - {fileID: -7061326814219087741}
   - {fileID: 5657200492266326881}
   - {fileID: -4926890712473137604}
-  m_RendererFeatureMap: 55b0addaf1e53e732c1a306845c91e69b11515bbd932d0aa9378a8b27ba967e783d087cbac20019e610bb3e4df69824e3c0ede33002ba0bb
+  m_RendererFeatureMap: 55b0addaf1e53e732c1a306845c91e69b11515bbd932d0aa9378a8b27ba967e783d087cbac20019e610bb3e4df69824e3c0ede33002ba0bbl
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3
@@ -219,6 +219,8 @@ MonoBehaviour:
   m_DefaultStencilState:
     overrideStencilState: 0
     stencilReference: 0
+    stencilReadMask: 15
+    stencilWriteMask: 15
     stencilCompareFunction: 8
     passOperation: 2
     failOperation: 0
@@ -229,6 +231,7 @@ MonoBehaviour:
   m_CopyDepthMode: 0
   m_DepthAttachmentFormat: 0
   m_DepthTextureFormat: 0
+  m_ShadowmapStencil: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
   m_TileOnlyMode: 0
@@ -312,6 +315,8 @@ MonoBehaviour:
     stencilSettings:
       overrideStencilState: 0
       stencilReference: 0
+      stencilReadMask: 15
+      stencilWriteMask: 15
       stencilCompareFunction: 8
       passOperation: 0
       failOperation: 0
@@ -321,6 +326,7 @@ MonoBehaviour:
       restoreCamera: 1
       offset: {x: 0, y: 0, z: 0, w: 0}
       cameraFieldOfView: 60
+    depthInputAttachment: 0
 --- !u!114 &7891264069566464977
 MonoBehaviour:
   m_ObjectHideFlags: 0

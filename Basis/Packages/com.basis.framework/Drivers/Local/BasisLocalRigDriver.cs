@@ -258,6 +258,27 @@ namespace Basis.Scripts.Drivers
             }
         }
         public static BasisBodyFitResult AppliedBodyFit = BasisBodyFitResult.Identity;
+        /// <summary>
+        /// Gets a bone's fitted, pose-independent T-pose position in Animator-root coordinates at
+        /// the avatar's current rendered scale. This deliberately uses the pose skeleton rest data,
+        /// not the live Transform, so tracker calibration is unaffected by the current animation.
+        /// </summary>
+        public bool TryGetFittedTposeLocalScaled(Transform bone, out Vector3 position)
+        {
+            position = Vector3.zero;
+            Transform animatorRoot = basisTransformMapping != null ? basisTransformMapping.AnimatorRoot : null;
+            if (animatorRoot == null
+                || !PoseSkeleton.TryGetRestPositionRelativeTo(bone, animatorRoot, out Vector3 restLocal))
+            {
+                return false;
+            }
+
+            // TransformVector includes the current Animator-root and outer-wrapper scale. Removing
+            // only the root rotation leaves the same scaled local convention used by TposeLocalScaled
+            // and the load-time snapshot, including common 0.01 import scales.
+            position = Quaternion.Inverse(animatorRoot.rotation) * animatorRoot.TransformVector(restLocal);
+            return float.IsFinite(position.x) && float.IsFinite(position.y) && float.IsFinite(position.z);
+        }
         public void SetBodySettings()
         {
 
@@ -991,7 +1012,7 @@ namespace Basis.Scripts.Drivers
             facts.seated = localPlayer.LocalSeatDriver.IsSeated;
             facts.upright = BasisLocalPlayspaceMover.FlipUpSign > 0f;
             facts.hipsTracked = fbt && BasisLocalBoneDriver.HipsControl.HasTracked == BasisHasTracked.HasTracker;
-            facts.chestTracked = HasRigLayer(BasisLocalBoneDriver.ChestControl);
+            facts.chestTracked = fbt && BasisLocalBoneDriver.ChestControl.HasTracked == BasisHasTracked.HasTracker;
             facts.leftFootTracked = leftFoot;
             facts.rightFootTracked = rightFoot;
             facts.leftLegTracked = leftFoot || (fbt && BasisLocalBoneDriver.LeftUpperLegControl.HasTracked == BasisHasTracked.HasTracker);

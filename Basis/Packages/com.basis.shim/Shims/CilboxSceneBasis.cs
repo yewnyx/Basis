@@ -23,7 +23,7 @@ namespace Cilbox
 			"UnityEngine.Rendering.AsyncGPUReadback",
 			"UnityEngine.Rendering.AsyncGPUReadbackRequest",
 			"Unity.Collections.NativeArray*",
-			// VRSL DMX BasisMediaPlayer bridge (zero-copy OutputTexture -> DMX grid)
+			// VRSL DMX media player bridge (zero-copy video texture -> DMX grid)
 			"BasisMediaPlayer",
 
 			// Scene-specific Basis types
@@ -285,9 +285,9 @@ namespace Cilbox
 			// VRSL DMX GPU readback surface (mirrors CilboxPropBasis).
 			{ typeof(UnityEngine.Graphics), new HashSet<string>{ "Blit" } },
 			{ typeof(UnityEngine.Rendering.AsyncGPUReadback), new HashSet<string>{ "Request" } },
-			// BasisMediaPlayer: read-only video output access only. Blocks LoadUrl/LoadLocalPath/
-			// LoadSource/Play/Stop/Seek/CaptureScreenshot so sandboxed scenes can't load arbitrary
-			// media (bypassing the VideoPlayerShim URL trust prompt) or write screenshots to disk.
+			// The media player: read-only video output access only. Blocks Open/LoadUrl/
+			// Play/Pause/Seek/Stop so sandboxed scenes can't load arbitrary media,
+			// bypassing the VideoPlayerShim URL trust prompt.
 			// OutputFrameIsTopLeftOrigin is the per-client orientation flag DMX/video sinks XOR
 			// into their flip so the grid isn't upside-down on GPUs that can't normalize it.
 			{ typeof(BasisMediaPlayer), new HashSet<string>{

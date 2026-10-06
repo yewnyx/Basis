@@ -688,11 +688,10 @@ namespace Basis.Scripts.Avatar
                     break;
             }
 
-            // No-op call preserved for a future safe redesign; BasisAvatarPsoReveal used to hide
-            // renderers and reveal them a few per frame to spread DX12/Vulkan/Metal's first-draw
-            // PSO-creation cost, but that let a real body sit fully visible before its clothing
-            // renderers caught up. See the safety note on BasisAvatarPsoReveal.
-            Basis.Scripts.Rendering.BasisAvatarPsoReveal.BeginStagedReveal(Player.BasisAvatar.Renders);
+            // The content loader atomically suppressed rendering while this avatar waited for its
+            // setup slot. Release only after calibration, at the tail of LateUpdate, so the first
+            // visible frame contains a solved pose. All geometry is released together.
+            Basis.Scripts.Rendering.BasisAvatarPsoReveal.BeginStagedReveal(Player.BasisAvatar);
         }
 
         /// <summary>

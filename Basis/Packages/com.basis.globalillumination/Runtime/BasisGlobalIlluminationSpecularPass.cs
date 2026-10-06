@@ -9,6 +9,7 @@ public sealed partial class BasisGlobalIlluminationPass
 {
     internal static readonly int idSpecularTexture = Shader.PropertyToID("_BasisGISpecularTexture");
     internal static readonly int idSpecularParams = Shader.PropertyToID("_BasisGISpecularParams");
+    internal static readonly int idSpecularFilterParams = Shader.PropertyToID("_BasisGISpecularFilterParams");
     internal static readonly int idSpecularPriorColor = Shader.PropertyToID("_BasisGISpecularPriorColor");
     internal static readonly int idSSRParams = Shader.PropertyToID("_BasisGISSRParams");
     internal static readonly int idSpecHitDistance = Shader.PropertyToID("_BasisGISpecHitDistance");
@@ -193,10 +194,11 @@ public sealed partial class BasisGlobalIlluminationPass
 
             // Reflections keep their own accumulation, indexed the same way the diffuse one is, so a mirror
             // and the player's eye do not pour their reflections into each other's history.
-            int hash = BasisGlobalIlluminationHistory.ComputeHash(camera, cameraData.xr);
-            BasisGlobalIlluminationHistory history = BasisGlobalIlluminationHistory.Get(hash);
+            BasisGlobalIlluminationHistory.Key historyKey = BasisGlobalIlluminationHistory.ComputeKey(camera, cameraData.xr);
+            BasisGlobalIlluminationHistory history = BasisGlobalIlluminationHistory.Get(historyKey);
             history.EnsureAllocated(descriptor, tracedWidth, tracedHeight, true);
-            bool contiguous = history.SpecularContiguous(frame);
+            bool resetHistory = camera != null && camera.TryGetComponent(out UniversalAdditionalCameraData additionalCameraData) && additionalCameraData.resetHistory;
+            bool contiguous = history.SpecularContiguous(frame) && !resetHistory;
             bool historyValid = settings.specularTemporal && history.SpecularValid && contiguous;
 
             ApplyKeywords(settings, screenSpace, normals.IsValid());
@@ -221,11 +223,17 @@ public sealed partial class BasisGlobalIlluminationPass
             RenderTextureDescriptor publishedDescriptor = tracedDescriptor;
             publishedDescriptor.width = descriptor.width;
             publishedDescriptor.height = descriptor.height;
+            // Unity's SSR keeps a colour pyramid and selects a level from material roughness. Publishing
+            // only mip zero made every Basis reflection a pin-sharp mirror and merely faded it out on rough
+            // materials. An automatically generated pyramid gives the lit shader the missing lobe width at
+            // effectively the same integration point, without adding another full-screen blur stack.
+            publishedDescriptor.useMipMap = true;
+            publishedDescriptor.autoGenerateMips = true;
 
             TextureHandle traced = UniversalRenderer.CreateRenderGraphTexture(renderGraph, tracedDescriptor, "_BasisGISpecTraced", false, FilterMode.Bilinear, TextureWrapMode.Clamp);
             TextureHandle blurA = UniversalRenderer.CreateRenderGraphTexture(renderGraph, tracedDescriptor, "_BasisGISpecBlurA", false, FilterMode.Bilinear, TextureWrapMode.Clamp);
             TextureHandle blurB = UniversalRenderer.CreateRenderGraphTexture(renderGraph, tracedDescriptor, "_BasisGISpecBlurB", false, FilterMode.Bilinear, TextureWrapMode.Clamp);
-            TextureHandle published = UniversalRenderer.CreateRenderGraphTexture(renderGraph, publishedDescriptor, "_BasisGISpecularTexture", false, FilterMode.Bilinear, TextureWrapMode.Clamp);
+            TextureHandle published = UniversalRenderer.CreateRenderGraphTexture(renderGraph, publishedDescriptor, "_BasisGISpecularTexture", false, FilterMode.Trilinear, TextureWrapMode.Clamp);
 
             TextureHandle historyRead = renderGraph.ImportTexture(history.Specular[history.SpecularRead]);
             TextureHandle historyReadStats = renderGraph.ImportTexture(history.SpecularStats[history.SpecularRead]);
@@ -337,14 +345,25 @@ public sealed partial class BasisGlobalIlluminationPass
                 // x gates the whole thing in the lit shader; y is the reciprocal of the roughness at which
                 // the traced mirror stops standing in for the lobe, so the shader does a multiply rather
                 // than a divide per pixel.
-                data.parameters = new Vector4(1f, 1f / Mathf.Max(0.01f, settings.specularMaxRoughness), 0f, 0f);
+                int lastMip = Mathf.Max(0, Mathf.FloorToInt(Mathf.Log(Mathf.Max(descriptor.width, descriptor.height), 2f)));
+                data.parameters = new Vector4(1f, 1f / Mathf.Max(0.01f, settings.specularMaxRoughness), lastMip, hitDistance.IsValid() ? 1f : 0f);
+                // x is the contact-hardening distance scale and y is a small world-space bias. These mirror
+                // URP SSR's distance-aware roughness idea: nearby reflected geometry stays crisp while a
+                // long ray is allowed to use the full roughness mip.
+                data.filterParameters = new Vector4(1f, 0.05f, 0f, 0f);
                 builder.UseTexture(published, AccessFlags.Read);
+                if (hitDistance.IsValid())
+                {
+                    builder.UseTexture(hitDistance, AccessFlags.Read);
+                    builder.SetGlobalTextureAfterPass(hitDistance, idSpecHitDistance);
+                }
                 builder.SetGlobalTextureAfterPass(published, idSpecularTexture);
                 builder.AllowGlobalStateModification(true);
                 builder.AllowPassCulling(false);
                 builder.SetRenderFunc(static (SpecularGlobalData data, RasterGraphContext context) =>
                 {
                     context.cmd.SetGlobalVector(idSpecularParams, data.parameters);
+                    context.cmd.SetGlobalVector(idSpecularFilterParams, data.filterParameters);
                 });
             }
 
@@ -708,8 +727,8 @@ public sealed partial class BasisGlobalIlluminationPass
             if (!settings.SpecularActive()) { return; }
 
             int frame = Time.renderedFrameCount;
-            int hash = BasisGlobalIlluminationHistory.ComputeHash(cameraData.camera, cameraData.xr);
-            BasisGlobalIlluminationHistory history = BasisGlobalIlluminationHistory.Get(hash);
+            BasisGlobalIlluminationHistory.Key historyKey = BasisGlobalIlluminationHistory.ComputeKey(cameraData.camera, cameraData.xr);
+            BasisGlobalIlluminationHistory history = BasisGlobalIlluminationHistory.Get(historyKey);
             history.EnsurePriorColor(cameraData.cameraTargetDescriptor);
             TextureHandle target = renderGraph.ImportTexture(history.PriorColor);
 
@@ -742,5 +761,6 @@ public sealed partial class BasisGlobalIlluminationPass
     private sealed class SpecularGlobalData
     {
         public Vector4 parameters;
+        public Vector4 filterParameters;
     }
 }

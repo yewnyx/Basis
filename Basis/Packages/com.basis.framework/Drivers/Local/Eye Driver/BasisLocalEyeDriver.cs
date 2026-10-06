@@ -193,7 +193,10 @@ public class BasisLocalEyeDriver
         _prevGazeTarget = null;
         _prevHasGazeTarget = false;
         _gazeTargetChanged = false;
-        _prevHeadRot = BasisLocalCameraDriver.HeadRotation;
+        // The first avatar can finish loading before the camera driver has run once.
+        // HeadRotation is the default zero quaternion until that first camera tick;
+        // inverting it below would poison the persistent eye state with NaNs.
+        _prevHeadRot = SanitizeHeadRotation(BasisLocalCameraDriver.HeadRotation, quaternion.identity);
         _headDeltaYP = float2.zero;
         _winnerEyeRot = quaternion.identity;
         _selectAccumulator = SelectIntervalSeconds;
@@ -374,7 +377,7 @@ public class BasisLocalEyeDriver
     private static void SelectGazeTarget(float dt)
     {
         float3 localHeadPos = BasisLocalCameraDriver.HeadPosition;
-        quaternion localHeadRot = BasisLocalCameraDriver.HeadRotation;
+        quaternion localHeadRot = SanitizeHeadRotation(BasisLocalCameraDriver.HeadRotation, _prevHeadRot);
         quaternion invLocalHeadRot = math.inverse(localHeadRot);
 
         // The job uses how much the head rotated to compensate the eye target.
@@ -391,7 +394,7 @@ public class BasisLocalEyeDriver
         if (_selectAccumulator >= SelectIntervalSeconds)
         {
             _selectAccumulator = 0f;
-            RescoreGazeTarget(localHeadPos, BasisLocalCameraDriver.HeadForward());
+            RescoreGazeTarget(localHeadPos, math.mul(localHeadRot, new float3(0f, 0f, 1f)));
         }
 
         ReprojectGaze(localHeadPos, invLocalHeadRot);
@@ -739,6 +742,27 @@ public class BasisLocalEyeDriver
             math.atan2(dirHead.x, dirHead.z),
             math.asin(math.clamp(dirHead.y, -1f, 1f))
         );
+    }
+
+    /// <summary>
+    /// Returns a normalized head rotation safe to invert. During boot the camera pose statics
+    /// have not necessarily received their first sample and therefore contain a zero quaternion.
+    /// </summary>
+    internal static quaternion SanitizeHeadRotation(quaternion rotation, quaternion fallback)
+    {
+        float lengthSq = math.lengthsq(rotation.value);
+        if (math.all(math.isfinite(rotation.value)) && lengthSq > 1e-8f)
+        {
+            return new quaternion(rotation.value * math.rsqrt(lengthSq));
+        }
+
+        float fallbackLengthSq = math.lengthsq(fallback.value);
+        if (math.all(math.isfinite(fallback.value)) && fallbackLengthSq > 1e-8f)
+        {
+            return new quaternion(fallback.value * math.rsqrt(fallbackLengthSq));
+        }
+
+        return quaternion.identity;
     }
 
     internal static void FacingFrame(BasisTransformMapping refs, out Vector3 forward, out Vector3 up)

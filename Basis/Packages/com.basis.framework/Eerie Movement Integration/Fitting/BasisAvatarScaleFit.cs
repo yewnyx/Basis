@@ -16,6 +16,9 @@ public static class BasisAutoScaleEstimator
     public static float EstimatedEyeHeight = BasisHeightDriver.FallbackHeightInMeters;
     public static float EstimatedArmSpan = BasisHeightDriver.FallbackHeightInMeters;
     static float maxArmSpan;
+    static Vector3 HandSpanPoint(BasisInput input) => input is BasisInputController controller
+        ? controller.UnscaledHandTarget
+        : input.UnscaledDeviceCoord.position;
     public static void Reset()
     {
         HasEstimate = false;
@@ -66,8 +69,10 @@ public static class BasisAutoScaleEstimator
         var dm = BasisDeviceManagement.Instance;
         if (dm != null && dm.FindDevice(out BasisInput left, BasisBoneTrackedRole.LeftHand) && dm.FindDevice(out BasisInput right, BasisBoneTrackedRole.RightHand))
         {
-            Vector3 l = left.UnscaledDeviceCoord.position;
-            Vector3 r = right.UnscaledDeviceCoord.position;
+            // Measure the anatomical wrist target, not a backend-specific grip/controller origin.
+            // Otherwise OpenXR and OpenVR estimate different arm spans for the same person.
+            Vector3 l = HandSpanPoint(left);
+            Vector3 r = HandSpanPoint(right);
             float span = Vector3.Distance(new Vector3(l.x, 0f, l.z), new Vector3(r.x, 0f, r.z));
             maxArmSpan = Mathf.Max(maxArmSpan, span);
         }

@@ -515,6 +515,7 @@ public class ControlAndResourceMessageRoundTripTests
             UplinkDeltaEnabled = true,
             ImageShareEgressMegabitsPerSecond = 321,
             ImagePickupRangeMeters = 72.5f,
+            ServerUUID = "server-uuid-Ω-123",
         };
         msg.SetPermissions(new[] { "basis.moderation", "basis.moderation.kick", "custom.perm.alpha", "custom.perm.beta" });
 
@@ -534,10 +535,44 @@ public class ControlAndResourceMessageRoundTripTests
         Assert.True(back.UplinkDeltaEnabled);
         Assert.Equal(321, back.ImageShareEgressMegabitsPerSecond);
         Assert.Equal(72.5f, back.ImagePickupRangeMeters);
+        Assert.Equal("server-uuid-Ω-123", back.ServerUUID);
         Assert.Equal(msg.PermissionsBitset, back.PermissionsBitset);
         Assert.Equal(new[] { "custom.perm.alpha", "custom.perm.beta" }, back.ExtraPermissions);
         Assert.True(back.GetPermissions().SetEquals(
             new[] { "basis.moderation", "basis.moderation.kick", "custom.perm.alpha", "custom.perm.beta" }));
+    }
+
+    [Fact]
+    public void ServerMetaDataMessage_Protocol55PayloadWithoutServerUuid_RemainsReadable()
+    {
+        var client = new ClientMetaDataMessage
+        {
+            playerUUID = "legacy-client",
+            playerDisplayName = "Protocol 55",
+            playerPlatform = "Desktop",
+        };
+        var writer = new NetDataWriter();
+        client.Serialize(writer);
+        writer.Put(50);
+        writer.Put(1);
+        writer.Put(0.005f);
+        writer.Put(2.55f);
+        writer.Put(32);
+        writer.PutBytesWithLength(Array.Empty<byte>());
+        writer.Put((ushort)0);
+        writer.Put((byte)1);
+        writer.Put(200);
+        writer.Put(64f);
+
+        var back = new ServerMetaDataMessage();
+        back.Deserialize(ReaderFor(writer));
+
+        Assert.Equal("legacy-client", back.ClientMetaDataMessage.playerUUID);
+        Assert.Equal(32, back.PeerLimit);
+        Assert.True(back.UplinkDeltaEnabled);
+        Assert.Equal(200, back.ImageShareEgressMegabitsPerSecond);
+        Assert.Equal(64f, back.ImagePickupRangeMeters);
+        Assert.Equal(string.Empty, back.ServerUUID);
     }
 
     [Fact]

@@ -274,7 +274,10 @@ public static class BasisContentVersion
             return false;
         }
 
-        _ = BasisLoadHandler.AddDiscInfo(meta);
+        // Callers use completion as the durability boundary (notably the Library refresh path,
+        // which may immediately run another update check), so do not leave the write racing in the
+        // background.
+        await BasisLoadHandler.AddDiscInfo(meta);
         return true;
     }
 

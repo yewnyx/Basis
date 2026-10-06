@@ -15,7 +15,7 @@ public static class AssetBundleBuilder
     {
         return await BuildAssetBundle(BundledData, targetDirectory, settings, assetBundleName, mode, password, buildTarget, BasisBundleContentKind.None, isEncrypted);
     }
-    public static async Task<(BasisBundleGenerated, InformationHash)> BuildAssetBundle(AssetBundleBuild[] BundledData, string targetDirectory, BasisAssetBundleObject settings, string assetBundleName, string mode, string password, BuildTarget buildTarget, BasisBundleContentKind contentKind, bool isEncrypted = true)
+    public static async Task<(BasisBundleGenerated, InformationHash)> BuildAssetBundle(AssetBundleBuild[] BundledData, string targetDirectory, BasisAssetBundleObject settings, string assetBundleName, string mode, string password, BuildTarget buildTarget, BasisBundleContentKind contentKind, bool isEncrypted = true, BasisBundleGraphicsStateBuilder.BuildInputs graphicsStateInputs = null)
     {
         InformationHash Hash = new InformationHash();
         BasisBundleGenerated BasisBundleGenerated = new BasisBundleGenerated();
@@ -52,6 +52,11 @@ public static class AssetBundleBuilder
             Hash = await ProcessAssetBundles(targetDirectory, settings, manifest, password, isEncrypted);
             string[] graphicsAPIs = ResolveGraphicsAPIs(buildTarget);
             BasisBundleGenerated = new BasisBundleGenerated(Hash.bundleHash.ToString(), mode, assetBundleName, Hash.CRC, true, password, buildTarget.ToString(), Hash.Length, graphicsAPIs);
+            BasisBundleGenerated.AssetBundleEndByte = Hash.Length;
+            BasisBundleGenerated.GraphicsStatePayloads = await BasisBundleGraphicsStateBuilder.AppendPayloads(
+                Hash.EncyptedPath, password, buildTarget, graphicsStateInputs);
+            Hash.Length = new FileInfo(Hash.EncyptedPath).Length;
+            BasisBundleGenerated.EndByte = Hash.Length;
             DeleteManifestFiles(targetDirectory, buildTarget.ToString());
 #if UNITY_6000_0_OR_NEWER
             BuildReport Reports = BuildReport.GetLatestReport();

@@ -342,7 +342,8 @@ namespace Cilbox
 
 				proxyWasSetup = true;
 				runtimeFieldsObjects = null;
-				serializedObjectData = null;
+				// Keep the serialized payload so a runtime clone can initialize its own proxy.
+				// Unity does not serialize proxyWasSetup, so cloned proxies must load this data again.
 				if (verboseLogging)
 					Debug.Log( $"RuntimeProxyLoad complete for class {className}" );
 			}

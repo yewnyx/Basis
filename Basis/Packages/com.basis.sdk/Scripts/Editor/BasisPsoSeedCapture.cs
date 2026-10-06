@@ -16,7 +16,7 @@ public static class BasisPsoSeedCapture
         }
         if (!TryResolveApi(picked, out GraphicsDeviceType api))
         {
-            EditorUtility.DisplayDialog("Capture PSO Seed", $"Could not read a GraphicsDeviceType out of '{Path.GetFileName(picked)}'. Expected basis_pso.<Api>.<UnityVersion>.gpsc", "OK");
+            EditorUtility.DisplayDialog("Capture PSO Seed", $"Could not read a GraphicsDeviceType out of '{Path.GetFileName(picked)}'.", "OK");
             return;
         }
         int variants = CountVariants(picked);
@@ -37,7 +37,11 @@ public static class BasisPsoSeedCapture
     {
         api = default;
         string[] parts = Path.GetFileName(path).Split('.');
-        return parts.Length > 1 && System.Enum.TryParse(parts[1], false, out api);
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (System.Enum.TryParse(parts[i], false, out api)) return true;
+        }
+        return false;
     }
 
     private static int CountVariants(string path)

@@ -112,12 +112,14 @@ public static class BasisLoadHandler
                 continue;
             }
             other.IsUnloaded = true;
+            other.UnloadEmbeddedGraphicsStates();
             if (LoadedBundles.TryGetValue(pair.Key, out BasisTrackedBundleWrapper current) && ReferenceEquals(current, other))
             {
                 LoadedBundles.Remove(pair.Key, out var husk);
             }
         }
         bundle.Unload(true);
+        wrapper.UnloadEmbeddedGraphicsStates();
         return true;
     }
     /// <summary>
