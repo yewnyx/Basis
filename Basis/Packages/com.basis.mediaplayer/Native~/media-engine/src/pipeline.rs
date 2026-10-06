@@ -98,6 +98,39 @@ fn behind_the_clock(
     (clock.is_playing() && clock.generation() == generation).then(|| clock.now(px.wall.now()) - pts)
 }
 
+/// The longest a last frame is held past its pts. A duration or a frame gap
+/// beyond it is a gap in the media, not the frame's own display time.
+const LAST_FRAME_HOLD_MAX: MediaTime = MediaTime::from_secs(1);
+
+/// The newest two frames a video thread has handed to the pool this
+/// generation.
+#[derive(Default)]
+struct Published {
+    last: Option<MediaTime>,
+    previous: Option<MediaTime>,
+}
+
+impl Published {
+    fn push(&mut self, pts: MediaTime) {
+        self.previous = self.last;
+        self.last = Some(pts);
+    }
+}
+
+/// When a last frame at `pts` stops showing: at the duration where that
+/// falls within the hold, else after the gap from the frame before it, as
+/// FFmpeg guesses a final frame's length. With neither, at its pts.
+fn last_frame_end(pts: MediaTime, previous: Option<MediaTime>, duration_us: i64) -> MediaTime {
+    let duration = MediaTime::from_micros(duration_us);
+    if duration > pts && duration - pts <= LAST_FRAME_HOLD_MAX {
+        return duration;
+    }
+    match previous.map(|previous| pts - previous) {
+        Some(gap) if gap > MediaTime::ZERO && gap <= LAST_FRAME_HOLD_MAX => pts + gap,
+        _ => pts,
+    }
+}
+
 fn report_late_video(
     px: &PipelineShared,
     reported: &mut Option<std::time::Instant>,
@@ -511,7 +544,8 @@ pub struct PipelineShared {
     /// by a clock start, so it answers "is the landed picture on screen".
     pub shown_generation: std::sync::atomic::AtomicU64,
     /// Serialises the transport requests (play, pause, seek) against the
-    /// decode threads completing a pause. Never taken on the render thread.
+    /// decode threads completing a pause or an end, and the audio thread's
+    /// position update against the end. Never taken on the render thread.
     pub transport: Mutex<()>,
     /// Held by the demux thread while a seek advances the generation and
     /// publishes Buffering, and tried (never waited on) by a presentation
@@ -1008,11 +1042,39 @@ impl PipelineShared {
     /// `transport` keeps a seek from starting in between.
     pub(crate) fn end_timeline(&self, generation: Generation, from: &[State]) -> bool {
         let _transport = self.transport.lock().expect("transport lock");
-        end_is_current(
+        if !end_is_current(
             self.seeks_pending.load(Ordering::Acquire),
             self.shared.generation.load(Ordering::Relaxed),
             generation.0,
-        ) && self.claim_state(from, State::Ended)
+        ) {
+            return false;
+        }
+        // Ended freezes position, and the audio thread's last reading can
+        // trail the clock by a tick, so the clock's own reading is stored,
+        // ahead of the claim so it is visible before Ended is. A failure or
+        // pause can still take the state (`fail` does not take `transport`);
+        // the previous reading goes back then.
+        let before = self.shared.position_us.load(Ordering::Relaxed);
+        let at_end = self.clock_position();
+        self.shared.position_us.store(at_end, Ordering::Relaxed);
+        if self.claim_state(from, State::Ended) {
+            return true;
+        }
+        self.shared.position_us.store(before, Ordering::Relaxed);
+        false
+    }
+
+    /// The clock's reading as a session position, clamped to the duration
+    /// where one is known.
+    fn clock_position(&self) -> i64 {
+        let now = self
+            .clock
+            .lock()
+            .expect("clock lock")
+            .now(self.wall.now())
+            .as_micros();
+        let duration = self.shared.duration_us.load(Ordering::Relaxed);
+        if duration > 0 { now.min(duration) } else { now }
     }
 
     fn state_event(&self, state: State) {
@@ -2126,6 +2188,10 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
     let mut pending_au: Option<Au> = None;
     let mut eos_after_drain = false;
     let mut eos_undecoded = false;
+    // The render thread takes a frame before it is due, so an empty pool
+    // does not mean the last frame has had its time on screen: the end
+    // waits for the clock too.
+    let mut published = Published::default();
     let mut current_coded: Option<(media_demux::VideoCodec, u32, u32)> = None;
     let mut current_private: Vec<u8> = Vec::new();
     // Discarding late video up to the next keyframe.
@@ -2153,8 +2219,10 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
 
         // 1. Move a parked frame into the pool before pulling more output.
         if let Some(frame) = pending_frame.take() {
+            let pts = MediaTime::from_micros(frame.pts_us());
             match px.pool.try_publish(frame, generation.0) {
                 Ok(()) => {
+                    published.push(pts);
                     px.diag
                         .stage(Stage::Decode)
                         .out_count
@@ -2191,6 +2259,7 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
                         }
                         match px.pool.try_publish(frame, generation.0) {
                             Ok(()) => {
+                                published.push(pts);
                                 px.diag
                                     .stage(Stage::Decode)
                                     .out_count
@@ -2471,6 +2540,7 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
                 draining = false;
                 eos_after_drain = false;
                 eos_undecoded = false;
+                published = Published::default();
                 pending_au = None;
                 pending_frame = None;
                 unseen.arm(px.seek_floor_us.load(Ordering::Relaxed));
@@ -2551,6 +2621,15 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
         if eos_after_drain
             && pending_frame.is_none()
             && px.pool.ready_count() == 0
+            && published.last.is_none_or(|pts| {
+                let end = last_frame_end(
+                    pts,
+                    published.previous,
+                    px.shared.duration_us.load(Ordering::Relaxed),
+                );
+                behind_the_clock(px, generation, end)
+                    .is_some_and(|behind| behind >= MediaTime::ZERO)
+            })
             && px.state() == State::Playing as u32
             && (!px.audio_active.load(Ordering::Relaxed)
                 || px.audio_tail_out.load(Ordering::Relaxed)
@@ -3017,19 +3096,16 @@ pub fn run_audio(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
         // data and shared playback are timed against it, and a stalled
         // picture must not stall them. A parked clock reads where it was
         // parked, so a pause or a seek landing holds position there. Once
-        // the session has ended it keeps its last reading.
+        // the session has ended it keeps its last reading. Under `transport`,
+        // as `end_timeline` is: a reading taken before the end must not land
+        // after it.
         {
+            let _transport = px.transport.lock().expect("transport lock");
             let state = px.state();
             if state != State::Ended as u32 && state != State::Error as u32 {
-                let now = px
-                    .clock
-                    .lock()
-                    .expect("clock lock")
-                    .now(px.wall.now())
-                    .as_micros();
-                let duration = px.shared.duration_us.load(Ordering::Relaxed);
-                let position = if duration > 0 { now.min(duration) } else { now };
-                px.shared.position_us.store(position, Ordering::Relaxed);
+                px.shared
+                    .position_us
+                    .store(px.clock_position(), Ordering::Relaxed);
             }
         }
 
@@ -3377,6 +3453,42 @@ mod user_data_ring_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_last_frame_ends_at_the_duration_or_after_its_gap() {
+        let us = MediaTime::from_micros;
+        // 30 fps, 12 s: the last frame starts at 11.966667 s.
+        let last = us(11_966_667);
+        let previous = Some(us(11_933_333));
+        assert_eq!(last_frame_end(last, previous, 12_000_000), us(12_000_000));
+        assert_eq!(last_frame_end(last, None, 12_000_000), us(12_000_000));
+        // No duration (a TS file), or one that ends the frame no later than
+        // it starts: the gap to the frame before.
+        assert_eq!(last_frame_end(last, previous, 0), us(12_000_001));
+        assert_eq!(last_frame_end(last, previous, 11_966_667), us(12_000_001));
+        // The hold, exact on both sides, for the duration and for the gap.
+        assert_eq!(
+            last_frame_end(us(5_000_000), None, 6_000_000),
+            us(6_000_000)
+        );
+        assert_eq!(
+            last_frame_end(us(5_000_000), None, 6_000_001),
+            us(5_000_000)
+        );
+        assert_eq!(
+            last_frame_end(us(5_000_000), Some(us(4_000_000)), 0),
+            us(6_000_000)
+        );
+        assert_eq!(
+            last_frame_end(us(5_000_000), Some(us(3_999_999)), 0),
+            us(5_000_000)
+        );
+        // A duration past the hold falls back to the gap.
+        assert_eq!(last_frame_end(last, previous, 14_000_000), us(12_000_001));
+        // One frame and no duration, or frames out of order: its own pts.
+        assert_eq!(last_frame_end(last, None, 0), last);
+        assert_eq!(last_frame_end(last, Some(us(12_000_000)), 0), last);
+    }
 
     /// A lead-in places the gap as silence a block at a time, then the
     /// sound, and is spent once the sound has gone out. A gap that rounds

@@ -1418,6 +1418,44 @@ fn a_seek_past_the_last_frame_lands_on_it_and_ends() {
     session.close();
 }
 
+/// With no audio to play out, the end waits for the last frame's own time on
+/// screen, and position stops at the duration. The fixture is 12 s at 30 fps,
+/// so its last frame starts at 11.967 s and ends at 12 s.
+#[test]
+fn a_video_only_session_ends_at_its_duration() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../fixtures/h264-640x360-30fps.mp4")
+        .to_string_lossy()
+        .into_owned();
+    let mut session = Session::open(OpenRequest::new(path));
+    let shared = session.shared().clone();
+    assert!(
+        wait_for(Duration::from_secs(10), || {
+            shared.state.load(Ordering::Relaxed) == State::Playing as u32
+        }),
+        "never reached Playing (state {}, error {})",
+        shared.state.load(Ordering::Relaxed),
+        shared.last_error.load(Ordering::Relaxed),
+    );
+    session.seek(MediaTime::from_millis(11_500));
+    assert!(
+        wait_for(Duration::from_secs(10), || {
+            shared.state.load(Ordering::Relaxed) == State::Ended as u32
+        }),
+        "the session never ended (state {}, position {})",
+        shared.state.load(Ordering::Relaxed),
+        shared.position_us.load(Ordering::Relaxed),
+    );
+    let position = shared.position_us.load(Ordering::Relaxed);
+    let duration = shared.duration_us.load(Ordering::Relaxed);
+    assert!(
+        position >= 12_000_000,
+        "the session ended at {position}, before its last frame had its time on screen"
+    );
+    assert_eq!(position, duration, "position at Ended is not the duration");
+    session.close();
+}
+
 /// Two seeks queued while the demux thread is busy land on the second: the
 /// first is superseded, not run after it.
 #[test]
