@@ -23,7 +23,8 @@ use media_demux::{Au, Demuxer, Format, StreamEvent};
 use media_diag::{BankReadings, EventCode, SessionDiag, Stage, diag_err, diag_log, diag_warn};
 
 use crate::audio::{
-    AudioConsumer, AudioFormatInfo, AudioProducer, frames_before_origin, install_audio_generation,
+    AudioConsumer, AudioFormatInfo, AudioProducer, frames_before_end, frames_before_origin,
+    install_audio_generation,
 };
 use crate::playable::{Playable, TrackKind};
 use crate::pool::FramePool;
@@ -129,6 +130,13 @@ fn last_frame_end(pts: MediaTime, previous: Option<MediaTime>, duration_us: i64)
         Some(gap) if gap > MediaTime::ZERO && gap <= LAST_FRAME_HOLD_MAX => pts + gap,
         _ => pts,
     }
+}
+
+/// The frame, unless the container stops presenting the track before it.
+/// Checked ahead of the unseen span, so a seek past the end lands on the
+/// last frame that is shown, not on one past it.
+fn before_end(px: &PipelineShared, frame: VideoFrame) -> Option<VideoFrame> {
+    (frame.pts_us() < px.video_end_us.load(Ordering::Relaxed)).then_some(frame)
 }
 
 fn report_late_video(
@@ -573,6 +581,13 @@ pub struct PipelineShared {
     /// No generation's audio starts before it. Written once at open, before
     /// any pipeline thread is spawned.
     pub audio_start_us: std::sync::atomic::AtomicI64,
+    /// Where the video source's pictures end ([`Demuxer::video_end`]), or
+    /// `i64::MAX`. A decoded picture at or after it is not shown. Written
+    /// once at open, before any pipeline thread is spawned.
+    pub video_end_us: std::sync::atomic::AtomicI64,
+    /// Where the audio source's sound ends ([`Demuxer::audio_end`]), or
+    /// `i64::MAX`. Sound at or after it is not played. Written once at open.
+    pub audio_end_us: std::sync::atomic::AtomicI64,
     /// Where the current generation's timeline starts: zero at open, and
     /// after a seek where the clock was snapped to. Written with
     /// `seek_floor_us`.
@@ -2234,7 +2249,7 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
         if !flush_pending && pending_frame.is_none() && decoder.is_some() {
             match decoder.as_mut().expect("decoder checked").try_output() {
                 Ok(Some(frame)) => {
-                    if let Some(frame) = unseen.filter(px, frame) {
+                    if let Some(frame) = before_end(px, frame).and_then(|f| unseen.filter(px, f)) {
                         px.shared.frames_decoded.fetch_add(1, Ordering::Relaxed);
                         let pts = MediaTime::from_micros(frame.pts_us());
                         match behind_the_clock(px, generation, pts) {
@@ -2578,7 +2593,7 @@ pub fn run_video(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
         if !flush_pending && draining && pending_frame.is_none() && decoder.is_some() {
             match decoder.as_mut().expect("decoder checked").try_output() {
                 Ok(Some(frame)) => {
-                    if let Some(frame) = unseen.filter(px, frame) {
+                    if let Some(frame) = before_end(px, frame).and_then(|f| unseen.filter(px, f)) {
                         px.shared.frames_decoded.fetch_add(1, Ordering::Relaxed);
                         pending_frame = Some(frame);
                     }
@@ -2815,6 +2830,7 @@ pub fn run_audio(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
     // landed ahead of its target, which removes the lead-in kept to warm
     // the decoder.
     let audio_start_us = px.audio_start_us.load(Ordering::Relaxed).max(0);
+    let audio_end_us = px.audio_end_us.load(Ordering::Relaxed);
     let mut origin_us = audio_start_us;
     // Where this generation's timeline starts, while the source's sound
     // begins after it and nothing has been placed yet. The gap goes into
@@ -2873,6 +2889,11 @@ pub fn run_audio(px: &Arc<PipelineShared>, rx: &Receiver<MediaMsg>) {
         if let (Some(chunk), Some(out)) = (pending.as_mut(), producer.as_mut()) {
             let rate = out.sample_rate().max(1);
             let channels = out.channels().max(1) as usize;
+            // Sound past where the track stops (encoder padding, or a tail
+            // the container trims) is not played.
+            let frames = (chunk.data.len() - chunk.offset) / channels;
+            let kept = frames_before_end(chunk.pts_us, audio_end_us, frames, rate);
+            chunk.data.truncate(chunk.offset + kept * channels);
             let remaining = &chunk.data[chunk.offset..];
             if !remaining.is_empty() {
                 let frames_left = remaining.len() / channels;
