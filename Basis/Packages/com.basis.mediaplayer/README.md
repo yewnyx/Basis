@@ -287,7 +287,10 @@ Advanced.
    `[BasisMedia] session error <code> (<category>): <reason> [<url>]`, and the
    Media Players panel shows the reason. Common reasons: an unsupported codec,
    a private address, a refusing server. When a server admin has locked media
-   players, nothing opens and the log says so.
+   players, nothing opens and the log says so. On a shared player the owner logs
+   `sharing '<url>'` and a follower logs `loading '<url>' from player <id>`. A
+   follower with no such line never received the URL. Logged URLs leave out the
+   query and any credentials.
 2. What the machine supports: `Settings > Developer > Media Player`, or
    `BasisMediaPlayer.EngineCapabilities`.
 3. `Basis > Debug > Media Player`, which shows a player's pipeline stage by

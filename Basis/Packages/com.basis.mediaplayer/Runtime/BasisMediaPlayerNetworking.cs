@@ -557,6 +557,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         // state, and the position heartbeat keeps everyone converged.
         BroadcastFullState(freshLoad: true);
 
+        BasisDebug.Log($"[BasisMedia] {mediaPlayer.name}: sharing '{BasisMediaUrlRouter.Redact(url)}'", BasisDebug.LogTag.Video);
         ClearSyncTarget();
         mediaPlayer.LoadApprovedUrl(url);
         return true;
@@ -877,7 +878,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
                     return;
                 }
 
-                ApplyRemoteFullState(url, state, fullPos, fullNonce);
+                ApplyRemoteFullState(senderId, url, state, fullPos, fullNonce);
                 return;
 
             case MessageId.Play:
@@ -1060,7 +1061,7 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
         }
     }
 
-    private void ApplyRemoteFullState(string url, SyncedPlaybackState state, long positionTicks, ushort remoteLoadNonce)
+    private void ApplyRemoteFullState(ushort senderId, string url, SyncedPlaybackState state, long positionTicks, ushort remoteLoadNonce)
     {
         // Any full state answers a pending ask-the-room resync. Capture that before clearing
         // it: a resync's whole job is to reload onto the answer, so it must force the reload
@@ -1119,6 +1120,8 @@ public sealed class BasisMediaPlayerNetworking : BasisNetworkBehaviour, IBasisMe
                 pendingRemotePositionTicks = positionTicks;
                 pendingRemoteStashedAt = Time.realtimeSinceStartup;
                 pendingRemoteApply = true;
+                BasisDebug.Log($"[BasisMedia] {mediaPlayer.name}: loading '{BasisMediaUrlRouter.Redact(url)}' "
+                    + $"from player {senderId}, {state} at {TimeSpan.FromTicks(positionTicks).TotalSeconds:F1}s", BasisDebug.LogTag.Video);
                 NotePendingLoadRequest();
                 mediaPlayer.LoadApprovedUrl(url);
                 return;
