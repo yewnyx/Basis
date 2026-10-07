@@ -5,12 +5,11 @@ namespace Basis.IK
     [BurstCompile]
     public static class BasisArmSolveCore
     {
-        public const int Samples = 36, RefineIterations = 8;
-        public const float SampleStepDeg = 360f / Samples, MinElbowInteriorDeg = 35f, LimitMarginDeg = 12f, HardLimitWeight = 0.006f;
+        public const float MinElbowInteriorDeg = 35f, LimitMarginDeg = 12f, HardLimitWeight = 0.006f;
         public const float HumeralWeight = 0.6f, PronationWeight = 0.6f, WristFlexWeight = 0.35f, WristDevWeight = 0.35f, WristStrainWeight = 0.12f;
-        public const float TorsoWeight = 1.5f, TrackerPriorWeight = 4f, SwitchMarginCost = 0.12f, LocalBasinDeg = 60f, BasinJumpDeg = 100f;
+        public const float TorsoWeight = 1.5f;
         public const float HeadFadeStartSin = 0.15f, HeadFadeFullSin = 0.45f, ElevationFadeStart = 0.85f, ElevationFadeFull = 0.97f, RestOutward = 0.35f, RestBack = 0.25f;
-        public const float TeleportFraction = 0.6f, TrackerSmoothTime = 0.015f, MinReachFraction = 0.05f, TrackerLimitScale = 0.15f, ModelWeight = 0.85f;
+        public const float MinReachFraction = 0.05f, ModelWeight = 0.85f;
         public const float WristKeepFrac = 0.15f, WristKeepMaxDeg = 15f, ForearmRollMaxDeg = 120f, WrapFadeStartDeg = 155f, WrapFadeEndDeg = 178f;
         const float epsilon = 1e-5f, sqrEpsilon = 1e-8f;
         public static void Frame(Vector3 axis, Vector3 torsoUp, Vector3 torsoForward, Vector3 torsoOut, out Vector3 ex, out Vector3 ey)
@@ -64,7 +63,7 @@ namespace Basis.IK
             return t * t * (3f - 2f * t);
         }
         static Vector3 Swing(Vector3 from, Vector3 to, Vector3 v) => to.sqrMagnitude < sqrEpsilon ? v : BasisQuaternionExt.FromToRotation(from, to) * v;
-        public static unsafe void Solve(in BasisArmSolveInput i, ref BasisArmState state, out BasisArmSolveResult r)
+        public static void Solve(in BasisArmSolveInput i, ref BasisArmState state, out BasisArmSolveResult r)
         {
             r = default;
             float upper = (i.RestElbow - i.Shoulder).magnitude, lower = (i.RestHand - i.RestElbow).magnitude;
@@ -75,133 +74,95 @@ namespace Basis.IK
                 return;
             }
             Vector3 toTarget = i.TargetPosition - i.Shoulder;
-            float d = toTarget.magnitude, minReach = MinReach(upper, lower);
+            float reachDistance = toTarget.magnitude, minReach = MinReach(upper, lower);
             Vector3 axis;
-            if (d > minReach)
+            if (reachDistance > minReach)
             {
-                axis = toTarget / d;
+                axis = toTarget / reachDistance;
             }
             else
             {
-                axis = state.Seeded && state.LastAxis.sqrMagnitude > sqrEpsilon ? state.LastAxis : (d > epsilon ? toTarget / d : (i.RestHand - i.Shoulder).normalized);
+                axis = state.Seeded && state.LastAxis.sqrMagnitude > sqrEpsilon ? state.LastAxis : (reachDistance > epsilon ? toTarget / reachDistance : (i.RestHand - i.Shoulder).normalized);
             }
             // The tracked hand is a hard endpoint. Only move it off the controller
             // when the target is outside the arm's anatomical reach interval.
-            float dEff = Mathf.Clamp(d, minReach, upper + lower);
-            r.TargetDistance = d;
+            float dEff = Mathf.Clamp(reachDistance, minReach, upper + lower);
+            r.TargetDistance = reachDistance;
             r.EffectiveDistance = dEff;
-            r.ReachRatio = d / (upper + lower);
+            r.ReachRatio = reachDistance / (upper + lower);
             float cosAlpha = Mathf.Clamp((upper * upper + dEff * dEff - lower * lower) / (2f * upper * dEff), -1f, 1f), sinAlpha = Mathf.Sqrt(Mathf.Max(0f, 1f - cosAlpha * cosAlpha));
             Vector3 center = i.Shoulder + axis * (upper * cosAlpha);
             float radius = upper * sinAlpha;
             r.ElbowDeg = Mathf.Acos(Mathf.Clamp((upper * upper + lower * lower - dEff * dEff) / (2f * upper * lower), -1f, 1f)) * Mathf.Rad2Deg;
             Frame(axis, i.TorsoUp, i.TorsoForward, i.TorsoOut, out Vector3 ex, out Vector3 ey);
+
+            float chain = upper + lower;
+            Vector3 handPos = i.Shoulder + axis * dEff;
+
+            // Elbow hint: a world-space point the elbow points toward. An elbow tracker is used as-is;
+            // otherwise one is built from the body and shaped by the rules below.
+            Vector3 worldHint = i.HintPosition;
+            if (!i.HasHint)
+            {
+                // Start behind and below the hand.
+                worldHint = handPos - i.TorsoForward * (chain * 2f) - i.TorsoUp * (chain * 0.5f);
+
+                // Keep the hint behind the plane through the shoulder and hand that faces body-forward;
+                // realistically the elbow never goes in front of it. A hint in front is mirrored behind rather
+                // than flattened onto the plane, so it never collapses onto the arm line.
+                // The plane faces sideways when the arm points straight forward/back, so fade out there.
+                Vector3 planeFront = i.TorsoForward - axis * Vector3.Dot(i.TorsoForward, axis);
+                float planeFrontLen = planeFront.magnitude, behindFade = Smoothstep(0.1f, 0.3f, planeFrontLen);
+                if (behindFade > 0f)
+                {
+                    planeFront /= planeFrontLen;
+                    float front = Vector3.Dot(worldHint - i.Shoulder, planeFront);
+                    if (front > 0f) worldHint -= planeFront * (2f * front * behindFade);
+                }
+
+                // As the hand comes in toward and past the shoulder to the torso, push the hint outward so the
+                // elbow sticks out instead of back. Distances are sideways only, in arm lengths.
+                // The head is on the body midline; without one, assume a typical shoulder half-width of 0.3 arm lengths.
+                float handOut = Vector3.Dot(handPos - i.Shoulder, i.TorsoOut) / chain;
+                float midToShoulder = i.HasHead ? Vector3.Dot(i.Shoulder - i.HeadPosition, i.TorsoOut) / chain : 0.3f;
+                float outPush = Smoothstep(-midToShoulder, midToShoulder * 2f, -handOut) * 2.5f;
+                worldHint += i.TorsoOut * (outPush * chain);
+            }
+
+            // Project the hint onto the elbow circle to get the swivel angle.
+            Vector3 hintDir = worldHint - center;
+            hintDir -= axis * Vector3.Dot(hintDir, axis);
+            float swivelDeg = hintDir.sqrMagnitude > sqrEpsilon ? DirToDeg(hintDir.normalized, ex, ey) : BodyPrior(i, axis, ex, ey);
+
             float side = i.IsLeft ? 1f : -1f;
-            bool tracker = i.HasHint;
-            float priorDeg, priorWeight = i.PriorWeight;
-            if (tracker)
-            {
-                Vector3 hintDir = i.HintPosition - center;
-                hintDir -= axis * Vector3.Dot(hintDir, axis);
-                if (hintDir.sqrMagnitude > sqrEpsilon)
-                {
-                    priorDeg = DirToDeg(hintDir.normalized, ex, ey);
-                    priorWeight = TrackerPriorWeight;
-                }
-                else
-                {
-                    tracker = false;
-                    priorDeg = BodyPrior(i, axis, ex, ey);
-                }
-            }
-            else
-            {
-                priorDeg = BodyPrior(i, axis, ex, ey);
-            }
-            r.PriorDeg = priorDeg;
             Quaternion restHandInv = Quaternion.Inverse(i.RestHandRotation);
             Vector3 palmLocal = restHandInv * Swing(i.TorsoOut, (i.RestElbow - i.Shoulder).normalized, -i.TorsoUp), fwdLocal = restHandInv * (i.RestHand - i.RestElbow).normalized;
             Vector3 palm = i.TargetRotation * palmLocal, handFwd = i.TargetRotation * fwdLocal;
             float humeralFade = 1f - Smoothstep(ElevationFadeStart, ElevationFadeFull, Vector3.Dot(axis, i.TorsoUp));
-            bool limits = i.JointLimits;
-            float prevDeg = state.Seeded ? state.SwivelDeg : priorDeg, prevWeight = state.Seeded ? i.PreviousWeight : 0f, limitScale = tracker ? TrackerLimitScale : 1f;
-            float bestCost = float.MaxValue, localCost = float.MaxValue;
-            int best = 0, local = -1;
-            float* costs = stackalloc float[Samples];
-            for (int k = 0; k < Samples; k++)
-            {
-                float psi = k * SampleStepDeg - 180f;
-                Vector3 dir = DegToDir(psi, ex, ey), elbow = center + dir * radius;
-                float cost = priorWeight * (1f - Mathf.Cos((psi - priorDeg) * Mathf.Deg2Rad)) + prevWeight * (1f - Mathf.Cos((psi - prevDeg) * Mathf.Deg2Rad));
-                cost += limitScale * PoseCost(i, elbow, dir, axis, side, palm, handFwd, humeralFade, limits);
-                costs[k] = cost;
-                if (cost < bestCost) { bestCost = cost; best = k; }
-                if (state.Seeded && Mathf.Abs(Wrap(psi - state.SwivelDeg)) <= LocalBasinDeg && cost < localCost) { localCost = cost; local = k; }
-            }
-            int chosen = best;
-            bool switched = false;
-            if (state.Seeded && local >= 0 && !tracker && Mathf.Abs(Wrap(best * SampleStepDeg - 180f - state.SwivelDeg)) > BasinJumpDeg)
-            {
-                if (localCost - bestCost > SwitchMarginCost)
-                {
-                    state.SwitchTimer += i.Dt;
-                    if (state.SwitchTimer >= i.SwitchDwell) { state.SwitchTimer = 0f; switched = true; }
-                    else chosen = local;
-                }
-                else
-                {
-                    state.SwitchTimer = 0f;
-                    chosen = local;
-                }
-            }
-            else
-            {
-                state.SwitchTimer = 0f;
-            }
-            float lo = chosen * SampleStepDeg - 180f - SampleStepDeg, hi = lo + 2f * SampleStepDeg, invPhi = 0.6180339887f;
-            float x1 = hi - invPhi * (hi - lo), x2 = lo + invPhi * (hi - lo);
-            float f1 = SwivelCost(i, center, radius, ex, ey, axis, side, palm, handFwd, humeralFade, limits, limitScale, priorDeg, priorWeight, prevDeg, prevWeight, x1);
-            float f2 = SwivelCost(i, center, radius, ex, ey, axis, side, palm, handFwd, humeralFade, limits, limitScale, priorDeg, priorWeight, prevDeg, prevWeight, x2);
-            for (int it = 0; it < RefineIterations; it++)
-            {
-                if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - invPhi * (hi - lo); f1 = SwivelCost(i, center, radius, ex, ey, axis, side, palm, handFwd, humeralFade, limits, limitScale, priorDeg, priorWeight, prevDeg, prevWeight, x1); }
-                else { lo = x1; x1 = x2; f1 = f2; x2 = lo + invPhi * (hi - lo); f2 = SwivelCost(i, center, radius, ex, ey, axis, side, palm, handFwd, humeralFade, limits, limitScale, priorDeg, priorWeight, prevDeg, prevWeight, x2); }
-            }
-            float target = Wrap(f1 < f2 ? x1 : x2);
-            r.RawDeg = target;
-            float chainLen = upper + lower;
-            bool teleport = state.Seeded && (i.TargetPosition - state.LastTarget).sqrMagnitude > TeleportFraction * TeleportFraction * chainLen * chainLen;
-            float smoothTime = tracker ? TrackerSmoothTime : i.SmoothTime;
-            if (!state.Seeded || teleport || i.Dt <= 0f)
-            {
-                state.SwivelDeg = target;
-            }
-            else
-            {
-                float delta = Wrap(target - state.SwivelDeg), alpha = smoothTime > 1e-4f ? 1f - Mathf.Exp(-i.Dt / smoothTime) : 1f, step = delta * alpha;
-                float maxStep = i.MaxRateDeg > 0f ? i.MaxRateDeg * i.Dt : float.MaxValue;
-                if (step > maxStep) step = maxStep; else if (step < -maxStep) step = -maxStep;
-                state.SwivelDeg = Wrap(state.SwivelDeg + step);
-            }
-            state.Seeded = true;
-            state.LastTarget = i.TargetPosition;
-            state.LastAxis = axis;
-            state.Switched = switched;
-            Vector3 finalDir = DegToDir(state.SwivelDeg, ex, ey), finalElbow = center + finalDir * radius;
+            Vector3 finalDir = DegToDir(swivelDeg, ex, ey), finalElbow = center + finalDir * radius;
             Joints(i, finalElbow, finalDir, axis, side, palm, handFwd, out r.HumeralDeg, out r.PronationDeg, out r.WristFlexDeg, out r.WristDevDeg);
-            r.SwivelDeg = state.SwivelDeg;
-            r.Cost = costs[chosen];
+
+            r.PriorDeg = swivelDeg;
+            r.SwivelDeg = swivelDeg;
+            // Diagnostic only: joint-limit and torso strain of the chosen pose.
+            r.Cost = PoseCost(i, finalElbow, finalDir, axis, side, palm, handFwd, humeralFade, i.JointLimits);
             r.Elbow = finalElbow;
-            r.Hand = i.Shoulder + axis * dEff;
+            r.Hand = handPos;
             r.Axis = axis;
             r.ElbowDir = finalDir;
             r.Hinge = Hinge(finalDir, axis, side);
-            r.Switched = switched;
+            r.Switched = false;
             r.Valid = true;
-            state.PriorDeg = priorDeg;
-            state.PriorDir = DegToDir(priorDeg, ex, ey);
+            state.SwivelDeg = swivelDeg;
+            state.Seeded = true;
+            state.LastTarget = i.TargetPosition;
+            state.LastAxis = axis;
+            state.Switched = false;
+            state.HintPosition = i.HintPosition;
+            state.ConstrainedHintPosition = worldHint;
+            state.PriorDeg = swivelDeg;
+            state.PriorDir = finalDir;
             state.ElbowDir = finalDir;
-            state.RawDeg = target;
             state.ReachRatio = r.ReachRatio;
             state.ElbowDeg = r.ElbowDeg;
             state.HumeralDeg = r.HumeralDeg;
@@ -209,12 +170,6 @@ namespace Basis.IK
             state.WristFlexDeg = r.WristFlexDeg;
             state.WristDevDeg = r.WristDevDeg;
             state.Cost = r.Cost;
-        }
-        static float SwivelCost(in BasisArmSolveInput i, Vector3 center, float radius, Vector3 ex, Vector3 ey, Vector3 axis, float side, Vector3 palm, Vector3 handFwd, float humeralFade, bool limits, float limitScale, float priorDeg, float priorWeight, float prevDeg, float prevWeight, float psi)
-        {
-            Vector3 dir = DegToDir(psi, ex, ey);
-            float cost = priorWeight * (1f - Mathf.Cos((psi - priorDeg) * Mathf.Deg2Rad)) + prevWeight * (1f - Mathf.Cos((psi - prevDeg) * Mathf.Deg2Rad));
-            return cost + limitScale * PoseCost(i, center + dir * radius, dir, axis, side, palm, handFwd, humeralFade, limits);
         }
         static float PoseCost(in BasisArmSolveInput i, Vector3 elbow, Vector3 dir, Vector3 axis, float side, Vector3 palm, Vector3 handFwd, float humeralFade, bool limits)
         {

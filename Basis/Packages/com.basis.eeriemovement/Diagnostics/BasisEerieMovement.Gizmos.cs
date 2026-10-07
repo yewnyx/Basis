@@ -299,6 +299,9 @@ namespace Basis.IK
                     text.Append(armSlot.SwivelDeg);
                     gizmos.Label(stage, elbowPos + playerUp * gizmos.PointSize * 4f, text, BasisIKGizmoPalette.Yellow);
                 }
+
+                gizmos.Point(stage, armSlot.HintPosition, BasisIKGizmoPalette.Yellow);
+                gizmos.Point(stage, armSlot.ConstrainedHintPosition, BasisIKGizmoPalette.Green);
             }
 
             if (isLeft)
