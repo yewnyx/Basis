@@ -187,6 +187,7 @@ MonoBehaviour:
   - com.basis.integration.ytdlp
   - com.basis.mediapipe
   - com.basis.mediaplayer
+  - com.basis.modelpickup
   - com.basis.provider.servers
   - com.basis.setup
   baked:

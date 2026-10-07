@@ -1,0 +1,24 @@
+{
+  "name": "com.basis.modelpickup",
+  "displayName": "Basis Model Pickup",
+  "version": "0.0.1",
+  "description": "Drag and drop a .glb or self-contained .gltf onto the window to spawn a networked, grabbable 3D model pickup. Every model is validated and rebuilt into a canonical GLB before it is loaded, by the sender and again by every receiver. Works over the standard relay with its own uplink budget; a server that provides a model cache serves late joiners from memory, only while the sharer is connected.",
+  "author": {
+    "name": "BasisVR",
+    "url": "https://github.com/BasisVR"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "com.unity.ugui": "2.0.0",
+    "com.unity.cloud.gltfast": "6.14.1"
+  },
+  "vpmDependencies": {
+    "com.basis.framework": "0.0.1",
+    "com.basis.eventdriver": "0.0.1",
+    "com.basis.sdk": "0.0.1",
+    "com.basis.common": "0.0.1",
+    "com.basis.server": "1.0.0",
+    "com.basis.gizmos": "0.0.1",
+    "com.basis.textmeshpro": "0.0.1"
+  }
+}

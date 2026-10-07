@@ -188,6 +188,15 @@
         "com.unity.ugui": "2.0.0"
       }
     },
+    "com.basis.modelpickup": {
+      "version": "file:com.basis.modelpickup",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.ugui": "2.0.0",
+        "com.unity.cloud.gltfast": "6.14.1"
+      }
+    },
     "com.basis.openlipsync": {
       "version": "file:com.basis.openlipsync",
       "depth": 0,

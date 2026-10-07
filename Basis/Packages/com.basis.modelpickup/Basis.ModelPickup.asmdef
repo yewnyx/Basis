@@ -1,0 +1,30 @@
+{
+    "name": "Basis.ModelPickup",
+    "rootNamespace": "Basis.ModelPickup",
+    "references": [
+        "Basis Framework",
+        "BasisEventDriver",
+        "BasisSDK",
+        "BasisCommon",
+        "BasisNetworkCore",
+        "BasisNetworkServer",
+        "LiteNetLib",
+        "BasisDebug",
+        "BasisGizmos",
+        "glTFast",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
