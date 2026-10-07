@@ -33,6 +33,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 03f15fc452d44e488a5829b23c6b3f44
+    m_Address: Languages/com.basis.modelpickup/zh-Hant
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 06d43e66a99d9c742851f25200052b1a
     m_Address: Languages/zh-Hans
     m_ReadOnly: 0
@@ -93,6 +99,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1ee6f2259b8e4dbc9973349c903184f3
+    m_Address: Languages/com.basis.modelpickup/de
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 1ff4547646d661344928f3b538b06b99
     m_Address: Languages/ja
     m_ReadOnly: 0
@@ -141,6 +153,18 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d7ad84e61d349d28ea9988cb2e2bd56
+    m_Address: Languages/com.basis.modelpickup/ru
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32db8b5b5be645a98126e77aab9b84c6
+    m_Address: Languages/com.basis.modelpickup/fr
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 37b0700be4ebfb84e98f6cc5e965eebb
     m_Address: Languages/com.basis.developer.recorder/es
     m_ReadOnly: 0
@@ -167,6 +191,12 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 3f08413fadcc6154dab1606f678f3e1a
     m_Address: Languages/dev.hai-vr.hvr.license-review/ur
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 40f4db085b574ecbb276674a2022decd
+    m_Address: Languages/com.basis.modelpickup/zh-Hans
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
@@ -215,6 +245,12 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 52e0056c3318400409fcb37f41888ec9
     m_Address: Languages/com.basis.developer.exceptions/zh-Hant
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 550858d64c0d47e9be321018a17ec32d
+    m_Address: Languages/com.basis.modelpickup/ur
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
@@ -309,6 +345,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 815d9e6680324872bbce8a7166959b5d
+    m_Address: Languages/com.basis.modelpickup/hi
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 81d9c2f72abdfbb4f9a543c2cef54b76
     m_Address: Languages/it
     m_ReadOnly: 0
@@ -335,6 +377,12 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 8c05d31be7a24f6098b3e1d75c4a2609
     m_Address: Languages/com.basis.mediaplayer/en
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8c32cbd465b7474f9ed918ab0f7a7517
+    m_Address: Languages/com.basis.modelpickup/ar
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
@@ -383,6 +431,12 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 9fb5dcd490cf40528b36198cb5f1aa4c
     m_Address: Languages/com.basis.imagepickup/pt
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a0e1a4bd5a9e4fe4a18b204ec821c164
+    m_Address: Languages/com.basis.modelpickup/ja
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
@@ -453,6 +507,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b9ce325a26a64c35a09d8c95fb47f8de
+    m_Address: Languages/com.basis.modelpickup/bn
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: bcc8021cba5393947b6bd862980880f8
     m_Address: Languages/com.basis.provider.servers/nl
     m_ReadOnly: 0
@@ -495,6 +555,18 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c5ad03cf0a104404998ec0c459b29809
+    m_Address: Languages/com.basis.modelpickup/it
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c78556ecf8de4dfda9d0c322a6419a1a
+    m_Address: Languages/com.basis.modelpickup/es-MX
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: c7f4063db58ab1e48abc696d2c627a5a
     m_Address: Languages/com.basis.developer.exceptions/ar
     m_ReadOnly: 0
@@ -503,6 +575,12 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: d3a2fa1a361440c4ebd718ccfd92481b
     m_Address: Languages/com.basis.developer.recorder/ar
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d6be12a1808c4de88a86c3d0d8f9450e
+    m_Address: Languages/com.basis.modelpickup/es
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
@@ -527,6 +605,12 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: dd63edf4176e1554ca31ecc744dddd70
     m_Address: Languages/com.basis.developer.recorder/ur
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dd7aad207d924970aa136df30e70a91b
+    m_Address: Languages/com.basis.modelpickup/pt
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
@@ -561,8 +645,20 @@ MonoBehaviour:
     m_SerializedLabels:
     - language
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f10ab56c9101447eb51541384824dc2c
+    m_Address: Languages/com.basis.modelpickup/nl
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: f2fb8fdf6de845e29d63f14ef5eeef76
     m_Address: Languages/com.basis.imagepickup/ja
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - language
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f2fd33bf62b64b25ad35ea668774c9c4
+    m_Address: Languages/com.basis.modelpickup/en
     m_ReadOnly: 0
     m_SerializedLabels:
     - language
