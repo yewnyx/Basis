@@ -17,7 +17,7 @@ namespace Basis.MediaPipe
         public const string SubSystem = "BasisMediaPipe";
         public const int LowLightFps = 15;
         public string CameraDeviceName = string.Empty;
-        public BasisMediaPipeConfig Config = BasisMediaPipeConfig.Default;
+        [NonSerialized] public BasisMediaPipeConfig Config = BasisMediaPipeConfig.Default;
         public static BasisMediaPipeManagement Instance;
         public event Action OnResult;
 

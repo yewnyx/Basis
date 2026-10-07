@@ -285,20 +285,35 @@ namespace UnityEngine.XR.OpenXR.Features
             }
         }
 
+        [AOT.MonoPInvokeCallback(typeof(Type_xrGetInstProcAddr))]
         static int HookXrGetInstProcAddr(ulong instance, string name, out IntPtr function)
         {
-            if (name == "xrGetVisibilityMaskKHR")
+            function = IntPtr.Zero;
+            try
             {
-                IntPtr originalVisMaskPtr = IntPtr.Zero;
-                d_OriginalGetInstanceProcAddr?.Invoke(instance, "xrGetVisibilityMaskKHR", out originalVisMaskPtr);
-                d_OriginalXrGetVisibilityMaskKHR = Marshal.GetDelegateForFunctionPointer<Type_xrGetVisibilityMaskKHR>(originalVisMaskPtr);
+                if (name == "xrGetVisibilityMaskKHR")
+                {
+                    IntPtr originalVisMaskPtr = IntPtr.Zero;
+                    d_OriginalGetInstanceProcAddr?.Invoke(instance, "xrGetVisibilityMaskKHR", out originalVisMaskPtr);
+                    if (originalVisMaskPtr == IntPtr.Zero)
+                    {
+                        return (int)XrResult.FunctionUnsupported;
+                    }
+                    d_OriginalXrGetVisibilityMaskKHR = Marshal.GetDelegateForFunctionPointer<Type_xrGetVisibilityMaskKHR>(originalVisMaskPtr);
 
-                function = Marshal.GetFunctionPointerForDelegate(d_OverrideXrGetVisibilityMaskKHR);
-                return 0;
+                    function = Marshal.GetFunctionPointerForDelegate(d_OverrideXrGetVisibilityMaskKHR);
+                    return 0;
+                }
+                else
+                {
+                    return d_OriginalGetInstanceProcAddr.Invoke(instance, name, out function);
+                }
             }
-            else
+            catch (Exception e)
             {
-                return d_OriginalGetInstanceProcAddr.Invoke(instance, name, out function);
+                Debug.LogException(e);
+                function = IntPtr.Zero;
+                return (int)XrResult.RuntimeFailure;
             }
         }
 
@@ -327,7 +342,21 @@ namespace UnityEngine.XR.OpenXR.Features
              1.0f, -1.0f
         };
 
+        [AOT.MonoPInvokeCallback(typeof(Type_xrGetVisibilityMaskKHR))]
         static int OverrideXrGetVisibilityMaskKHR(ulong session, uint viewType, UInt32 viewIndex, uint maskType, ref XrVisibilityMaskKHR visMaskPtr)
+        {
+            try
+            {
+                return GetVisibilityMask(session, viewType, viewIndex, maskType, ref visMaskPtr);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                return (int)XrResult.RuntimeFailure;
+            }
+        }
+
+        static int GetVisibilityMask(ulong session, uint viewType, UInt32 viewIndex, uint maskType, ref XrVisibilityMaskKHR visMaskPtr)
         {
             if (maskType != (uint)XrVisibilityMaskTypeKHR.XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR)
             {

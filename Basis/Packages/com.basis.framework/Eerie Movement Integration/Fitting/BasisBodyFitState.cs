@@ -276,7 +276,17 @@ public static class BasisPerAvatarScale
         }
         return $"avatarscale::{hash:X8}";
     }
-    static string LegacyKeyFor(string avatarId) => $"avatarscale::{(uint)avatarId.GetHashCode():X8}";
+    static string LegacyKeyFor(string avatarId)
+    {
+        int hash1 = 5381, hash2 = 5381;
+        for (int i = 0; i < avatarId.Length && avatarId[i] != '\0'; i += 2)
+        {
+            hash1 = ((hash1 << 5) + hash1) ^ avatarId[i];
+            if (i + 1 >= avatarId.Length || avatarId[i + 1] == '\0') break;
+            hash2 = ((hash2 << 5) + hash2) ^ avatarId[i + 1];
+        }
+        return $"avatarscale::{(uint)(hash1 + hash2 * 1566083941):X8}";
+    }
     public static void RefreshForCurrentAvatar()
     {
         string avatarId = BasisLocalPlayer.CurrentAvatarUniqueID;

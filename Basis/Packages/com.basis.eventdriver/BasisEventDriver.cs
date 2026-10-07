@@ -214,7 +214,7 @@ namespace Basis.EventDriver
         {
             using var updateScope = Prof.Update.Auto();
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             BasisFiniteWatchdog.Checkpoint("UpdateStart (render / physics / previous frame tail)");
             BasisFiniteWatchdog.CheckpointRemote("UpdateStart (render / physics / previous frame tail)");
 #endif
@@ -355,7 +355,7 @@ namespace Basis.EventDriver
             }
             timeSinceLastUpdate += DeltaTime;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             BasisFiniteWatchdog.Checkpoint("UpdateTail (pre-animator)");
             BasisFiniteWatchdog.CheckpointRemote("UpdateTail (pre-animator)");
 #endif

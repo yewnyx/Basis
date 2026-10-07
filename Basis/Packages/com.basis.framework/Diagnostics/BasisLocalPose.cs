@@ -68,7 +68,7 @@ public static class BasisLocalPose
         return t != null;
     }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
     public static bool ValidateHits;
 
     public static int Hits { get; private set; }
@@ -110,7 +110,7 @@ public static class BasisLocalPose
 
         if ((e.Valid & Field.Position) != 0)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             Hits++;
             if (ValidateHits)
             {
@@ -121,7 +121,7 @@ public static class BasisLocalPose
             return e.Position;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
         Misses++;
         BasisTransformAudit.Record(file, line, BasisTransformOp.GetPosition);
 #endif
@@ -138,7 +138,7 @@ public static class BasisLocalPose
 
         if ((e.Valid & Field.Rotation) != 0)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             Hits++;
             if (ValidateHits)
             {
@@ -149,7 +149,7 @@ public static class BasisLocalPose
             return e.Rotation;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
         Misses++;
         BasisTransformAudit.Record(file, line, BasisTransformOp.GetRotation);
 #endif
@@ -167,7 +167,7 @@ public static class BasisLocalPose
         const Field both = Field.Position | Field.Rotation;
         if ((e.Valid & both) == both)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             Hits++;
             if (ValidateHits)
             {
@@ -181,7 +181,7 @@ public static class BasisLocalPose
             return;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
         Misses++;
         BasisTransformAudit.Record(file, line, BasisTransformOp.GetPose);
 #endif
@@ -199,7 +199,7 @@ public static class BasisLocalPose
 
         if ((e.Valid & Field.LossyScale) != 0)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             Hits++;
             if (ValidateHits)
             {
@@ -210,7 +210,7 @@ public static class BasisLocalPose
             return e.LossyScale;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
         Misses++;
         BasisTransformAudit.Record(file, line, BasisTransformOp.GetLossyScale);
 #endif
@@ -227,7 +227,7 @@ public static class BasisLocalPose
 
         if ((e.Valid & Field.LocalToWorld) != 0)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
             Hits++;
             if (ValidateHits)
             {
@@ -238,7 +238,7 @@ public static class BasisLocalPose
             return e.LocalToWorld;
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
         Misses++;
         BasisTransformAudit.Record(file, line, BasisTransformOp.GetLocalToWorld);
 #endif

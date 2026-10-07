@@ -62,6 +62,7 @@ namespace Basis.Integration.MetaBodyTracking
 
         private const ulong XR_SPACE_LOCATION_ORIENTATION_VALID_BIT = 0x00000001;
         private const ulong XR_SPACE_LOCATION_POSITION_VALID_BIT = 0x00000002;
+        private const int XR_ERROR_RUNTIME_FAILURE = -2;
 
         /// <summary>Offset of XrFrameState.predictedDisplayTime on a 64 bit ABI (type, pad, next, time).</summary>
         private const int FrameStatePredictedDisplayTimeOffset = 16;
@@ -213,32 +214,51 @@ namespace Basis.Integration.MetaBodyTracking
         [MonoPInvokeCallback(typeof(Type_xrGetInstanceProcAddr))]
         private static int HookGetProc(ulong instance, string name, out IntPtr function)
         {
-            if (name == "xrWaitFrame")
+            function = IntPtr.Zero;
+            int result = XR_ERROR_RUNTIME_FAILURE;
+            try
             {
-                int result = d_originalGetProc.Invoke(instance, "xrWaitFrame", out IntPtr real);
-                if (result == 0 && real != IntPtr.Zero)
+                result = d_originalGetProc.Invoke(instance, name, out function);
+                if (name != "xrWaitFrame")
                 {
-                    d_originalWaitFrame = Marshal.GetDelegateForFunctionPointer<Type_xrWaitFrame>(real);
-                    function = Marshal.GetFunctionPointerForDelegate(s_waitFrameHook);
-                    return 0;
+                    return result;
                 }
-                function = IntPtr.Zero;
+                if (result != 0 || function == IntPtr.Zero)
+                {
+                    function = IntPtr.Zero;
+                    return result;
+                }
+                d_originalWaitFrame = Marshal.GetDelegateForFunctionPointer<Type_xrWaitFrame>(function);
+                function = Marshal.GetFunctionPointerForDelegate(s_waitFrameHook);
+                return 0;
+            }
+            catch (Exception e)
+            {
+                BasisDebug.LogError($"{Tag} xrGetInstanceProcAddr hook failed for {name}: {e}", BasisDebug.LogTag.Device);
                 return result;
             }
-            return d_originalGetProc.Invoke(instance, name, out function);
         }
 
         [MonoPInvokeCallback(typeof(Type_xrWaitFrame))]
         private static int HookWaitFrame(ulong session, IntPtr frameWaitInfo, IntPtr frameState)
         {
-            int result = d_originalWaitFrame != null ? d_originalWaitFrame.Invoke(session, frameWaitInfo, frameState) : 0;
-            if (result == 0 && frameState != IntPtr.Zero)
+            int result = XR_ERROR_RUNTIME_FAILURE;
+            try
             {
-                // xrWaitFrame runs off the render thread; a single aligned 64 bit store is all this is.
-                System.Threading.Interlocked.Exchange(ref s_PredictedDisplayTime,
-                    Marshal.ReadInt64(frameState, FrameStatePredictedDisplayTimeOffset));
+                result = d_originalWaitFrame != null ? d_originalWaitFrame.Invoke(session, frameWaitInfo, frameState) : 0;
+                if (result == 0 && frameState != IntPtr.Zero)
+                {
+                    // xrWaitFrame runs off the render thread; a single aligned 64 bit store is all this is.
+                    System.Threading.Interlocked.Exchange(ref s_PredictedDisplayTime,
+                        Marshal.ReadInt64(frameState, FrameStatePredictedDisplayTimeOffset));
+                }
+                return result;
             }
-            return result;
+            catch (Exception e)
+            {
+                BasisDebug.LogError($"{Tag} xrWaitFrame hook failed: {e}", BasisDebug.LogTag.Device);
+                return result;
+            }
         }
 
         protected override bool OnInstanceCreate(ulong instance)

@@ -176,7 +176,9 @@ namespace Basis.Scripts.Settings
             {
                 BasisSettingsSystem.LoadAllSettings();
             }
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
+            Application.quitting -= FlushPendingSaves;
             Application.quitting += FlushPendingSaves;
         }
 

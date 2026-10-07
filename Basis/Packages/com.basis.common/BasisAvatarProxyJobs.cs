@@ -22,7 +22,7 @@ using UnityEngine.Jobs;
 ///
 /// So the split is: <see cref="ScheduleBeforeRender"/> runs on Application.onBeforeRender at
 /// BeforeRenderOrder int.MaxValue — after Basis has run its IK on the default-order handler, before URP
-/// exists for the frame — and <see cref="Run"/> (beginFrameRendering) only joins and publishes. The poses
+/// exists for the frame — and <see cref="Run"/> (beginContextRendering) only joins and publishes. The poses
 /// are still one sample at one instant for every consumer; the sample just happens a hair earlier, at the
 /// last onBeforeRender slot instead of the first pipeline callback, with nothing writing bones in between.
 /// A destroyed bone is skipped by the transform job and keeps its last matrix until the next rebuild,
@@ -133,6 +133,14 @@ public static class BasisAvatarProxyJobs
         if (hooked) { return; }
         hooked = true;
         Application.onBeforeRender += ScheduleBeforeRender;
+        Application.quitting += Unhook;
+    }
+
+    private static void Unhook()
+    {
+        Application.quitting -= Unhook;
+        Application.onBeforeRender -= ScheduleBeforeRender;
+        hooked = false;
     }
 
     [BeforeRenderOrder(int.MaxValue)]

@@ -18,6 +18,13 @@ RUN unity-hub install --version "$version" --changeset "$changeSet" | tee /var/l
  && chmod -R 755 "$UNITY_PATH/Editor/Data/PlaybackEngines" \
  && echo "$version" > "$UNITY_PATH/version"
 
+RUN if ls -d "$UNITY_PATH"/Editor/Data/PlaybackEngines/LinuxStandaloneSupport/Variations/*il2cpp > /dev/null 2>&1; then \
+      apt-get -q update \
+      && apt-get -q install -y --no-install-recommends build-essential clang \
+      && apt-get clean \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 RUN printf '%s\n' '#!/bin/bash' \
       'for i in /usr/bin/unity-editor.d/*.sh; do [ -r "$i" ] && . "$i"; done' \
       'xvfb-run -ae /dev/stdout "$UNITY_PATH/Editor/Unity" -batchmode "$@"' > /usr/bin/unity-editor \

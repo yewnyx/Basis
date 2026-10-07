@@ -2355,6 +2355,10 @@
       "value": "Smooth jagged edges on objects, at some performance cost."
     },
     {
+      "key": "settings.graphics.upscalerQuality.tooltip",
+      "value": "How much of the full resolution the upscaler renders before rebuilding the image. Lower settings run faster but look softer."
+    },
+    {
       "key": "settings.graphics.verticalSync.tooltip",
       "value": "Sync frame rate to your display to reduce screen tearing."
     },
@@ -7949,6 +7953,10 @@
     {
       "key": "settings.graphics.antialiasing",
       "value": "Antialiasing"
+    },
+    {
+      "key": "settings.graphics.upscalerQuality",
+      "value": "Upscaler Quality"
     },
     {
       "key": "settings.graphics.verticalSync",
@@ -14207,6 +14215,38 @@
       "value": "FSR 3 (temporal)"
     },
     {
+      "key": "settings.graphics.aa.dlss",
+      "value": "DLSS"
+    },
+    {
+      "key": "settings.graphics.aa.fsr2",
+      "value": "FSR 2 (temporal)"
+    },
+    {
+      "key": "settings.graphics.aa.fsr4",
+      "value": "FSR 4 (temporal)"
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.native",
+      "value": "Native"
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.quality",
+      "value": "Quality"
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.balanced",
+      "value": "Balanced"
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.performance",
+      "value": "Performance"
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.ultraPerformance",
+      "value": "Ultra Performance"
+    },
+    {
       "key": "settings.graphics.hdr.32bit",
       "value": "32bit"
     },
@@ -18279,6 +18319,42 @@
     {
       "key": "settings.graphics.aa.fsr.tooltip",
       "value": "No multisampling. Upscales with AMD FidelityFX Super Resolution, which holds more detail than plain filtering."
+    },
+    {
+      "key": "settings.graphics.aa.dlss.tooltip",
+      "value": "No multisampling. NVIDIA DLSS smooths edges using recent frames, and on desktop can render fewer pixels to run faster. Needs an NVIDIA RTX graphics card."
+    },
+    {
+      "key": "settings.graphics.aa.fsr2.tooltip",
+      "value": "No multisampling. AMD FidelityFX Super Resolution 2 smooths edges using recent frames, and on desktop can render fewer pixels to run faster. Runs on most graphics cards."
+    },
+    {
+      "key": "settings.graphics.aa.fsr3.tooltip",
+      "value": "No multisampling. AMD FidelityFX Super Resolution 3 smooths edges using recent frames, and on desktop can render fewer pixels to run faster. Runs on most graphics cards with DirectX 12."
+    },
+    {
+      "key": "settings.graphics.aa.fsr4.tooltip",
+      "value": "No multisampling. AMD FidelityFX Super Resolution 4 uses machine learning to smooth edges, and on desktop can render fewer pixels to run faster. Needs an AMD Radeon RX 9000 series graphics card and DirectX 12."
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.native.tooltip",
+      "value": "Renders at full resolution and only uses the upscaler to smooth edges. The sharpest image, with no speedup."
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.quality.tooltip",
+      "value": "Renders about two thirds of the resolution on each axis. A modest speedup with little visible loss."
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.balanced.tooltip",
+      "value": "Renders a little under 60 percent of the resolution on each axis. A middle ground between speed and sharpness."
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.performance.tooltip",
+      "value": "Renders half the resolution on each axis. A large speedup with a visibly softer image."
+    },
+    {
+      "key": "settings.graphics.upscalerQuality.ultraPerformance.tooltip",
+      "value": "Renders a third of the resolution on each axis. The fastest option, best kept for very high resolution displays."
     },
     {
       "key": "settings.graphics.vsync.on.tooltip",

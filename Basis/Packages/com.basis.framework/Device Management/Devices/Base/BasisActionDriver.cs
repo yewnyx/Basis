@@ -311,7 +311,7 @@ public static class BasisActionDriver
         }
 
         s_DispatchRole = trackedRole;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
         for (int Index = 0; Index < compiled.Length; Index++)
         {
             var actionImpl = compiled[Index];

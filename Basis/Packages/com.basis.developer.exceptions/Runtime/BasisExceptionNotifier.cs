@@ -23,6 +23,15 @@ namespace Basis.BasisUI
             if (_hooked) return;
             _hooked = true;
             Application.logMessageReceivedThreaded += OnLogMessageReceived;
+            Application.quitting += OnQuitting;
+        }
+
+        private static void OnQuitting()
+        {
+            Application.quitting -= OnQuitting;
+            Application.logMessageReceivedThreaded -= OnLogMessageReceived;
+            _hooked = false;
+            _presenting = false;
         }
 
         private static void OnLogMessageReceived(string condition, string stackTrace, LogType type)

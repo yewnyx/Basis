@@ -1880,11 +1880,34 @@ namespace Basis.BasisUI
             PanelDropdown dropdownAntialiasing = PanelDropdown.CreateNewEntry(qualityGroup.ContentParent);
             dropdownAntialiasing.Descriptor.SetTitle(BasisLocalization.Get("settings.graphics.antialiasing"));
             dropdownAntialiasing.Descriptor.SetTooltip(BasisLocalization.Get("settings.graphics.antialiasing.tooltip"));
-            dropdownAntialiasing.AssignLocalizedEntries(
-                new List<string> { "Off","MSAA 2X","MSAA 4X","MSAA 8X","Linear","Point","FSR"/*,"STP"*/ },
-                new List<string> { "ui.option.off", "settings.graphics.aa.msaa2x", "settings.graphics.aa.msaa4x", "settings.graphics.aa.msaa8x", "settings.graphics.aa.linear", "settings.graphics.aa.point", "settings.graphics.aa.fsr" },
-                new List<string> { "settings.graphics.aa.off.tooltip" });
+            List<string> antialiasingEntries = new List<string> { "Off","MSAA 2X","MSAA 4X","MSAA 8X","Linear","Point","FSR"/*,"STP"*/ };
+            List<string> antialiasingKeys = new List<string> { "ui.option.off", "settings.graphics.aa.msaa2x", "settings.graphics.aa.msaa4x", "settings.graphics.aa.msaa8x", "settings.graphics.aa.linear", "settings.graphics.aa.point", "settings.graphics.aa.fsr" };
+            for (int upscalerIndex = 0; upscalerIndex < SMModuleAntialiasingURP.TemporalUpscalerOptions.Length; upscalerIndex++)
+            {
+                if (SMModuleAntialiasingURP.IsUpscalerSupported(SMModuleAntialiasingURP.TemporalUpscalerOptions[upscalerIndex]))
+                {
+                    antialiasingEntries.Add(SMModuleAntialiasingURP.TemporalUpscalerOptions[upscalerIndex]);
+                    antialiasingKeys.Add(SMModuleAntialiasingURP.TemporalUpscalerLabelKeys[upscalerIndex]);
+                }
+            }
+            dropdownAntialiasing.AssignLocalizedEntries(antialiasingEntries, antialiasingKeys, new List<string> { "settings.graphics.aa.off.tooltip" });
             dropdownAntialiasing.AssignBinding(BasisSettingsDefaults.Antialiasing);
+            if (dropdownAntialiasing.Index < 0)
+            {
+                dropdownAntialiasing.SetValueWithoutNotify(BasisSettingsDefaults.Antialiasing.DefaultValue.GetDefault());
+            }
+
+            PanelDropdown dropdownUpscalerQuality = PanelDropdown.CreateNewEntry(qualityGroup.ContentParent);
+            dropdownUpscalerQuality.Descriptor.SetTitle(BasisLocalization.Get("settings.graphics.upscalerQuality"));
+            dropdownUpscalerQuality.Descriptor.SetTooltip(BasisLocalization.Get("settings.graphics.upscalerQuality.tooltip"));
+            dropdownUpscalerQuality.AssignLocalizedEntries(new List<string>(SMModuleAntialiasingURP.UpscalerQualityOptions), new List<string>(SMModuleAntialiasingURP.UpscalerQualityLabelKeys));
+            dropdownUpscalerQuality.AssignBinding(BasisSettingsDefaults.UpscalerQuality);
+            dropdownUpscalerQuality.Descriptor.SetActive(SMModuleAntialiasingURP.IsTemporalUpscalerOption(dropdownAntialiasing.Value) && !BasisDeviceManagement.IsCurrentModeVR());
+            dropdownAntialiasing.OnValueChanged += (val) =>
+            {
+                dropdownUpscalerQuality.Descriptor.SetActive(SMModuleAntialiasingURP.IsTemporalUpscalerOption(val) && !BasisDeviceManagement.IsCurrentModeVR());
+                qualityGroup.ForceRebuild();
+            };
 
             if (BasisDeviceManagement.IsUserInDesktop())
             {
@@ -3553,6 +3576,7 @@ namespace Basis.BasisUI
             BasisSettingsDefaults.QualityLevel.ResetToDefault();
             BasisSettingsDefaults.ShadowQuality.ResetToDefault();
             BasisSettingsDefaults.Antialiasing.ResetToDefault();
+            BasisSettingsDefaults.UpscalerQuality.ResetToDefault();
             BasisSettingsDefaults.VSync.ResetToDefault();
             BasisSettingsDefaults.VSyncCapFps.ResetToDefault();
             BasisSettingsDefaults.HeadsetRefreshRate.ResetToDefault();

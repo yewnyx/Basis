@@ -42,7 +42,7 @@ namespace Basis.Scripts.Drivers
             "Hips", "Head", "LeftFoot", "RightFoot", "Chest", "LeftLowerLeg", "RightLowerLeg", "LeftHand", "RightHand", "LeftLowerArm", "RightLowerArm", "LeftToe", "RightToe", "LeftShoulder", "RightShoulder",
         };
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
-        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+        [System.Diagnostics.Conditional("UNITY_INCLUDE_INSTRUMENTATION")]
         private void WatchdogCheckFilterSlots(string stage)
         {
             if (!BasisFiniteWatchdog.Enabled || !posInputs.IsCreated)
@@ -94,7 +94,7 @@ namespace Basis.Scripts.Drivers
         System.IntPtr watchdogStreamPtr;
         string watchdogStreamStage;
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
-        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+        [System.Diagnostics.Conditional("UNITY_INCLUDE_INSTRUMENTATION")]
         private unsafe void WatchdogCheckPoseStream(string stage)
         {
             if (!BasisFiniteWatchdog.Enabled || !PoseSkeleton.IsCreated)

@@ -40,7 +40,7 @@ namespace Basis.Shims.Editor
             if (_types != null) return;
 
             var found = new List<Type>(1 << 14);
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (Assembly assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
             {
                 if (assembly.IsDynamic) continue;
 

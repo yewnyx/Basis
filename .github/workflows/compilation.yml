@@ -61,7 +61,7 @@ jobs:
           - targetPlatform: StandaloneLinux64
             unityModules: linux-coreclr
           - targetPlatform: StandaloneWindows64
-            unityModules: windows-mono windows-coreclr
+            unityModules: windows-coreclr
     needs: [check-secret]
     if: needs.check-secret.outputs.secret-is-set == 'true'
     steps:

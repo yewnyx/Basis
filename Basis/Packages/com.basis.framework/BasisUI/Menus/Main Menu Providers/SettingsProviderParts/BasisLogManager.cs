@@ -6,7 +6,8 @@ using System.Threading;
 using UnityEngine;
 public static class BasisLogManager
 {
-    private static readonly BlockingCollection<(string logString, string stackTrace, LogType type)> logQueue = new BlockingCollection<(string, string, LogType)>();
+    private static BlockingCollection<(string logString, string stackTrace, LogType type)> logQueue;
+    private static Thread logProcessingThread;
     private static readonly Queue<string> logEntries = new Queue<string>();
     private static readonly Queue<string> errorEntries = new Queue<string>();
     private static readonly Queue<string> warningEntries = new Queue<string>();
@@ -14,11 +15,24 @@ public static class BasisLogManager
     private static readonly object logLock = new object();
     public static bool LogChanged { get; set; }
 
-    static BasisLogManager()
+    public static void Start()
     {
-        Thread logProcessingThread = new Thread(LogProcessingLoop);
-        logProcessingThread.IsBackground = true;
-        logProcessingThread.Start();
+        lock (logLock)
+        {
+            if (logProcessingThread != null) return;
+            logQueue = new BlockingCollection<(string, string, LogType)>();
+            logProcessingThread = new Thread(LogProcessingLoop) { IsBackground = true };
+            logProcessingThread.Start(logQueue);
+        }
+    }
+
+    public static void Stop()
+    {
+        lock (logLock)
+        {
+            logQueue?.CompleteAdding();
+            logProcessingThread = null;
+        }
     }
 
     public static List<string> GetCollapsedLogs(LogType type)
@@ -88,12 +102,19 @@ public static class BasisLogManager
     }
     public static void HandleLog(string logString, string stackTrace, LogType type)
     {
-        logQueue.Add((logString, stackTrace, type));
+        if (logQueue == null) Start();
+        try
+        {
+            logQueue.Add((logString, stackTrace, type));
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
-    private static void LogProcessingLoop()
+    private static void LogProcessingLoop(object queue)
     {
-        foreach (var logEntry in logQueue.GetConsumingEnumerable())
+        foreach (var logEntry in ((BlockingCollection<(string logString, string stackTrace, LogType type)>)queue).GetConsumingEnumerable())
         {
             AddLog(logEntry.logString, logEntry.stackTrace, logEntry.type);
             LogChanged = true;

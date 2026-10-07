@@ -195,6 +195,7 @@ namespace Basis.Scripts.Networking
         static int s_parallelCount;
         static bool s_computePending;
         static Thread s_computeThread;
+        static volatile bool s_computeStop;
         static readonly ManualResetEventSlim s_computeKick = new ManualResetEventSlim(false);
         static readonly ManualResetEventSlim s_computeDone = new ManualResetEventSlim(true);
         static volatile bool s_computeInFlight;
@@ -221,6 +222,10 @@ namespace Basis.Scripts.Networking
             {
                 s_computeKick.Wait();
                 s_computeKick.Reset();
+                if (s_computeStop)
+                {
+                    return;
+                }
                 try
                 {
                     RunParallelCompute();
@@ -243,10 +248,31 @@ namespace Basis.Scripts.Networking
                     Name = "Basis Network Compute",
                 };
                 s_computeThread.Start();
+                Application.quitting -= StopComputeWorker;
+                Application.quitting += StopComputeWorker;
             }
             s_computeDone.Reset();
             s_computeInFlight = true;
             s_computeKick.Set();
+        }
+
+        static void StopComputeWorker()
+        {
+            Application.quitting -= StopComputeWorker;
+            Thread thread = s_computeThread;
+            if (thread == null)
+            {
+                return;
+            }
+            JoinPendingCompute();
+            s_computeStop = true;
+            s_computeKick.Set();
+            if (thread.IsAlive)
+            {
+                thread.Join();
+            }
+            s_computeStop = false;
+            s_computeThread = null;
         }
 
         static void JoinComputeWorker()

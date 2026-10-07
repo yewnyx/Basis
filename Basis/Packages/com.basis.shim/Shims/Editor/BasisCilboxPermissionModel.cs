@@ -485,7 +485,7 @@ namespace Basis.Shims.Editor
             Type found = Type.GetType(fullName, false);
             if (found == null)
             {
-                foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+                foreach (Assembly assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
                 {
                     try
                     {

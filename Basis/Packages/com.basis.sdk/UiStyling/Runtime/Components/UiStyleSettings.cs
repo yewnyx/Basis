@@ -107,8 +107,7 @@ namespace Basis.BasisUI.Styling
             // This works at runtime too (2022+). If you're on older Unity, switch to Object.FindObjectsOfType<BaseUiStyleComponent>()
             BaseUiStyleComponent[] components =
                 Object.FindObjectsByType<BaseUiStyleComponent>(
-                    FindObjectsInactive.Include,
-                    FindObjectsSortMode.None);
+                    FindObjectsInactive.Include);
 
             foreach (BaseUiStyleComponent comp in components)
             {

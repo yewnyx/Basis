@@ -23,8 +23,8 @@ namespace Basis.Scripts.Device_Management.Devices.OpenVR
     {
         public GameObject SteamVR_BehaviourGameobject;
         public SteamVR_Render SteamVR_Render;
-        public SteamVR SteamVR;
-        public Dictionary<string, OpenVRDevice> TypicalDevices = new Dictionary<string, OpenVRDevice>();
+        [NonSerialized] public SteamVR SteamVR;
+        [NonSerialized] public Dictionary<string, OpenVRDevice> TypicalDevices = new Dictionary<string, OpenVRDevice>();
         /// <summary>
         /// Maps a live device index to the uniqueID it was created with, captured at connect.
         /// On disconnect the device index may be dead and its render-model property unreadable, so

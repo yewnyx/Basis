@@ -45,6 +45,8 @@ public static class BasisAvatarRecorderDriver
         _maxDurationSeconds = Mathf.Max(0f, maxDurationSeconds);
 
         EnsureTickRegistered();
+        Application.quitting -= OnQuitting;
+        Application.quitting += OnQuitting;
 
         if (countdownSeconds > 0f)
         {
@@ -57,6 +59,19 @@ public static class BasisAvatarRecorderDriver
         }
 
         OnChanged?.Invoke();
+    }
+
+    private static void OnQuitting()
+    {
+        Application.quitting -= OnQuitting;
+        try
+        {
+            RequestStop();
+        }
+        catch (Exception e)
+        {
+            BasisDebug.LogError($"BasisAvatarRecorderDriver: stop on quit failed: {e.Message}");
+        }
     }
 
     public static void RequestStop()

@@ -639,7 +639,7 @@ public static class BasisGenericComponentReplicator
         // full name.
         int comma = assemblyQualifiedName.IndexOf(',');
         string fullName = comma > 0 ? assemblyQualifiedName.Substring(0, comma) : assemblyQualifiedName;
-        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+        foreach (Assembly assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
         {
             type = assembly.GetType(fullName, false);
             if (type != null)

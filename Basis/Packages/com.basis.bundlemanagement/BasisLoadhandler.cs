@@ -22,7 +22,15 @@ public static class BasisLoadHandler
     {
         BasisDebug.Log("Game has started after scene load.", BasisDebug.LogTag.Event);
         await EnsureInitializationComplete();
+        SceneManager.sceneUnloaded -= SceneUnloaded;
         SceneManager.sceneUnloaded += SceneUnloaded;
+        Application.quitting -= OnQuitting;
+        Application.quitting += OnQuitting;
+    }
+    private static void OnQuitting()
+    {
+        Application.quitting -= OnQuitting;
+        SceneManager.sceneUnloaded -= SceneUnloaded;
     }
     private static async void SceneUnloaded(Scene UnloadedScene)
     {

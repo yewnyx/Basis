@@ -115,6 +115,9 @@ public static class BasisCrashReportStore
             TryDelete(_pendingPath);
             TryDelete(_markerPath);
         }
+        Application.quitting -= OnQuit;
+        BasisNetworkModeration.OnCrashReportingStateChanged -= OnCrashReportingStateChanged;
+        _initialized = false;
     }
 
     private static void OnCrashReportingStateChanged(bool enabled)

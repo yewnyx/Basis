@@ -892,7 +892,7 @@ public sealed class BasisGlobalIlluminationRayScene : IDisposable
     public static bool IsBakedEmissive(Material material, Renderer renderer)
     {
         if (material == null || renderer == null) { return false; }
-        if ((material.globalIlluminationFlags & MaterialGlobalIlluminationFlags.BakedEmissive) == 0) { return false; }
+        if ((material.globalIlluminationFlags & MaterialGlobalIlluminationFlags.BakedEmission) == 0) { return false; }
         return renderer.lightmapIndex >= 0 && renderer.lightmapIndex < LightmapSettings.lightmaps.Length;
     }
 

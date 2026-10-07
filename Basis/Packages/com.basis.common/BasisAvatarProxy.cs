@@ -500,11 +500,19 @@ public static class BasisAvatarProxy
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Install()
     {
-        RenderPipelineManager.beginFrameRendering -= OnBeginFrameRendering;
-        RenderPipelineManager.beginFrameRendering += OnBeginFrameRendering;
+        RenderPipelineManager.beginContextRendering -= OnBeginContextRendering;
+        RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
+        Application.quitting -= Uninstall;
+        Application.quitting += Uninstall;
     }
 
-    private static void OnBeginFrameRendering(ScriptableRenderContext context, Camera[] cameras)
+    private static void Uninstall()
+    {
+        Application.quitting -= Uninstall;
+        RenderPipelineManager.beginContextRendering -= OnBeginContextRendering;
+    }
+
+    private static void OnBeginContextRendering(ScriptableRenderContext context, List<Camera> cameras)
     {
         // The last point at which every pose write for the frame has landed and nothing has started
         // drawing yet - after Basis has run its IK on onBeforeRender, before the first camera is culled.

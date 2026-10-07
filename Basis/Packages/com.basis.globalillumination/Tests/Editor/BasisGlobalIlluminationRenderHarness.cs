@@ -120,9 +120,6 @@ namespace Basis.Tests.GlobalIllumination
             text.Append("pipeline=").Append(GraphicsSettings.currentRenderPipeline != null ? GraphicsSettings.currentRenderPipeline.name : "<none>");
             text.Append(" quality=").Append(QualitySettings.names.Length > 0 ? QualitySettings.names[QualitySettings.GetQualityLevel()] : "?");
             text.Append(" device=").Append(SystemInfo.graphicsDeviceType);
-            text.Append(" renderGraph=").Append(GraphicsSettings.GetRenderPipelineSettings<RenderGraphSettings>() != null
-                ? (GraphicsSettings.GetRenderPipelineSettings<RenderGraphSettings>().enableRenderCompatibilityMode ? "compatibility" : "on")
-                : "?");
 
             BasisGlobalIlluminationFeature[] features = Resources.FindObjectsOfTypeAll<BasisGlobalIlluminationFeature>();
             text.Append(" features=").Append(features.Length);
@@ -275,7 +272,7 @@ namespace Basis.Tests.GlobalIllumination
             if (material.HasProperty("_EmissionEnabled")) { material.SetFloat("_EmissionEnabled", lit ? 1f : 0f); }
             CoreUtils.SetKeyword(material, "_EMISSION", lit);
             material.globalIlluminationFlags = lit
-                ? MaterialGlobalIlluminationFlags.RealtimeEmissive
+                ? MaterialGlobalIlluminationFlags.RealtimeIndirectEmission
                 : MaterialGlobalIlluminationFlags.EmissiveIsBlack;
         }
 

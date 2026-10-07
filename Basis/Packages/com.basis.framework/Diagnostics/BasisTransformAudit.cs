@@ -17,7 +17,7 @@ public static class BasisTransformAudit
     /// <summary>Master toggle, off by default. Armed from Basis/Debug/Transform Access.</summary>
     public static bool Enabled;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
     /// <summary>One row per (file, line) that has performed at least one operation while armed.</summary>
     public sealed class Site
     {
