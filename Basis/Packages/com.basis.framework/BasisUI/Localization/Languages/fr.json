@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "Invites traitées ou ignorées. Sélectionnez-en une pour voir les détails." },
     { "key": "notifications.clearHistory.tooltip", "value": "Supprime toutes les notifications traitées. Celles en attente sont conservées." },
     { "key": "notifications.clearHistory.confirm", "value": "Supprimer toutes les notifications traitées ? Celles en attente sont conservées." },
+    { "key": "notifications.downloads.count", "value": "Téléchargements ({0})" },
+    { "key": "notifications.downloads.description", "value": "Mondes, props et avatars en cours de téléchargement ou de chargement. Sélectionnez-en un pour suivre sa progression ou l'annuler." },
+    { "key": "notifications.downloads.empty", "value": "Aucun téléchargement en cours." },
+    { "key": "notifications.downloads.cancel", "value": "Annuler le téléchargement" },
+    { "key": "notifications.downloads.cancelling", "value": "Annulation" },
+    { "key": "notifications.downloads.waiting", "value": "En attente de démarrage" },
+    { "key": "notifications.downloads.kind.world", "value": "Monde" },
+    { "key": "notifications.downloads.kind.prop", "value": "Prop" },
+    { "key": "notifications.downloads.kind.avatar", "value": "Avatar" },
 
     { "key": "settings.tab.performancelimits", "value": "Limites de performance" },
 

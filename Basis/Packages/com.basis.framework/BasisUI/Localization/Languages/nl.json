@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "Beantwoorde en genegeerde meldingen. Selecteer er een voor details." },
     { "key": "notifications.clearHistory.tooltip", "value": "Verwijdert elke beantwoorde melding. Meldingen in behandeling blijven staan." },
     { "key": "notifications.clearHistory.confirm", "value": "Elke beantwoorde melding verwijderen? Meldingen in behandeling blijven staan." },
+    { "key": "notifications.downloads.count", "value": "Downloads ({0})" },
+    { "key": "notifications.downloads.description", "value": "Werelden, props en avatars die nu worden gedownload of geladen. Selecteer er een om de voortgang te volgen of hem te annuleren." },
+    { "key": "notifications.downloads.empty", "value": "Er wordt nu niets gedownload." },
+    { "key": "notifications.downloads.cancel", "value": "Download annuleren" },
+    { "key": "notifications.downloads.cancelling", "value": "Bezig met annuleren" },
+    { "key": "notifications.downloads.waiting", "value": "Wacht op start" },
+    { "key": "notifications.downloads.kind.world", "value": "Wereld" },
+    { "key": "notifications.downloads.kind.prop", "value": "Prop" },
+    { "key": "notifications.downloads.kind.avatar", "value": "Avatar" },
 
     { "key": "settings.tab.performancelimits", "value": "Prestatielimieten" },
 

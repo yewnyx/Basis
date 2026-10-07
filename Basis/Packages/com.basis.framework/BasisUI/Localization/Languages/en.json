@@ -5755,6 +5755,30 @@
       "value": "Toggles whether chat messages from this player appear above their nameplate."
     },
     {
+      "key": "menu.individualPlayer.chatHistory",
+      "value": "Recent Messages"
+    },
+    {
+      "key": "menu.individualPlayer.chatHistory.description",
+      "value": "The last {0} chat messages from this player, newest first."
+    },
+    {
+      "key": "menu.individualPlayer.chatHistory.empty",
+      "value": "No messages from this player yet."
+    },
+    {
+      "key": "menu.individualPlayer.chatHistory.disabled",
+      "value": "Chat is turned off in your settings."
+    },
+    {
+      "key": "menu.individualPlayer.chatHistory.hidden",
+      "value": "You have hidden chat from this player."
+    },
+    {
+      "key": "menu.individualPlayer.chatHistory.blocked",
+      "value": "Messages are hidden while either of you has blocked the other."
+    },
+    {
       "key": "menu.individualPlayer.network",
       "value": "Network"
     },
@@ -13749,6 +13773,42 @@
     {
       "key": "notifications.clearHistory.confirm",
       "value": "Remove every answered notification? Pending ones are kept."
+    },
+    {
+      "key": "notifications.downloads.count",
+      "value": "Downloads ({0})"
+    },
+    {
+      "key": "notifications.downloads.description",
+      "value": "Worlds, props and avatars downloading or loading right now. Select one to follow its progress or cancel it."
+    },
+    {
+      "key": "notifications.downloads.empty",
+      "value": "Nothing is downloading right now."
+    },
+    {
+      "key": "notifications.downloads.cancel",
+      "value": "Cancel Download"
+    },
+    {
+      "key": "notifications.downloads.cancelling",
+      "value": "Cancelling"
+    },
+    {
+      "key": "notifications.downloads.waiting",
+      "value": "Waiting to start"
+    },
+    {
+      "key": "notifications.downloads.kind.world",
+      "value": "World"
+    },
+    {
+      "key": "notifications.downloads.kind.prop",
+      "value": "Prop"
+    },
+    {
+      "key": "notifications.downloads.kind.avatar",
+      "value": "Avatar"
     },
     {
       "key": "settings.tab.performancelimits",

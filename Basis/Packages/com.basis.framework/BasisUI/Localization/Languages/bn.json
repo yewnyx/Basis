@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "উত্তর দেওয়া ও খারিজ করা প্রম্পট। বিস্তারিত দেখতে একটি বেছে নিন।" },
     { "key": "notifications.clearHistory.tooltip", "value": "উত্তর দেওয়া সব বিজ্ঞপ্তি সরান। মুলতুবিগুলি রাখা হবে।" },
     { "key": "notifications.clearHistory.confirm", "value": "উত্তর দেওয়া সব বিজ্ঞপ্তি সরাবেন? মুলতুবিগুলি রাখা হবে।" },
+    { "key": "notifications.downloads.count", "value": "ডাউনলোড ({0})" },
+    { "key": "notifications.downloads.description", "value": "এখন যেসব জগৎ, প্রপ ও অবতার ডাউনলোড বা লোড হচ্ছে। অগ্রগতি দেখতে বা বাতিল করতে একটি বেছে নিন।" },
+    { "key": "notifications.downloads.empty", "value": "এখন কিছুই ডাউনলোড হচ্ছে না।" },
+    { "key": "notifications.downloads.cancel", "value": "ডাউনলোড বাতিল করুন" },
+    { "key": "notifications.downloads.cancelling", "value": "বাতিল করা হচ্ছে" },
+    { "key": "notifications.downloads.waiting", "value": "শুরুর অপেক্ষায়" },
+    { "key": "notifications.downloads.kind.world", "value": "জগৎ" },
+    { "key": "notifications.downloads.kind.prop", "value": "প্রপ" },
+    { "key": "notifications.downloads.kind.avatar", "value": "অবতার" },
 
     { "key": "settings.tab.performancelimits", "value": "কর্মক্ষমতা সীমা" },
 

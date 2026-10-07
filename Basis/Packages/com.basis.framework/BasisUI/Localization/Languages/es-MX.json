@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "Avisos respondidos y descartados. Selecciona uno para ver los detalles." },
     { "key": "notifications.clearHistory.tooltip", "value": "Elimina todas las notificaciones respondidas. Las pendientes se conservan." },
     { "key": "notifications.clearHistory.confirm", "value": "¿Eliminar todas las notificaciones respondidas? Las pendientes se conservan." },
+    { "key": "notifications.downloads.count", "value": "Descargas ({0})" },
+    { "key": "notifications.downloads.description", "value": "Mundos, props y avatares que se están descargando o cargando ahora. Selecciona uno para seguir su progreso o cancelarlo." },
+    { "key": "notifications.downloads.empty", "value": "No se está descargando nada ahora." },
+    { "key": "notifications.downloads.cancel", "value": "Cancelar descarga" },
+    { "key": "notifications.downloads.cancelling", "value": "Cancelando" },
+    { "key": "notifications.downloads.waiting", "value": "Esperando para empezar" },
+    { "key": "notifications.downloads.kind.world", "value": "Mundo" },
+    { "key": "notifications.downloads.kind.prop", "value": "Prop" },
+    { "key": "notifications.downloads.kind.avatar", "value": "Avatar" },
 
     { "key": "settings.tab.performancelimits", "value": "Límites de rendimiento" },
 

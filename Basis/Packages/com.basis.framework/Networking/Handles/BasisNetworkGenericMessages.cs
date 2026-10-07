@@ -475,7 +475,7 @@ public static class BasisNetworkGenericMessages
         }
         catch (OperationCanceledException)
         {
-            BasisDebug.Log($"Load cancelled for {LocalLoadResource.LoadedNetID} (disconnected)", BasisDebug.LogTag.Networking);
+            BasisDebug.Log($"Load cancelled for {LocalLoadResource.LoadedNetID}", BasisDebug.LogTag.Networking);
         }
     }
 

@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "جواب دیے گئے اور مسترد کیے گئے پرامپٹس۔ تفصیلات کے لیے ایک منتخب کریں۔" },
     { "key": "notifications.clearHistory.tooltip", "value": "جواب دی گئی تمام اطلاعات ہٹائیں۔ زیر التواء اطلاعات برقرار رہیں گی۔" },
     { "key": "notifications.clearHistory.confirm", "value": "جواب دی گئی تمام اطلاعات ہٹائیں؟ زیر التواء اطلاعات برقرار رہیں گی۔" },
+    { "key": "notifications.downloads.count", "value": "ڈاؤن لوڈز ({0})" },
+    { "key": "notifications.downloads.description", "value": "دنیائیں، پراپس اور اواتار جو ابھی ڈاؤن لوڈ یا لوڈ ہو رہے ہیں۔ پیش رفت دیکھنے یا منسوخ کرنے کے لیے ایک منتخب کریں۔" },
+    { "key": "notifications.downloads.empty", "value": "ابھی کچھ بھی ڈاؤن لوڈ نہیں ہو رہا۔" },
+    { "key": "notifications.downloads.cancel", "value": "ڈاؤن لوڈ منسوخ کریں" },
+    { "key": "notifications.downloads.cancelling", "value": "منسوخ کیا جا رہا ہے" },
+    { "key": "notifications.downloads.waiting", "value": "شروع ہونے کا انتظار" },
+    { "key": "notifications.downloads.kind.world", "value": "دنیا" },
+    { "key": "notifications.downloads.kind.prop", "value": "پراپ" },
+    { "key": "notifications.downloads.kind.avatar", "value": "اواتار" },
 
     { "key": "settings.tab.performancelimits", "value": "کارکردگی کی حدیں" },
 

@@ -228,6 +228,8 @@ namespace Basis.Scripts.BasisSdk.Players
         /// </summary>
         public Action<string> OnChatMessageReceived;
 
+        public readonly BasisChatHistory ChatHistory = new BasisChatHistory();
+
         /// <summary>
         /// Fired when this player's transient chat typing state changes.
         /// </summary>

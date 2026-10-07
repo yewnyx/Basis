@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "Avvisi gestiti o ignorati. Selezionane uno per i dettagli." },
     { "key": "notifications.clearHistory.tooltip", "value": "Rimuove tutte le notifiche già gestite. Quelle in sospeso vengono mantenute." },
     { "key": "notifications.clearHistory.confirm", "value": "Rimuovere tutte le notifiche già gestite? Quelle in sospeso vengono mantenute." },
+    { "key": "notifications.downloads.count", "value": "Download ({0})" },
+    { "key": "notifications.downloads.description", "value": "Mondi, prop e avatar in fase di download o caricamento. Selezionane uno per seguirne l'avanzamento o annullarlo." },
+    { "key": "notifications.downloads.empty", "value": "Nessun download in corso." },
+    { "key": "notifications.downloads.cancel", "value": "Annulla download" },
+    { "key": "notifications.downloads.cancelling", "value": "Annullamento" },
+    { "key": "notifications.downloads.waiting", "value": "In attesa di avvio" },
+    { "key": "notifications.downloads.kind.world", "value": "Mondo" },
+    { "key": "notifications.downloads.kind.prop", "value": "Prop" },
+    { "key": "notifications.downloads.kind.avatar", "value": "Avatar" },
 
     { "key": "settings.tab.performancelimits", "value": "Limiti prestazioni" },
 

@@ -63,11 +63,16 @@ namespace Basis.Scripts.Drivers
         /// remote but can be used local.
         /// </summary>
         /// <returns></returns>
-        public static async Task<Scene> LoadSceneAssetBundle(BasisLoadableBundle BasisLoadableBundle, bool SpawnPlayerOnSceneLoad = true, bool MakeSceneActiveScene = true)
+        public static Task<Scene> LoadSceneAssetBundle(BasisLoadableBundle BasisLoadableBundle, bool SpawnPlayerOnSceneLoad = true, bool MakeSceneActiveScene = true)
+        {
+            return LoadSceneAssetBundle(BasisLoadableBundle, progressCallback, CancellationToken.None, SpawnPlayerOnSceneLoad, MakeSceneActiveScene);
+        }
+
+        public static async Task<Scene> LoadSceneAssetBundle(BasisLoadableBundle BasisLoadableBundle, BasisProgressReport report, CancellationToken cancellationToken, bool SpawnPlayerOnSceneLoad = true, bool MakeSceneActiveScene = true)
         {
             SetIfPlayerShouldSpawnOnSceneLoad(SpawnPlayerOnSceneLoad);
             BasisDebug.Log("Loading Scene ", BasisDebug.LogTag.Scene);
-            Scene Scene = await BasisLoadHandler.LoadSceneBundle(MakeSceneActiveScene, BasisLoadableBundle, progressCallback, new CancellationToken());
+            Scene Scene = await BasisLoadHandler.LoadSceneBundle(MakeSceneActiveScene, BasisLoadableBundle, report, cancellationToken);
             BasisDebug.Log("Loaded Scene ", BasisDebug.LogTag.Scene);
             return Scene;
         }

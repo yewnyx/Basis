@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "Отвеченные и отклонённые запросы. Выберите один, чтобы увидеть подробности." },
     { "key": "notifications.clearHistory.tooltip", "value": "Удаляет все отвеченные уведомления. Ожидающие остаются." },
     { "key": "notifications.clearHistory.confirm", "value": "Удалить все отвеченные уведомления? Ожидающие остаются." },
+    { "key": "notifications.downloads.count", "value": "Загрузки ({0})" },
+    { "key": "notifications.downloads.description", "value": "Миры, пропы и аватары, которые сейчас скачиваются или загружаются. Выберите один, чтобы следить за прогрессом или отменить его." },
+    { "key": "notifications.downloads.empty", "value": "Сейчас ничего не загружается." },
+    { "key": "notifications.downloads.cancel", "value": "Отменить загрузку" },
+    { "key": "notifications.downloads.cancelling", "value": "Отменяется" },
+    { "key": "notifications.downloads.waiting", "value": "Ожидает запуска" },
+    { "key": "notifications.downloads.kind.world", "value": "Мир" },
+    { "key": "notifications.downloads.kind.prop", "value": "Проп" },
+    { "key": "notifications.downloads.kind.avatar", "value": "Аватар" },
 
     { "key": "settings.tab.performancelimits", "value": "Лимиты производительности" },
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Basis.Scripts.BasisSdk.Interactions;
 using Basis.Scripts.Device_Management.Devices;
 using TMPro;
@@ -456,12 +457,77 @@ namespace Basis.ImagePickup
         public void OnSavePressed()
         {
             if (_cleanPng == null || _cleanPng.Length == 0) return;
+            if (TryCopyGifSource(out byte[] gif))
+            {
+                SaveGifAsync(gif, _cleanPng);
+                return;
+            }
+            SavePng(_cleanPng);
+        }
+
+        private bool TryCopyGifSource(out byte[] gif)
+        {
+            gif = null;
+            BasisNativeAnimationPayload payload = _animatedImagePlayer != null ? _animatedImagePlayer.ReloadPayload : null;
+            if (payload == null || !payload.IsCreated || payload.Format != BasisNativeAnimationPayload.FormatGif)
+                return false;
+            gif = payload.Bytes.GetSubArray(0, payload.Length).ToArray();
+            return true;
+        }
+
+        private static async void SaveGifAsync(byte[] gif, byte[] posterPng)
+        {
+            string path = null;
+            string error;
+            try
+            {
+                string folder = SaveFolder();
+                path = Path.Combine(folder, BasisImageSecurity.GenerateSafeFileName(".gif"));
+                error = await Task.Run(() => WriteCleanGif(gif, folder, path));
+            }
+            catch (Exception e)
+            {
+                error = e.Message;
+            }
+
+            if (error == null)
+            {
+                BasisDebug.Log($"Image pickup saved to {path}", LogTag);
+                return;
+            }
+            BasisDebug.LogWarning($"Image pickup could not save the GIF ({error}); saving the poster frame instead.", LogTag);
+            SavePng(posterPng);
+        }
+
+        private static string WriteCleanGif(byte[] gif, string folder, string path)
+        {
+            Directory.CreateDirectory(folder);
+            string temporaryPath = path + ".tmp";
+            try
+            {
+                using (var file = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16))
+                {
+                    if (!BasisGifSanitizer.TryWrite(gif, file, out string error))
+                        return error;
+                }
+                File.Move(temporaryPath, path);
+                return null;
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                    File.Delete(temporaryPath);
+            }
+        }
+
+        private static void SavePng(byte[] png)
+        {
             try
             {
                 string folder = SaveFolder();
                 Directory.CreateDirectory(folder);
                 string path = Path.Combine(folder, BasisImageSecurity.GenerateSafeFileName());
-                File.WriteAllBytes(path, _cleanPng);
+                File.WriteAllBytes(path, png);
                 BasisDebug.Log($"Image pickup saved to {path}", LogTag);
             }
             catch (Exception e)

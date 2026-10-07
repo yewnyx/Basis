@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "已回答和已忽略的提示。选择一项查看详情。" },
     { "key": "notifications.clearHistory.tooltip", "value": "移除所有已回答的通知。待处理的通知会保留。" },
     { "key": "notifications.clearHistory.confirm", "value": "移除所有已回答的通知？待处理的通知会保留。" },
+    { "key": "notifications.downloads.count", "value": "下载（{0}）" },
+    { "key": "notifications.downloads.description", "value": "正在下载或加载的世界、道具和虚拟形象。选择一项以查看进度或取消。" },
+    { "key": "notifications.downloads.empty", "value": "当前没有正在下载的内容。" },
+    { "key": "notifications.downloads.cancel", "value": "取消下载" },
+    { "key": "notifications.downloads.cancelling", "value": "正在取消" },
+    { "key": "notifications.downloads.waiting", "value": "等待开始" },
+    { "key": "notifications.downloads.kind.world", "value": "世界" },
+    { "key": "notifications.downloads.kind.prop", "value": "道具" },
+    { "key": "notifications.downloads.kind.avatar", "value": "虚拟形象" },
 
     { "key": "settings.tab.performancelimits", "value": "性能限制" },
 

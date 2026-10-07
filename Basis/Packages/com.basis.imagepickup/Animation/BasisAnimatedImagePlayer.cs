@@ -76,6 +76,7 @@ namespace Basis.ImagePickup
         internal long CanvasPixels => _canvasPixels;
         internal bool CanReleaseDecodedData =>
 			_data != null && _reloadPayload != null && _reloadPayload.IsCreated;
+        internal BasisNativeAnimationPayload ReloadPayload => _reloadPayload;
         public Texture OutputTexture =>
 			_gpuCanvas != null ? _gpuCanvas.OutputTexture : _cpuCanvas?.OutputTexture;
         internal bool HasAllocatedCompositor =>

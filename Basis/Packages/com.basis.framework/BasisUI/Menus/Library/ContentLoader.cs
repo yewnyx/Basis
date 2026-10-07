@@ -132,6 +132,7 @@ namespace Basis.BasisUI
             void ForwardPendingProgress(string uniqueId, float progress, string info) =>
                 BasisRuntimeSpawnRegistry.ReportPendingLoadProgress(pending.PendingId, progress, info);
             report.OnProgressReport += ForwardPendingProgress;
+            BasisDownload download = BasisDownloadCenter.Begin(item.Mode == BundledContentHolder.Mode.Avatar ? BasisDownloadKind.Avatar : BasisDownloadKind.Prop, item.Url, bundle, cts, report);
             CancellationToken cancel = cts.Token;
 
             var selector = item.Mode switch
@@ -145,6 +146,15 @@ namespace Basis.BasisUI
             try
             {
                 GameObject createdObject = await BasisLoadHandler.LoadGameObjectBundle(BasisDeviceManagement.Instance.CreationGameobject, bundle, true, report, cancel, finalPos, finalRot, finalScale, modifyScale, selector, parentTarget ,false, ChangeColidersToCorrectLayer);
+
+                if (cancel.IsCancellationRequested)
+                {
+                    if (createdObject != null)
+                    {
+                        GameObject.Destroy(createdObject);
+                    }
+                    throw new OperationCanceledException(cancel);
+                }
 
                 if (createdObject != null)
                 {
@@ -184,6 +194,7 @@ namespace Basis.BasisUI
             }
             finally
             {
+                BasisDownloadCenter.End(download);
                 report.OnProgressReport -= ForwardPendingProgress;
                 report.OnProgressReport -= ForwardProgress;
                 report.OnProgressReport -= BasisUILoadingBar.ProgressReport;
@@ -607,6 +618,7 @@ namespace Basis.BasisUI
                             void ForwardPendingProgress(string uniqueId, float progress, string info) =>
                                 BasisRuntimeSpawnRegistry.ReportPendingLoadProgress(pending.PendingId, progress, info);
                             report.OnProgressReport += ForwardPendingProgress;
+                            BasisDownload download = BasisDownloadCenter.Begin(BasisDownloadKind.World, item.Url, bundle, cts, report);
                             CancellationToken cancel = cts.Token;
 
                             try
@@ -617,7 +629,7 @@ namespace Basis.BasisUI
                                     report,
                                     cancel
                                 );
-
+                                await BasisLoadHandler.ThrowIfSceneLoadCancelled(scene, cancel);
 
                                 if (scene.IsValid())
                                 {
@@ -654,6 +666,7 @@ namespace Basis.BasisUI
                             }
                             finally
                             {
+                                BasisDownloadCenter.End(download);
                                 report.OnProgressReport -= ForwardPendingProgress;
                                 report.OnProgressReport -= ForwardProgress;
                                 report.OnProgressReport -= BasisUILoadingBar.ProgressReport;

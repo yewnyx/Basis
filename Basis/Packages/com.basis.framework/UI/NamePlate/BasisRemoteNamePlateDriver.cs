@@ -482,17 +482,16 @@ namespace Basis.Scripts.UI.NamePlate
         }
 
         /// <summary>
-        /// Returns whether a given plate should currently be active, considering
-        /// the enabled toggle, menu-only mode, distance, and per-plate face visibility.
+        /// Returns whether a given plate should currently be active, considering distance and
+        /// per-plate face visibility, then either its name (enabled toggle, menu-only mode) or a
+        /// chat bubble it is showing.
         /// </summary>
         public static bool ShouldPlateBeActive(BasisRemoteNamePlate plate)
         {
-            if (!NamePlateEnabled) return false;
             if (!plate.IsVisible) return false;
             if (plate.BasisRemotePlayer != null && plate.BasisRemotePlayer.IsEffectivelyBlocked) return false;
             if (plate.BasisRemotePlayer != null && !plate.BasisRemotePlayer.InNamePlateRange) return false;
-            if (NamePlateMenuOnly && BasisMainMenu.Instance == null) return false;
-            return true;
+            return NamesVisible() || plate.HasActiveChatOverlay;
         }
 
         /// <summary>
@@ -870,11 +869,11 @@ namespace Basis.Scripts.UI.NamePlate
 
             if (namePlate.ChatBubbleRenderer.sharedMaterial == null)
             {
-                namePlate.ChatBubbleRenderer.sharedMaterial = SelectedNamePlateMaterial;
+                namePlate.ChatBubbleRenderer.sharedMaterial = BasisNamePlateDepthMaterials.Surface(SelectedNamePlateMaterial);
             }
 
             float chatScale = NamePlateSize > 0.0001f ? (ChatSize / NamePlateSize) : ChatSize;
-            float localY = ChatNameClearance + ChatBubbleGap + (halfHeight * chatScale);
+            float localY = (namePlate.NameHidden ? -ChatNameClearance : ChatNameClearance + ChatBubbleGap) + (halfHeight * chatScale);
             ApplyChatObjectTransform(namePlate.ChatText.transform, chatScale, localY);
             ApplyChatObjectTransform(namePlate.ChatBubbleFilter.transform, chatScale, localY);
         }
@@ -901,6 +900,7 @@ namespace Basis.Scripts.UI.NamePlate
 
         private static readonly List<BasisRemoteNamePlate> pendingAdd = new(64);
         private static readonly List<BasisRemoteNamePlate> pendingRemove = new(64);
+        private static readonly List<BasisRemoteNamePlate> chatPlates = new(64);
 
         // Job-visible mirror of each plate's pulse state, kept in lockstep with `plates`
         // (same indices, swap-back moves included). Written on state transitions via
@@ -927,6 +927,25 @@ namespace Basis.Scripts.UI.NamePlate
             if (UseGlobalNamePlateMesh) BasisGlobalNamePlateRenderer.MarkDirty();
         }
 
+        internal static void SetChatPlateRegistered(BasisRemoteNamePlate p, bool registered)
+        {
+            int index = p.ChatRegistryIndex;
+            if (registered)
+            {
+                if (index >= 0) return;
+                p.ChatRegistryIndex = chatPlates.Count;
+                chatPlates.Add(p);
+                return;
+            }
+            if (index < 0) return;
+            int last = chatPlates.Count - 1;
+            BasisRemoteNamePlate moved = chatPlates[last];
+            chatPlates[index] = moved;
+            moved.ChatRegistryIndex = index;
+            chatPlates.RemoveAt(last);
+            p.ChatRegistryIndex = -1;
+        }
+
         public static void Dispose()
         {
             CompletePulseInFlight();
@@ -942,12 +961,18 @@ namespace Basis.Scripts.UI.NamePlate
             indexOf.Clear();
             pendingAdd.Clear();
             pendingRemove.Clear();
+            for (int i = 0; i < chatPlates.Count; i++)
+            {
+                if (chatPlates[i] != null) chatPlates[i].ChatRegistryIndex = -1;
+            }
+            chatPlates.Clear();
             bakeQueue.Clear();
 
             if (jobStates.IsCreated) jobStates.Dispose();
             if (results.IsCreated) results.Dispose();
 
             BasisGlobalNamePlateRenderer.Dispose();
+            BasisNamePlateDepthMaterials.Dispose();
             if (PanelVertexColorMaterial != null)
             {
                 Object.Destroy(PanelVertexColorMaterial);
@@ -966,14 +991,14 @@ namespace Basis.Scripts.UI.NamePlate
             ProcessBakeQueue();
 
             // CompleteNamePlates rebuilds the global merge from plates/count every frame even while
-            // disabled, so the registry must stay current regardless of ShouldRunJobs — otherwise
+            // disabled, so the registry must stay current regardless of NamesVisible — otherwise
             // plates that bake while nameplates are off never enter the merge and stay missing on re-enable.
             if (pendingAdd.Count > 0 || pendingRemove.Count > 0)
             {
                 ApplyPendingStructuralChanges();
             }
 
-            if (!ShouldRunJobs())
+            if (!NamesVisible())
             {
                 pulseComputed = false;
                 return;
@@ -982,7 +1007,7 @@ namespace Basis.Scripts.UI.NamePlate
             ScheduleSimulate(now, returnDelay, transitionDuration, NormalColorFloat4);
         }
 
-        private static bool ShouldRunJobs()
+        public static bool NamesVisible()
         {
             if (!NamePlateEnabled) return false;
             if (NamePlateMenuOnly && BasisMainMenu.Instance == null) return false;
@@ -1031,6 +1056,7 @@ namespace Basis.Scripts.UI.NamePlate
             }
 
             float plateScale = PlateWorldScale();
+            BasisNamePlateDepthMaterials.UpdateDepthPull(plateScale);
             if (plateScale != lastPlateWorldScale)
             {
                 lastPlateWorldScale = plateScale;
@@ -1090,6 +1116,18 @@ namespace Basis.Scripts.UI.NamePlate
                         }
                     }
 
+                    p.UpdateChatTimeout(now);
+                    p.RefreshTypingIndicatorAnimation(now);
+                    BasisNamePlateOverlayLimiter.Consider(p);
+                }
+                BasisNamePlateOverlayLimiter.Apply(Basis.Scripts.Drivers.BasisLocalCameraDriver.Position);
+            }
+            else if (chatPlates.Count != 0)
+            {
+                BasisNamePlateOverlayLimiter.BeginFrame();
+                for (int i = chatPlates.Count - 1; i >= 0; i--)
+                {
+                    var p = chatPlates[i];
                     p.UpdateChatTimeout(now);
                     p.RefreshTypingIndicatorAnimation(now);
                     BasisNamePlateOverlayLimiter.Consider(p);

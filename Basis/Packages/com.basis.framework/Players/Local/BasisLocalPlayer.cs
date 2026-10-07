@@ -308,8 +308,13 @@ namespace Basis.Scripts.BasisSdk.Players
         }
         public async Task CreateAvatar(byte LoadMode, BasisLoadableBundle BasisLoadableBundle)
         {
+            string previousAvatarUniqueID = CurrentAvatarUniqueID;
             CurrentAvatarUniqueID = BasisLoadableBundle.BasisRemoteBundleEncrypted.RemoteBeeFileLocation;
-            await BasisAvatarFactory.LoadAvatarLocal(this, LoadMode, BasisLoadableBundle, this.transform.position, Quaternion.identity);
+            bool loaded = await BasisAvatarFactory.LoadAvatarLocal(this, LoadMode, BasisLoadableBundle, this.transform.position, Quaternion.identity);
+            if (!loaded)
+            {
+                CurrentAvatarUniqueID = previousAvatarUniqueID;
+            }
             OnLocalAvatarChanged?.Invoke();
 
             // Tell the constraint solver which hierarchy is ours. It bands how often it re-reads a
@@ -319,6 +324,10 @@ namespace Basis.Scripts.BasisSdk.Players
             // correct, just without the saving.
             BasisConstraintSystem.SetPriorityRoot(
                 BasisAvatar != null ? BasisAvatar.transform.root : null);
+            if (!loaded)
+            {
+                return;
+            }
             if (LoadMode != (byte)BasisLoadMode.ByGameobjectReference)
             {
                 BasisDataStore.SaveAvatar(CurrentAvatarUniqueID, LoadMode, LoadFileNameAndExtension, BasisLoadableBundle.UnlockPassword);

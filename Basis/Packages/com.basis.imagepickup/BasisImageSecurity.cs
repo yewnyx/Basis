@@ -62,7 +62,9 @@ namespace Basis.ImagePickup
             0x0A,
         };
 
-        public static string GenerateSafeFileName() => $"Image_{Guid.NewGuid():N}.png";
+        public static string GenerateSafeFileName() => GenerateSafeFileName(".png");
+
+        internal static string GenerateSafeFileName(string extension) => $"Image_{Guid.NewGuid():N}{extension}";
 
         public static bool HasPngExtension(string path)
         {

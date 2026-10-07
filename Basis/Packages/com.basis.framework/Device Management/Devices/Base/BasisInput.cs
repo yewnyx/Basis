@@ -955,7 +955,11 @@ namespace Basis.Scripts.Device_Management.Devices
                     BasisActionDriver.UpdatePlayerControl(trackedRole, ref CurrentInputState, ref LastInputState);
                 }
             }
-            bool pointerActive = hasPlayerRaycastSupport && PointerActive;
+            if (!hasPlayerRaycastSupport)
+            {
+                return;
+            }
+            bool pointerActive = PointerActive;
             if (pointerActive)
             {
                 BasisPointRaycaster.UpdateRaycast();

@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "उत्तर दिए गए और खारिज किए गए प्रॉम्प्ट। विवरण के लिए एक चुनें।" },
     { "key": "notifications.clearHistory.tooltip", "value": "उत्तर दी गई सभी सूचनाएँ हटाएँ। लंबित सूचनाएँ रखी जाएँगी।" },
     { "key": "notifications.clearHistory.confirm", "value": "उत्तर दी गई सभी सूचनाएँ हटाएँ? लंबित सूचनाएँ रखी जाएँगी।" },
+    { "key": "notifications.downloads.count", "value": "डाउनलोड ({0})" },
+    { "key": "notifications.downloads.description", "value": "वर्ल्ड, प्रॉप और अवतार जो अभी डाउनलोड या लोड हो रहे हैं। प्रगति देखने या रद्द करने के लिए एक चुनें।" },
+    { "key": "notifications.downloads.empty", "value": "अभी कुछ भी डाउनलोड नहीं हो रहा है।" },
+    { "key": "notifications.downloads.cancel", "value": "डाउनलोड रद्द करें" },
+    { "key": "notifications.downloads.cancelling", "value": "रद्द किया जा रहा है" },
+    { "key": "notifications.downloads.waiting", "value": "शुरू होने की प्रतीक्षा में" },
+    { "key": "notifications.downloads.kind.world", "value": "वर्ल्ड" },
+    { "key": "notifications.downloads.kind.prop", "value": "प्रॉप" },
+    { "key": "notifications.downloads.kind.avatar", "value": "अवतार" },
 
     { "key": "settings.tab.performancelimits", "value": "प्रदर्शन सीमाएँ" },
 

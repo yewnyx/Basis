@@ -241,6 +241,8 @@ namespace Basis
         {
             if (string.IsNullOrWhiteSpace(loadedNetId)) return false;
 
+            CancelPendingLoadsByNetId(loadedNetId);
+
             // Clients that never got this spawn loaded hold a failure row for it instead of a real
             // instance; the unload broadcast is what tells them it is gone, so clear that first.
             DismissFailedLoadByNetId(loadedNetId);
@@ -562,7 +564,7 @@ namespace Basis
             public DateTime StartedUtc;
             public float Progress;
             public string Stage;
-            [NonSerialized] public CancellationTokenSource Cts; // set for cancellable (local/embedded) loads; null for network — those are cancelled via a server unload request instead
+            [NonSerialized] public CancellationTokenSource Cts;
         }
 
         public static event Action OnPendingLoadsChanged;
@@ -606,10 +608,9 @@ namespace Basis
         }
 
         /// <summary>
-        /// Requests cancellation of an in-flight local/embedded load (the row's own load site observes
-        /// its Cts and unwinds via OperationCanceledException, which EndPendingLoad's finally clears —
-        /// the row disappears from that, not from this call). No-op for a network pending load: those
-        /// have no Cts, since only the server can authoritatively cancel a networked spawn.
+        /// Requests cancellation of an in-flight load (the row's own load site observes its Cts and
+        /// unwinds via OperationCanceledException, which EndPendingLoad's finally clears — the row
+        /// disappears from that, not from this call).
         /// </summary>
         public static bool RequestCancelPendingLoad(string pendingId)
         {
@@ -619,6 +620,31 @@ namespace Basis
             }
             pending.Cts.Cancel();
             return true;
+        }
+
+        private static void CancelPendingLoadsByNetId(string loadedNetId)
+        {
+            List<CancellationTokenSource> matches = null;
+            foreach (PendingLoad pending in _pendingLoads.Values)
+            {
+                if (pending != null && pending.Cts != null && pending.LoadedNetID == loadedNetId)
+                {
+                    matches ??= new List<CancellationTokenSource>();
+                    matches.Add(pending.Cts);
+                }
+            }
+            if (matches == null) return;
+
+            for (int Index = 0; Index < matches.Count; Index++)
+            {
+                try
+                {
+                    matches[Index].Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
         }
 
         public static void ReportPendingLoadProgress(string pendingId, float progress, string stage)

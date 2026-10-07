@@ -232,6 +232,7 @@ namespace Basis.BasisUI
             s_beaconElapsed = 0f;
 
             s_beaconGO = new GameObject("PlayerHighlightBeacon");
+            s_beaconGO.layer = LayerMask.NameToLayer("UI");
             if (BasisDeviceManagement.Instance != null)
             {
                 s_beaconGO.transform.SetParent(BasisDeviceManagement.Instance.transform, true);
@@ -904,6 +905,12 @@ namespace Basis.BasisUI
             };
 
             AddPage(audioTabKey, audioPage);
+
+            const string chatTabKey = "settings.tab.chat";
+            PanelTabPage chatPage = NewPage(chatTabKey, AddressableAssets.Sprites.Clock);
+            ChatHistoryView chatHistoryView = BuildChatHistory(chatPage.Descriptor.ContentParent);
+            PaintChatHistory(remotePlayer, chatHistoryView);
+            AddPage(chatTabKey, chatPage);
 
             // ================= Network =================
             const string networkTabKey = "menu.individualPlayer.network";
@@ -1908,6 +1915,7 @@ namespace Basis.BasisUI
             updater.DirectConnRebuildStopAt = networkPage.Descriptor.ContentParent;
             updater.AvatarStatusField = avatarStatusField;
             updater.AvatarStatusTint = avatarStatusTint;
+            updater.ChatHistoryView = chatHistoryView;
 
             // Wire audio debug fields
             updater.AudioSourceField = audioSourceField;

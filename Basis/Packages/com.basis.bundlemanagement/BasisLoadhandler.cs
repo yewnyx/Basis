@@ -244,12 +244,30 @@ public static class BasisLoadHandler
         report.ReportProgress(progressKey, 0, "Preparing scene");
         try
         {
-            return await LoadSceneBundleStaged(makeActiveScene, loadableBundle, fetch, activate, cancellationToken, MaxDownloadSizeInMB);
+            Scene scene = await LoadSceneBundleStaged(makeActiveScene, loadableBundle, fetch, activate, cancellationToken, MaxDownloadSizeInMB);
+            await ThrowIfSceneLoadCancelled(scene, cancellationToken);
+            return scene;
         }
         finally
         {
             report.ReportProgress(progressKey, 100, "Scene ready");
         }
+    }
+    public static async Task ThrowIfSceneLoadCancelled(Scene scene, CancellationToken cancellationToken)
+    {
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        if (scene.IsValid() && scene.isLoaded)
+        {
+            AsyncOperation unload = SceneManager.UnloadSceneAsync(scene);
+            if (unload != null)
+            {
+                await unload;
+            }
+        }
+        throw new OperationCanceledException(cancellationToken);
     }
     private static async Task<Scene> LoadSceneBundleStaged(bool makeActiveScene, BasisLoadableBundle loadableBundle, BasisProgressReport fetch, BasisProgressReport activate, CancellationToken cancellationToken, long MaxDownloadSizeInMB)
     {
@@ -298,8 +316,9 @@ public static class BasisLoadHandler
                     BasisDebug.LogError("Scene bundle was not available after load attempt.");
                     return new Scene();
                 }
+                cancellationToken.ThrowIfCancellationRequested();
                 BasisDebug.Log($"Bundle Loaded, Loading Scene", BasisDebug.LogTag.Networking);
-                return await BasisBundleLoadAsset.LoadSceneFromBundleAsync(wrapper, makeActiveScene, activate);
+                return await BasisBundleLoadAsset.LoadSceneFromBundleAsync(wrapper, makeActiveScene, activate, cancellationToken);
             }
             finally
             {
@@ -332,7 +351,8 @@ public static class BasisLoadHandler
         try
         {
             await BasisBeeManagement.HandleBundleAndMetaLoading(wrapper, fetch, cancellationToken, MaxDownloadSizeInMB);
-            return await BasisBundleLoadAsset.LoadSceneFromBundleAsync(wrapper, makeActiveScene, activate);
+            cancellationToken.ThrowIfCancellationRequested();
+            return await BasisBundleLoadAsset.LoadSceneFromBundleAsync(wrapper, makeActiveScene, activate, cancellationToken);
         }
         catch
         {

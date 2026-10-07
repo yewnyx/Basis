@@ -2099,6 +2099,10 @@ namespace Basis.BasisUI
                         break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                BasisDebug.Log($"Load of {item.Url} was cancelled.");
+            }
             catch (Exception ex)
             {
                 BasisDebug.LogError(ex);

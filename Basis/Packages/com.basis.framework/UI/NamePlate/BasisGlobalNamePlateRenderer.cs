@@ -792,7 +792,7 @@ namespace Basis.Scripts.UI.NamePlate
                 int pid = keyPtr[gi];
                 // ReferenceEquals + the cached RenderActive flag (cleared in DeInitialize) stand in for
                 // Unity's `p != null`, so the per-plate gather makes no managed→native op_Inequality call.
-                int slot = (!ReferenceEquals(p, null) && p.RenderActive && (uint)pid < (uint)mapLen) ? indexMap[pid] : -1;
+                int slot = (!ReferenceEquals(p, null) && p.RenderActive && !p.NameHidden && (uint)pid < (uint)mapLen) ? indexMap[pid] : -1;
                 if ((uint)slot >= (uint)frameLen) slot = -1;
 
                 if (slot >= 0)

@@ -4336,6 +4336,15 @@
     { "key": "notifications.history.description", "value": "مطالبات تمت الإجابة عليها أو تجاهلها. اختر واحدة لعرض التفاصيل." },
     { "key": "notifications.clearHistory.tooltip", "value": "إزالة كل الإشعارات التي تمت الإجابة عليها. تبقى الإشعارات قيد الانتظار." },
     { "key": "notifications.clearHistory.confirm", "value": "هل تريد إزالة كل الإشعارات التي تمت الإجابة عليها؟ تبقى الإشعارات قيد الانتظار." },
+    { "key": "notifications.downloads.count", "value": "التنزيلات ({0})" },
+    { "key": "notifications.downloads.description", "value": "العوالم والمجسمات والأفاتارات التي يجري تنزيلها أو تحميلها الآن. اختر واحدًا لمتابعة تقدمه أو إلغائه." },
+    { "key": "notifications.downloads.empty", "value": "لا يوجد شيء قيد التنزيل الآن." },
+    { "key": "notifications.downloads.cancel", "value": "إلغاء التنزيل" },
+    { "key": "notifications.downloads.cancelling", "value": "جارٍ الإلغاء" },
+    { "key": "notifications.downloads.waiting", "value": "في انتظار البدء" },
+    { "key": "notifications.downloads.kind.world", "value": "عالم" },
+    { "key": "notifications.downloads.kind.prop", "value": "مجسم" },
+    { "key": "notifications.downloads.kind.avatar", "value": "الأفاتار" },
 
     { "key": "settings.tab.performancelimits", "value": "حدود الأداء" },
 

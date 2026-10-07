@@ -231,6 +231,7 @@ public static class BasisNetworkHandleChat
                 return;
             }
 
+            remotePlayer.ChatHistory.Add(message, DateTime.UtcNow);
             remotePlayer.OnChatMessageReceived?.Invoke(message);
 
             if (!string.IsNullOrEmpty(message) && playNotificationSound)
