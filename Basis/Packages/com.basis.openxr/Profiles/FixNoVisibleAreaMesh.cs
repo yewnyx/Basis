@@ -167,6 +167,8 @@ namespace UnityEngine.XR.OpenXR.Features
 
         internal delegate int Type_xrGetVisibilityMaskKHR(ulong session, UInt32 viewType, UInt32 viewIndex, UInt32 maskType, ref XrVisibilityMaskKHR visMaskPtr);
         static Type_xrGetVisibilityMaskKHR d_OriginalXrGetVisibilityMaskKHR;
+        static readonly Type_xrGetInstProcAddr d_HookXrGetInstProcAddr = HookXrGetInstProcAddr;
+        static readonly Type_xrGetVisibilityMaskKHR d_OverrideXrGetVisibilityMaskKHR = OverrideXrGetVisibilityMaskKHR;
 
         internal delegate int Type_xrLocateViews(ulong session, ref XrViewLocateInfo viewLocateInfo, ref XrViewState viewState, UInt32 viewCapacityInput, ref UInt32 viewCountOutput, ref XrView views);
         static Type_xrLocateViews d_xrLocateViews;
@@ -180,7 +182,7 @@ namespace UnityEngine.XR.OpenXR.Features
         {
             Setup();
             d_OriginalGetInstanceProcAddr = Marshal.GetDelegateForFunctionPointer<Type_xrGetInstProcAddr>(func);
-            return Marshal.GetFunctionPointerForDelegate((Type_xrGetInstProcAddr)HookXrGetInstProcAddr);
+            return Marshal.GetFunctionPointerForDelegate(d_HookXrGetInstProcAddr);
         }
 
         void Setup()
@@ -291,7 +293,7 @@ namespace UnityEngine.XR.OpenXR.Features
                 d_OriginalGetInstanceProcAddr?.Invoke(instance, "xrGetVisibilityMaskKHR", out originalVisMaskPtr);
                 d_OriginalXrGetVisibilityMaskKHR = Marshal.GetDelegateForFunctionPointer<Type_xrGetVisibilityMaskKHR>(originalVisMaskPtr);
 
-                function = Marshal.GetFunctionPointerForDelegate((Type_xrGetVisibilityMaskKHR)OverrideXrGetVisibilityMaskKHR);
+                function = Marshal.GetFunctionPointerForDelegate(d_OverrideXrGetVisibilityMaskKHR);
                 return 0;
             }
             else

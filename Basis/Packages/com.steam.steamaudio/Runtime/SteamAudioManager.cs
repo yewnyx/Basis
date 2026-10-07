@@ -2743,6 +2743,9 @@ namespace SteamAudio
             }
         }
 
+        static readonly ClosestHitCallback sClosestHit = ClosestHit;
+        static readonly AnyHitCallback sAnyHit = AnyHit;
+
         [MonoPInvokeCallback(typeof(ClosestHitCallback))]
         public static void ClosestHit(ref Ray ray, float minDistance, float maxDistance, out Hit hit, IntPtr userData)
         {
@@ -2862,7 +2865,7 @@ namespace SteamAudio
             var sceneType = GetSceneType();
 
             var scene = new Scene(context, sceneType, Singleton.mEmbreeDevice, Singleton.mRadeonRaysDevice,
-                ClosestHit, AnyHit);
+                sClosestHit, sAnyHit);
 
             if (sceneType == SceneType.Custom)
             {
