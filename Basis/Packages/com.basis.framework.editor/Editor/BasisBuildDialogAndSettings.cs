@@ -67,40 +67,53 @@ public class BasisBuildDialogAndSettings : IPreprocessBuildWithReport
         }
 
         // 3) Use the remembered backend; prompt only when set to Ask
-        bool useIl2Cpp;
+        ScriptingImplementation desired;
         var backendPref = BasisBuildScriptingBackendPreference.Current;
         if (backendPref == BasisBuildScriptingBackendPreference.Mode.IL2CPP)
         {
-            useIl2Cpp = true;
+            desired = ScriptingImplementation.IL2CPP;
         }
         else if (backendPref == BasisBuildScriptingBackendPreference.Mode.Mono)
         {
-            useIl2Cpp = false;
+            desired = ScriptingImplementation.Mono2x;
+        }
+        else if (backendPref == BasisBuildScriptingBackendPreference.Mode.CoreCLR)
+        {
+            desired = ScriptingImplementation.CoreCLR;
         }
         else if (Application.isBatchMode)
         {
-            // Safe default for CI: keep current backend (or change to true to default IL2CPP)
-            useIl2Cpp = (currentBackend == ScriptingImplementation.IL2CPP);
+            // Safe default for CI: keep current backend
+            desired = currentBackend;
         }
         else
         {
-            useIl2Cpp = EditorUtility.DisplayDialog(
+            int choice = EditorUtility.DisplayDialogComplex(
                 "Scripting Backend",
-                $"Build target: {target}\n\nUse IL2CPP for this build?\n\nYour choice is remembered for next time. Change it under Basis ▸ Project Setup ▸ Build & Modules.",
-                "Yes (IL2CPP)",
-                "No (Mono)"
+                $"Build target: {target}\n\nWhich scripting backend should this build use?\n\nYour choice is remembered for next time. Change it under Basis ▸ Project Setup ▸ Build & Modules.",
+                "IL2CPP",
+                "Mono",
+                "CoreCLR"
             );
 
-            BasisBuildScriptingBackendPreference.Current = useIl2Cpp
-                ? BasisBuildScriptingBackendPreference.Mode.IL2CPP
-                : BasisBuildScriptingBackendPreference.Mode.Mono;
+            if (choice == 0)
+            {
+                desired = ScriptingImplementation.IL2CPP;
+                BasisBuildScriptingBackendPreference.Current = BasisBuildScriptingBackendPreference.Mode.IL2CPP;
+            }
+            else if (choice == 2)
+            {
+                desired = ScriptingImplementation.CoreCLR;
+                BasisBuildScriptingBackendPreference.Current = BasisBuildScriptingBackendPreference.Mode.CoreCLR;
+            }
+            else
+            {
+                desired = ScriptingImplementation.Mono2x;
+                BasisBuildScriptingBackendPreference.Current = BasisBuildScriptingBackendPreference.Mode.Mono;
+            }
         }
 
-        SetBackendIfNeeded(
-            namedBuildTarget,
-            currentBackend,
-            useIl2Cpp ? ScriptingImplementation.IL2CPP : ScriptingImplementation.Mono2x
-        );
+        SetBackendIfNeeded(namedBuildTarget, currentBackend, desired);
     }
 
     private static void BumpVersionsIfNeeded(BuildTarget target)

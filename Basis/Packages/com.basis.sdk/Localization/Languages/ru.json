@@ -473,7 +473,8 @@
     { "key": "projectSetup.buildModules.scriptingBackendAsk", "value": "Спрашивать при каждой сборке" },
     { "key": "projectSetup.buildModules.scriptingBackendIl2cpp", "value": "Всегда IL2CPP" },
     { "key": "projectSetup.buildModules.scriptingBackendMono", "value": "Всегда Mono" },
-    { "key": "projectSetup.buildModules.scriptingBackendHelp", "value": "Запоминает выбор IL2CPP/Mono для сборок под Windows и macOS, чтобы вас не спрашивали каждый раз. Платформы с фиксированным выбором не затрагиваются: Android и iOS всегда используют IL2CPP, Linux всегда использует Mono. Выбор бэкенда в запросе сборки также обновляет эту настройку." },
+    { "key": "projectSetup.buildModules.scriptingBackendCoreClr", "value": "Всегда CoreCLR" },
+    { "key": "projectSetup.buildModules.scriptingBackendHelp", "value": "Запоминает выбор IL2CPP/Mono/CoreCLR для сборок под Windows и macOS, чтобы вас не спрашивали каждый раз. Платформы с фиксированным выбором не затрагиваются: Android и iOS всегда используют IL2CPP, Linux всегда использует Mono. Выбор бэкенда в запросе сборки также обновляет эту настройку." },
 
     { "key": "projectSetup.platformQuality.foldout", "value": "Платформа и качество" },
     { "key": "projectSetup.platformQuality.windows", "value": "Windows" },

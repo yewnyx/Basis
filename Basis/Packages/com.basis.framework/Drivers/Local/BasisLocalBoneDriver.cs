@@ -33,7 +33,9 @@ namespace Basis.Scripts.Drivers
         public static float HandGizmoSize = 0.02f;
         internal NativeArray<BasisBoneSimInput> simInputs;
         internal NativeArray<BasisBoneSimState> simStateStore;
+        [NonSerialized]
         internal unsafe BasisBoneSimInput* simInputPtr;
+        [NonSerialized]
         internal unsafe BasisBoneSimState* simStatePtr;
         private static readonly int RoleCount = Enum.GetValues(typeof(BasisBoneTrackedRole)).Length;
         private int[] roleToIndex;

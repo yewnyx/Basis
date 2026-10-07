@@ -97,6 +97,11 @@ internal static class BasisProjectSettingsUI
                         Tr("projectSetup.buildModules.scriptingBackendMono", "Always Mono"),
                         EditorStyles.radioButton))
                     mode = BasisBuildScriptingBackendPreference.Mode.Mono;
+
+                if (GUILayout.Toggle(mode == BasisBuildScriptingBackendPreference.Mode.CoreCLR,
+                        Tr("projectSetup.buildModules.scriptingBackendCoreClr", "Always CoreCLR"),
+                        EditorStyles.radioButton))
+                    mode = BasisBuildScriptingBackendPreference.Mode.CoreCLR;
             }
 
             if (mode != original)
@@ -104,7 +109,7 @@ internal static class BasisProjectSettingsUI
 
             EditorGUILayout.HelpBox(
                 Tr("projectSetup.buildModules.scriptingBackendHelp",
-                    "Remembers the IL2CPP/Mono answer for Windows and macOS builds so you’re not asked every time. " +
+                    "Remembers the IL2CPP/Mono/CoreCLR answer for Windows and macOS builds so you’re not asked every time. " +
                     "Forced platforms are unaffected: Android and iOS always use IL2CPP, Linux always uses Mono. " +
                     "Choosing a backend in the build prompt also updates this setting."),
                 MessageType.None);
@@ -172,7 +177,7 @@ internal static class BasisProjectSettingsUI
             },
             keywords = new HashSet<string>
             {
-                "basis", "wizard", "setup", "il2cpp", "mono", "scripting", "backend",
+                "basis", "wizard", "setup", "il2cpp", "mono", "coreclr", "scripting", "backend",
                 "leak", "detection", "diagnostics"
             }
         };
