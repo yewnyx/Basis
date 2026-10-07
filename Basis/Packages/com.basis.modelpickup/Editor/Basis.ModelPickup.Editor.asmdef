@@ -1,0 +1,18 @@
+{
+    "name": "Basis.ModelPickup.Editor",
+    "rootNamespace": "Basis.ModelPickup.Editor",
+    "references": [
+        "BasisDebug"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
