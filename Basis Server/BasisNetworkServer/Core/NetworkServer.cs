@@ -82,6 +82,9 @@ public static class NetworkServer
     public static bool StartServer(Configuration configuration)
     {
         StopServer();
+        // StopServer returns early when nothing was running, which is also the first start of an
+        // editor session with domain reload off: reset here as well so that start is clean too.
+        ResetModelPickupState();
         if (string.IsNullOrWhiteSpace(configuration.ServerUUID))
         {
             configuration.ServerUUID = Guid.NewGuid().ToString("N");
@@ -142,6 +145,18 @@ public static class NetworkServer
         Listener = null;
         AuthenticatedPeers.Clear();
         _peerSnapshot = Array.Empty<NetPeer>();
+        ResetModelPickupState();
+    }
+
+    /// <summary>
+    /// Model pickup state is process-wide and keyed by peer id; a restart recycles ids, so anything
+    /// still held would be attributed to whoever joins next. Also retires the model replay pump.
+    /// </summary>
+    private static void ResetModelPickupState()
+    {
+        Basis.Network.Server.Generic.BasisNetworkModelCache.Reset();
+        Basis.Network.Server.Generic.BasisModelShareGate.Reset();
+        Basis.Network.Server.Generic.BasisModelBandwidthGovernor.Reset();
     }
 
     public static void InitializePulseSettings()

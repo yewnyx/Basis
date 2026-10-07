@@ -36,7 +36,8 @@ public class Configuration
     // 14: CompanyName and ProductName added - the client company and product name a connection must report.
     // 15: ServerUUID added - the stable application-level identity sent to clients when they join.
     // 16: ContentSphereLeaveTimeoutSeconds and ContentSphereDeletionTimerSeconds added - how long shared orbs outlive their sharer, and an optional lifetime.
-    public const int CurrentConfigVersion = 16;
+    // 17: server model pickup cache (ModelCacheEnabled, ModelCacheMaxMegabytes, ModelCacheMinimumPerOwnerMegabytes) added.
+    public const int CurrentConfigVersion = 17;
     /// <summary>Schema version stamped into config.xml; 0 = a pre-versioning file that is upgraded on load.</summary>
     public int ConfigVersion = 0;
 
@@ -177,6 +178,27 @@ public class Configuration
     /// their share evicts their own oldest image, never another player's.
     /// </summary>
     public int ImageCacheMinimumPerOwnerMegabytes = 32;
+    /// <summary>
+    /// Hold shared 3D model pickups (glTF/GLB) in server RAM so a joining or approaching player is
+    /// offered them by the server instead of the sharer re-uploading to each arrival. A budget of its
+    /// own, separate from the image cache, so pictures cannot evict models or the reverse. Uploads and
+    /// replays are metered at the ImageShare* rates, in buckets of their own.
+    /// </summary>
+    public bool ModelCacheEnabled = true;
+    /// <summary>
+    /// Ceiling on the model cache, in megabytes. 0 holds nothing. A hard cap on retained payloads,
+    /// not a target. The default is sized for a server hosted inside a player's client, where the
+    /// cache shares a process with everything that player renders: four sharers at the per-owner
+    /// floor. A dedicated server with RAM to spare can raise it (1024 suits a busy instance).
+    /// </summary>
+    public int ModelCacheMaxMegabytes = 256;
+    /// <summary>
+    /// Floor on one player's slice of the model cache, in megabytes. The buffer is divided evenly
+    /// between everyone holding models; the floor stops a busy instance shrinking each slice below
+    /// one model. Keep it above the largest model a client may share (32 MiB plus about 0.2% chunk
+    /// framing), or the largest models stop being cached once enough players share at once.
+    /// </summary>
+    public int ModelCacheMinimumPerOwnerMegabytes = 64;
     /// <summary>
     /// Server egress one sharing player may spend on image replication, in megabits per second.
     ///

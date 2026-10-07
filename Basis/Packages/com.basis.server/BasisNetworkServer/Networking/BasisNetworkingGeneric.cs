@@ -127,9 +127,26 @@ namespace Basis.Network.Server.Generic
             {
                 return;
             }
+            // Model pickups ride their own manager id. The props gate runs before the cache sees the
+            // payload, so a new model the props rules refuse is neither cached nor relayed.
+            bool isModelTraffic = !isImageTraffic && BasisNetworkModelCache.IsModelTraffic(SceneDataMessage.messageIndex);
+            if (isModelTraffic && !BasisModelShareGate.AllowRelay(sender, payload, payloadLength))
+            {
+                return;
+            }
             if (isImageTraffic)
             {
                 BasisNetworkImageCache.Observe(
+                    (ushort)sender.Id,
+                    payload,
+                    payloadLength,
+                    SceneDataMessage.recipients,
+                    SceneDataMessage.recipientsSize
+                );
+            }
+            if (isModelTraffic)
+            {
+                BasisNetworkModelCache.Observe(
                     (ushort)sender.Id,
                     payload,
                     payloadLength,
@@ -155,6 +172,15 @@ namespace Basis.Network.Server.Generic
             {
                 // Image traffic has its own governor (advertised budget + per-owner buckets).
                 if (!BasisImageBandwidthGovernor.TryConsumeEgress((ushort)sender.Id, egressBytes))
+                {
+                    return;
+                }
+            }
+            else if (isModelTraffic)
+            {
+                // Model traffic is bulk like images, metered by its own governor against the same
+                // advertised budget the model client paces itself to.
+                if (!BasisModelBandwidthGovernor.TryConsumeEgress((ushort)sender.Id, egressBytes))
                 {
                     return;
                 }

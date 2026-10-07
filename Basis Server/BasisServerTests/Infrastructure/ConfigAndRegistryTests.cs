@@ -188,7 +188,8 @@ public class ServerConfigurationDefaultsTests
         // 14: added CompanyName and ProductName, the client identity a connection must report.
         // 15: added the persistent application-level ServerUUID.
         // 16: added the shared-orb leave timeout and deletion timer.
-        Assert.Equal(16, Configuration.CurrentConfigVersion);
+        // 17: added the server model pickup cache (ModelCache*).
+        Assert.Equal(17, Configuration.CurrentConfigVersion);
         Assert.Equal(0, new Configuration().ConfigVersion);
         Assert.Equal("config", Configuration.ConfigFolderName);
         Assert.Equal("logs", Configuration.LogsFolderName);

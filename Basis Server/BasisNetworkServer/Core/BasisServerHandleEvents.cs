@@ -440,6 +440,9 @@ namespace BasisServerHandle
             // Drops this peer's egress bucket and any replay still queued for it. Without this a
             // recycled player id would inherit the previous holder's spent budget.
             BasisImageBandwidthGovernor.RemovePeer(id);
+            BasisNetworkModelCache.RemovePlayerModels(id);
+            BasisModelShareGate.RemovePeer(id);
+            BasisModelBandwidthGovernor.RemovePeer(id);
             BasisNetworkPreloadResourceManagement.RemovePeer(id);
             BasisNetworkServer.Security.BasisUserOpusBitrateStateManager.ClearForPeer(id);
             BasisServerP2PBroker.RemovePeer(id);
@@ -490,6 +493,10 @@ namespace BasisServerHandle
                         BasisNetworkIDDatabase.Reset();
                         BasisNetworkResourceManagement.Reset();
                         BasisNetworkContentShare.Reset();
+                        // Every owner has left, so their models are already gone; this drops admission
+                        // order and the gate's notice throttle along with the id space they were keyed to.
+                        BasisNetworkModelCache.Reset();
+                        BasisModelShareGate.Reset();
                     }
 
                     if (removed)
@@ -825,6 +832,7 @@ namespace BasisServerHandle
                 BasisNetworkPIPCamera.SendPIPStateToPeer(newPeer);
                 BasisNetworkContentShare.SendAllSpheresToPeer(newPeer);
                 BasisNetworkImageCache.OfferCachedImagesToPeer(newPeer);
+                BasisNetworkModelCache.OfferCachedModelsToPeer(newPeer);
                 BasisNetworkServer.Security.BasisGlobalLockManager.SendLockStateToPeer(newPeer);
                 BasisNetworkServer.Security.BasisHeadlessAudioStateManager.SendStateToPeer(newPeer);
                 BasisNetworkServer.Security.BasisHeadlessConnectionPolicyManager.SendStateToPeer(newPeer);
