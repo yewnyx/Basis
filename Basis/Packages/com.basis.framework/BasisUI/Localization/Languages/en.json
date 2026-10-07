@@ -15209,6 +15209,22 @@
       "value": "Maximum active content-share spheres a single player may have at once."
     },
     {
+      "key": "settings.admin.title.contentSphereLeaveTimeout",
+      "value": "Orb Timeout After Sharer Leaves (seconds)"
+    },
+    {
+      "key": "settings.admin.title.contentSphereLeaveTimeout.description",
+      "value": "How long a shared orb stays after the player who dropped it leaves, so everyone else still has time to save it. 0 removes it as soon as they leave."
+    },
+    {
+      "key": "settings.admin.title.contentSphereDeletionTimer",
+      "value": "Orb Deletion Timer (seconds)"
+    },
+    {
+      "key": "settings.admin.title.contentSphereDeletionTimer.description",
+      "value": "Every shared orb is deleted this many seconds after it is dropped, even if its sharer is still here. 0 turns the timer off."
+    },
+    {
       "key": "settings.admin.title.applyResourceLimits",
       "value": "Apply Resource Limits"
     },

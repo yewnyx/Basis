@@ -496,13 +496,27 @@ namespace Basis.BasisUI
             maxContentSpheresField.Descriptor.SetTooltip(BasisLocalization.Get("settings.admin.title.maxContentSpheresPerPlayer.description"));
             maxContentSpheresField.SetValueWithoutNotify(BasisNetworkModeration.ServerMaxContentSpheresPerPlayer.ToString());
 
+            PanelTextField sphereLeaveTimeoutField = PanelTextField.CreateNewEntry(container);
+            sphereLeaveTimeoutField.Descriptor.SetTitle(BasisLocalization.Get("settings.admin.title.contentSphereLeaveTimeout"));
+            sphereLeaveTimeoutField.Descriptor.SetTooltip(BasisLocalization.Get("settings.admin.title.contentSphereLeaveTimeout.description"));
+            sphereLeaveTimeoutField.SetValueWithoutNotify(BasisNetworkModeration.ServerContentSphereLeaveTimeoutSeconds.ToString());
+
+            PanelTextField sphereDeletionTimerField = PanelTextField.CreateNewEntry(container);
+            sphereDeletionTimerField.Descriptor.SetTitle(BasisLocalization.Get("settings.admin.title.contentSphereDeletionTimer"));
+            sphereDeletionTimerField.Descriptor.SetTooltip(BasisLocalization.Get("settings.admin.title.contentSphereDeletionTimer.description"));
+            sphereDeletionTimerField.SetValueWithoutNotify(BasisNetworkModeration.ServerContentSphereDeletionTimerSeconds.ToString());
+
             void ApplyResourceLimits()
             {
                 if (!int.TryParse(maxContentSpheresField.Value, out int spheres)) spheres = BasisNetworkModeration.ServerMaxContentSpheresPerPlayer;
-                BasisNetworkModeration.SetGlobalResourceLimits(spheres);
+                if (!int.TryParse(sphereLeaveTimeoutField.Value, out int leaveTimeout)) leaveTimeout = BasisNetworkModeration.ServerContentSphereLeaveTimeoutSeconds;
+                if (!int.TryParse(sphereDeletionTimerField.Value, out int deletionTimer)) deletionTimer = BasisNetworkModeration.ServerContentSphereDeletionTimerSeconds;
+                BasisNetworkModeration.SetGlobalResourceLimits(spheres, leaveTimeout, deletionTimer);
             }
 
             controller.MaxContentSpheresField = maxContentSpheresField;
+            controller.ContentSphereLeaveTimeoutField = sphereLeaveTimeoutField;
+            controller.ContentSphereDeletionTimerField = sphereDeletionTimerField;
 
             PanelButton resourceApply = MakeApplyButton(container, resourceDirty);
             resourceApply.OnClicked += ApplyResourceLimits;
@@ -512,6 +526,8 @@ namespace Basis.BasisUI
 
             resourceDirty.Attach(resourceLimitsToggle, resourceBox);
             resourceDirty.WatchNumericText(maxContentSpheresField, () => BasisNetworkModeration.ServerMaxContentSpheresPerPlayer);
+            resourceDirty.WatchNumericText(sphereLeaveTimeoutField, () => BasisNetworkModeration.ServerContentSphereLeaveTimeoutSeconds);
+            resourceDirty.WatchNumericText(sphereDeletionTimerField, () => BasisNetworkModeration.ServerContentSphereDeletionTimerSeconds);
             controller.DirtySections.Add(resourceDirty);
 
             // --- Avatar reduction (BSR) tuning; persisted to config.xml, re-applied live ---
@@ -1200,6 +1216,8 @@ namespace Basis.BasisUI
             public List<string> PolicyModeEntries;
             public Action ApplyPolicySliderVisibility;
             public PanelTextField MaxContentSpheresField;
+            public PanelTextField ContentSphereLeaveTimeoutField;
+            public PanelTextField ContentSphereDeletionTimerField;
             public PanelTextField ReductionIntervalField;
             public PanelTextField ReductionBaseMultiplierField;
             public PanelTextField ReductionIncreaseRateField;
@@ -1539,6 +1557,8 @@ namespace Basis.BasisUI
             private void OnResourceLimitsChanged(int spheres)
             {
                 if (MaxContentSpheresField != null) MaxContentSpheresField.SetValueWithoutNotify(spheres.ToString());
+                if (ContentSphereLeaveTimeoutField != null) ContentSphereLeaveTimeoutField.SetValueWithoutNotify(BasisNetworkModeration.ServerContentSphereLeaveTimeoutSeconds.ToString());
+                if (ContentSphereDeletionTimerField != null) ContentSphereDeletionTimerField.SetValueWithoutNotify(BasisNetworkModeration.ServerContentSphereDeletionTimerSeconds.ToString());
                 ReevaluateDirty();
             }
 

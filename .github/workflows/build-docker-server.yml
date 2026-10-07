@@ -109,6 +109,7 @@ jobs:
             linuxArchitecture: X64
             customParameters: -standaloneBuildSubtarget Server -linuxArchitecture X64
             buildMethod: BasisHeadlessBuild.BuildLinuxServer
+            unityModules: linux-server linux-server-coreclr
           - targetPlatform: StandaloneLinux64
             buildPlatform: ubuntu-latest
             buildName: HeadlessLinuxServer
@@ -118,6 +119,7 @@ jobs:
             linuxArchitecture: ARM64
             customParameters: -standaloneBuildSubtarget Server -linuxArchitecture ARM64
             buildMethod: BasisHeadlessBuild.BuildLinuxServer
+            unityModules: linux-server linux-server-coreclr
           - targetPlatform: StandaloneWindows64
             buildPlatform: ubuntu-latest
             buildName: HeadlessWindowsServer
@@ -126,6 +128,7 @@ jobs:
             headlessFolderName: HeadlessWindows64
             customParameters: -standaloneBuildSubtarget Server
             buildMethod: BasisHeadlessBuild.BuildWindowsServer
+            unityModules: windows-server windows-server-coreclr
     needs: [check-secret]
     if: needs.check-secret.outputs.secret-is-set == 'true'
     steps:
@@ -188,6 +191,13 @@ jobs:
         shell: pwsh
         run: |
           python .github/scripts/sanitize_headless_ci.py "${env:projectPath}"
+      - name: "Build Unity editor image"
+        id: unity-image
+        timeout-minutes: 40
+        uses: ./.github/actions/unity-editor-image
+        with:
+          projectPath: ${{ env.projectPath }}
+          modules: ${{ matrix.unityModules }}
       - name: "Build Unity project"
         id: unity-build
         timeout-minutes: 70
@@ -198,6 +208,7 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
+          customImage: ${{ steps.unity-image.outputs.image }}
           buildName: ${{ matrix.buildName }}
           buildMethod: ${{ matrix.buildMethod }}
           customParameters: ${{ matrix.customParameters }}
@@ -215,6 +226,7 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
+          customImage: ${{ steps.unity-image.outputs.image }}
           buildName: ${{ matrix.buildName }}
           buildMethod: ${{ matrix.buildMethod }}
           customParameters: ${{ matrix.customParameters }}
