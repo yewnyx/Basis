@@ -139,6 +139,7 @@ sender's imports 5 s apart.
 | `Editor/` | Build step: puts TextMeshPro's "Distance Field" shader, which the back panel's labels look up by name, in Always Included Shaders. |
 | `Localization/` | Language tables for 16 languages, loaded through the Basis Localization Addressables group. |
 | `Tests/Editor/EngineFree/`, `Tests/Editor/Validation/` | NUnit tests that run under Unity and under `dotnet test`. |
+| `Tests/Editor/Unity/` | Unity EditMode tests. |
 
 Engine-free files use only `System.*` and compile as netstandard2.1
 with C# 9. From this folder:

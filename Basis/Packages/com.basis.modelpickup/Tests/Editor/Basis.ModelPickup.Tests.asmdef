@@ -3,7 +3,19 @@
     "rootNamespace": "Basis.ModelPickup.Tests",
     "references": [
         "Basis.ModelPickup",
-        "UnityEngine.TestRunner"
+        "Basis Framework",
+        "BasisEventDriver",
+        "BasisCommon",
+        "BasisSDK",
+        "BasisNetworkCore",
+        "BasisNetworkServer",
+        "BasisDebug",
+        "BasisGizmos",
+        "glTFast",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "UnityEngine.TestRunner",
+        "Unity.Collections"
     ],
     "includePlatforms": [
         "Editor"
