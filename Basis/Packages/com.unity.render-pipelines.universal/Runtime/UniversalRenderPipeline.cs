@@ -345,6 +345,8 @@ namespace UnityEngine.Rendering.Universal
 #if ENABLE_UPSCALER_FRAMEWORK
         internal static Upscaling upscaling;
 
+        public static Func<string, bool> skipUpscaler;
+
         /// <summary>
         /// Gets the list of available upscaler IDs registered with the upscaling framework.
         /// </summary>
@@ -391,6 +393,31 @@ namespace UnityEngine.Rendering.Universal
                 return null;
 
             return camera.TryGetComponent(out UniversalAdditionalCameraData additionalCameraData) && additionalCameraData.renderPostProcessing ? upscaling.activeUpscaler : null;
+        }
+
+        static Upscaling CreateUpscaling(UniversalRenderPipelineAsset asset)
+        {
+            var registry = UpscalerRegistry.s_RegisteredUpscalers;
+            var skipped = new List<KeyValuePair<string, (Type, Type, string)>>();
+            if (skipUpscaler != null)
+            {
+                foreach (var registered in registry)
+                {
+                    if (skipUpscaler(registered.Key))
+                        skipped.Add(registered);
+                }
+            }
+            foreach (var registered in skipped)
+                registry.Remove(registered.Key);
+            try
+            {
+                return new Upscaling(asset.upscalerOptions, k_EmbeddedUpscalerTypes, k_UpscalerSortOrder);
+            }
+            finally
+            {
+                foreach (var registered in skipped)
+                    registry[registered.Key] = registered.Value;
+            }
         }
 #endif
 
@@ -495,7 +522,7 @@ namespace UnityEngine.Rendering.Universal
             //       until we address the unification of HDRP/URP texture binding for the blitter.
             RegisterBuiltinUpscalers.Register();
 
-            upscaling = new Upscaling(asset.upscalerOptions, k_EmbeddedUpscalerTypes, k_UpscalerSortOrder);
+            upscaling = CreateUpscaling(asset);
 
             // Resolved once here rather than per frame, so a runtime SetActiveUpscaler() call isn't overwritten.
             // Editing the asset recreates the pipeline via RenderPipelineAsset.OnValidate(), which re-resolves.

@@ -19,6 +19,7 @@ namespace Basis.Tests.GlobalIllumination
 
         private readonly List<UnityEngine.Object> owned = new List<UnityEngine.Object>();
         private readonly Func<Camera, bool> previousFilter;
+        private readonly Func<Camera, bool> previousReflectionFilter;
         private readonly bool previousKeepWithDebugger;
         private readonly BasisGlobalIlluminationDebugView previousDebugView;
         private readonly Texture previousReflection;
@@ -160,8 +161,10 @@ namespace Basis.Tests.GlobalIllumination
         public BasisGlobalIlluminationRenderHarness()
         {
             previousFilter = BasisGlobalIlluminationFeature.CameraFilter;
+            previousReflectionFilter = BasisReflectionFeature.CameraFilter;
             previousKeepWithDebugger = BasisGlobalIlluminationFeature.KeepRenderingWithDebugger;
             BasisGlobalIlluminationFeature.CameraFilter = null;
+            BasisReflectionFeature.CameraFilter = null;
             BasisGlobalIlluminationFeature.KeepRenderingWithDebugger = true;
 
             Feature = ResolveFeature();
@@ -735,6 +738,7 @@ namespace Basis.Tests.GlobalIllumination
         public void Dispose()
         {
             BasisGlobalIlluminationFeature.CameraFilter = previousFilter;
+            BasisReflectionFeature.CameraFilter = previousReflectionFilter;
             BasisGlobalIlluminationFeature.KeepRenderingWithDebugger = previousKeepWithDebugger;
             if (Feature != null) { Feature.DebugView = previousDebugView; }
             RenderSettings.customReflectionTexture = previousReflection;

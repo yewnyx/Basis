@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,8 @@ namespace Basis.Shims.Editor
     /// enumerating them costs a few hundred milliseconds and the whole point is that the field
     /// responds on every keystroke.
     /// </summary>
-    internal static class BasisCilboxTypeIndex
+    [AutoStaticsCleanup]
+    internal static partial class BasisCilboxTypeIndex
     {
         private static Type[] _types;
 

@@ -1,9 +1,11 @@
+using Unity.Scripting.LifecycleManagement;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 namespace Basis.BasisUI.Styling
 {
-    public static class UiStyleSettings
+    [AutoStaticsCleanup]
+    public static partial class UiStyleSettings
     {
         public static UiStyleLibrary Library;
         public static UiStylePalette Palette;

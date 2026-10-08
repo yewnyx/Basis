@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Runtime.InteropServices;
 using AOT;
@@ -18,6 +19,7 @@ namespace Basis.OpenXR
     /// transparent pixels reveal the headset's real-world camera feed. Standalone VR (Quest) only.
     /// </summary>
 #if UNITY_EDITOR
+    [AutoStaticsCleanup]
     [OpenXRFeature(UiName = "Basis Passthrough",
         BuildTargetGroups = new[] { BuildTargetGroup.Android },
         Company = "Basis",
@@ -26,7 +28,7 @@ namespace Basis.OpenXR
         Version = "1.0.0",
         FeatureId = FeatureIdString)]
 #endif
-    public class BasisPassthroughFeature : OpenXRFeature
+    public partial class BasisPassthroughFeature : OpenXRFeature
     {
         public const string FeatureIdString = "com.basis.openxr.feature.passthrough";
         public const string ExtensionString = "XR_FB_passthrough";
@@ -69,9 +71,9 @@ namespace Basis.OpenXR
         static ulong s_RetiredLayer;
         static int s_RetireTicks;
 
-        static IntPtr s_UnderlayPtr;
-        static IntPtr s_FrameEndInfoPtr;
-        static IntPtr s_LayersPtr;
+        [NoAutoStaticsCleanup] static IntPtr s_UnderlayPtr;
+        [NoAutoStaticsCleanup] static IntPtr s_FrameEndInfoPtr;
+        [NoAutoStaticsCleanup] static IntPtr s_LayersPtr;
         static int s_LayersCapacity;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -126,7 +128,7 @@ namespace Basis.OpenXR
         delegate int Type_xrPollEvent(ulong instance, IntPtr eventData);
 
         static Type_xrGetInstanceProcAddr d_getProc;
-        static Type_xrGetInstanceProcAddr d_originalGetProc;
+        [NoAutoStaticsCleanup] static Type_xrGetInstanceProcAddr d_originalGetProc;
         static Type_xrCreatePassthroughFB d_createPassthrough;
         static Type_xrDestroyPassthroughFB d_destroyPassthrough;
         static Type_xrPassthroughStartFB d_startPassthrough;
@@ -135,12 +137,12 @@ namespace Basis.OpenXR
         static Type_xrDestroyPassthroughLayerFB d_destroyLayer;
         static Type_xrPassthroughLayerResumeFB d_resumeLayer;
         static Type_xrPassthroughLayerPauseFB d_pauseLayer;
-        static Type_xrEndFrame d_originalEndFrame;
-        static Type_xrPollEvent d_originalPollEvent;
+        [NoAutoStaticsCleanup] static Type_xrEndFrame d_originalEndFrame;
+        [NoAutoStaticsCleanup] static Type_xrPollEvent d_originalPollEvent;
 
-        static readonly Type_xrGetInstanceProcAddr s_getProcHook = HookGetProc;
-        static readonly Type_xrEndFrame s_endFrameHook = HookEndFrame;
-        static readonly Type_xrPollEvent s_pollEventHook = HookPollEvent;
+        [NoAutoStaticsCleanup] static readonly Type_xrGetInstanceProcAddr s_getProcHook = HookGetProc;
+        [NoAutoStaticsCleanup] static readonly Type_xrEndFrame s_endFrameHook = HookEndFrame;
+        [NoAutoStaticsCleanup] static readonly Type_xrPollEvent s_pollEventHook = HookPollEvent;
         static readonly int UNDERLAY_LAYER_HANDLE_OFFSET = (int)Marshal.OffsetOf<XrCompositionLayerPassthroughFB>(nameof(XrCompositionLayerPassthroughFB.layerHandle));
 
         protected override IntPtr HookGetInstanceProcAddr(IntPtr func)

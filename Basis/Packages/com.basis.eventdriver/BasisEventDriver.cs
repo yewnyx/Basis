@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using Basis.BTween;
 using Basis.Scripts.BasisSdk.Interactions;
 using Basis.Scripts.BasisSdk.Players;
@@ -28,6 +29,7 @@ namespace Basis.EventDriver
     /// Central per-frame driver that coordinates device actions, networking compute/apply,
     /// physics scheduling for JigglePhysics, and various local simulation hooks.
     /// </summary>
+    [AutoStaticsCleanup]
     [DefaultExecutionOrder(-31950)]
     public partial class BasisEventDriver : MonoBehaviour
     {

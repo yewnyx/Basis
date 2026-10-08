@@ -42,7 +42,7 @@ public static class SteamVR_Utils
 	}
 	public static string GetBadMD5Hash(byte[] bytes)
 	{
-		System.Security.Cryptography.MD5CryptoServiceProvider md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
+		System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
 		byte[] hash = md5.ComputeHash(bytes);
 
 		System.Text.StringBuilder sb = new System.Text.StringBuilder();

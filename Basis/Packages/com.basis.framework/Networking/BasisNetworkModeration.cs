@@ -1,4 +1,5 @@
-﻿using Basis.BasisUI;
+﻿using Unity.Scripting.LifecycleManagement;
+using Basis.BasisUI;
 using Basis.Network.Core;
 using Basis.Scripts.BasisCharacterController;
 using Basis.Scripts.BasisSdk.Players;
@@ -14,7 +15,8 @@ using System.Threading.Tasks;
 using UnityEngine;
 using static BasisNetworkCore.Serializable.SerializableBasis;
 
-public static class BasisNetworkModeration
+[AutoStaticsCleanup]
+public static partial class BasisNetworkModeration
 {
     private static bool ValidateString(string param, string paramName)
     {

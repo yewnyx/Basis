@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using Basis.BasisUI;
 using Basis.IK;
 using Basis.Scripts.BasisSdk.Players;
@@ -257,7 +258,8 @@ public static class BasisBodyFitSummary
         }
     }
 }
-public static class BasisPerAvatarScale
+[AutoStaticsCleanup]
+public static partial class BasisPerAvatarScale
 {
     public const float Min = 0.5f;
     public const float Max = 2f;

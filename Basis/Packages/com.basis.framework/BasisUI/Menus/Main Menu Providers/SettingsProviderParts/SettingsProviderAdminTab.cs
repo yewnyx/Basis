@@ -1,4 +1,5 @@
-﻿using Basis.Scripts.BasisCharacterController;
+﻿using Unity.Scripting.LifecycleManagement;
+using Basis.Scripts.BasisCharacterController;
 using Basis.Scripts.Drivers;
 using Basis.Scripts.Networking;
 using BasisNetworkCore.Security;
@@ -15,7 +16,8 @@ namespace Basis.BasisUI
     /// Admin tab — server-level configuration that persists to disk.
     /// Per-user moderation lives in <see cref="SettingsProviderModeratorTab"/>.
     /// </summary>
-    public static class SettingsProviderAdminTab
+    [AutoStaticsCleanup]
+    public static partial class SettingsProviderAdminTab
     {
         /// <summary>Fired when a player is selected in the moderator player list. Carries the UUID.</summary>
         public static event Action<string> OnPlayerUuidSelected;
@@ -930,15 +932,15 @@ namespace Basis.BasisUI
         private const int DefaultOpusBitrate = 32000;
 
         // Only 20 and 40 ms are accepted on the wire — see SetGlobalOpusFrameDuration.
-        private static readonly string[] OpusFrameDurationNames = { "20 ms", "40 ms" };
+        [NoAutoStaticsCleanup] private static readonly string[] OpusFrameDurationNames = { "20 ms", "40 ms" };
 
         private static string FrameDurationToName(int ms) => ms == 40 ? OpusFrameDurationNames[1] : OpusFrameDurationNames[0];
 
         private static int NameToFrameDuration(string name) => name == OpusFrameDurationNames[1] ? 40 : 20;
 
         // Stable wire-order names for BasisUserRestrictionMode plus the keys their labels come from.
-        private static readonly string[] RestrictionModeNames = { "Normal", "AllowList", "RejoinOnly" };
-        private static readonly string[] RestrictionModeLocalizationKeys =
+        [NoAutoStaticsCleanup] private static readonly string[] RestrictionModeNames = { "Normal", "AllowList", "RejoinOnly" };
+        [NoAutoStaticsCleanup] private static readonly string[] RestrictionModeLocalizationKeys =
         {
             "settings.admin.joinRestriction.normal",
             "settings.admin.joinRestriction.allowList",
@@ -1038,7 +1040,7 @@ namespace Basis.BasisUI
         }
 
         // Modes mirror BundledContentHolder.Mode (Avatar=0, World=1, Prop=2).
-        private static readonly string[] DefaultLibraryModeNames = { "Avatar", "World", "Prop" };
+        [NoAutoStaticsCleanup] private static readonly string[] DefaultLibraryModeNames = { "Avatar", "World", "Prop" };
 
         private static void BuildDefaultLibrarySection(RectTransform container, PanelElementDescriptor tabDescriptor = null)
         {

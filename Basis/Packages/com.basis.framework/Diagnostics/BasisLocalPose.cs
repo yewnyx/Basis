@@ -1,7 +1,9 @@
+using Unity.Scripting.LifecycleManagement;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-public static class BasisLocalPose
+[AutoStaticsCleanup]
+public static partial class BasisLocalPose
 {
     [System.Flags]
     enum Field : byte { None = 0, Position = 1, Rotation = 2, LossyScale = 4, LocalToWorld = 8 }
@@ -17,7 +19,7 @@ public static class BasisLocalPose
         public uint Version;
     }
 
-    static readonly Entry[] sEntries = new Entry[(int)BasisPoseSlot.Count];
+    [NoAutoStaticsCleanup] static readonly Entry[] sEntries = new Entry[(int)BasisPoseSlot.Count];
     static uint sVersion = 1;
 
     public static int BoundCount

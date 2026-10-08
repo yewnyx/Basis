@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Unity.Scripting.LifecycleManagement;
+using System.Collections.Generic;
 using System.Text;
 using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.Drivers;
@@ -22,7 +23,8 @@ using UnityEngine;
 /// Every entry point is [Conditional], so the calls themselves are stripped outside the
 /// editor and development builds.
 /// </summary>
-public static class BasisFiniteWatchdog
+[AutoStaticsCleanup]
+public static partial class BasisFiniteWatchdog
 {
     /// <summary>Master toggle, off by default; the event driver only ticks the scan while this is set.</summary>
     public static bool Enabled;

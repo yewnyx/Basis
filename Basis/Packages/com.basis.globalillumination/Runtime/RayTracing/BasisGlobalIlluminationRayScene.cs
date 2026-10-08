@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -124,7 +125,8 @@ public struct BasisGlobalIlluminationRayInstance
 /// with the scene. Skinned renderers are baked into a mesh of their own on a per-frame budget so avatars
 /// bounce and occlude light in the pose they are actually standing in.
 /// </summary>
-public sealed class BasisGlobalIlluminationRayScene : IDisposable
+[AutoStaticsCleanup]
+public sealed partial class BasisGlobalIlluminationRayScene : IDisposable
 {
     public const int MaxInstances = 8192;
 

@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using Basis.BasisUI;
 using Basis.Scripts.Device_Management;
 using Basis.Scripts.Drivers;
@@ -16,10 +17,15 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
     public static readonly string[] TemporalUpscalerLabelKeys = { "settings.graphics.aa.dlss", "settings.graphics.aa.fsr2", "settings.graphics.aa.fsr3", "settings.graphics.aa.fsr4" };
     public static readonly string[] UpscalerQualityOptions = { "Native", "Quality", "Balanced", "Performance", "Ultra Performance" };
     public static readonly string[] UpscalerQualityLabelKeys = { "settings.graphics.upscalerQuality.native", "settings.graphics.upscalerQuality.quality", "settings.graphics.upscalerQuality.balanced", "settings.graphics.upscalerQuality.performance", "settings.graphics.upscalerQuality.ultraPerformance" };
+    public static readonly string[] DlssModelOptions = { "Auto", "Default", "K", "M", "L" };
+    public static readonly string[] DlssModelLabelKeys = { "settings.graphics.dlssModel.auto", "settings.graphics.dlssModel.default", "settings.graphics.dlssModel.k", "settings.graphics.dlssModel.m", "settings.graphics.dlssModel.l" };
     public static bool TemporalUpscalerActive { get; private set; }
     public static event Action TemporalUpscalerChanged;
+    public static float UpscalerSharpness => Mathf.Clamp01(BasisSettingsDefaults.UpscalerSharpness.RawValue);
+    private const string Rtx40OrNewerPattern = @"\bRTX\s+(?:PRO\s+)?[4-9]0[5-9]0\b|\bAda\b|\bBlackwell\b";
     private static string requestedUpscalerId = string.Empty;
     private static string requestedQuality;
+    private static float cameraSharpening;
 #if ENABLE_UPSCALER_FRAMEWORK && ENABLE_NVIDIA && BASIS_HAS_NVIDIA
     private static readonly UnityEngine.NVIDIA.DLSSQuality[] DlssQualityTiers = { UnityEngine.NVIDIA.DLSSQuality.DLAA, UnityEngine.NVIDIA.DLSSQuality.MaximumQuality, UnityEngine.NVIDIA.DLSSQuality.Balanced, UnityEngine.NVIDIA.DLSSQuality.MaximumPerformance, UnityEngine.NVIDIA.DLSSQuality.UltraPerformance };
 #endif
@@ -45,6 +51,8 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
         }
     }
     public static bool IsTemporalUpscalerOption(string option) => TemporalUpscalerId(option) != null;
+    public static bool IsDlssOption(string option) => TemporalUpscalerId(option) == "nvidia.dlss4";
+    public static bool IsRtx40OrNewer(string deviceName) => !string.IsNullOrEmpty(deviceName) && Regex.IsMatch(deviceName, Rtx40OrNewerPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     public static bool IsUpscalerSupported(string option)
     {
 #if ENABLE_UPSCALER_FRAMEWORK
@@ -54,15 +62,53 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
         return false;
 #endif
     }
+#if ENABLE_UPSCALER_FRAMEWORK
+#if UNITY_EDITOR
+    [UnityEditor.InitializeOnLoadMethod]
+#endif
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void SkipUnavailableUpscalers()
+    {
+        UniversalRenderPipeline.skipUpscaler = IsUpscalerUnavailable;
+    }
+    public static bool IsUpscalerUnavailable(string upscalerId)
+    {
+#if ENABLE_AMD && BASIS_HAS_AMD
+        UnityEngine.AMD.GraphicsDeviceFeature feature;
+        if (upscalerId == FSR3IUpscaler.registeredId)
+        {
+            feature = UnityEngine.AMD.GraphicsDeviceFeature.FSRUpscale3;
+        }
+        else if (upscalerId == FSR4IUpscaler.registeredId)
+        {
+            feature = UnityEngine.AMD.GraphicsDeviceFeature.FSRUpscale4;
+        }
+        else
+        {
+            return false;
+        }
+        if (SystemInfo.graphicsDeviceType != GraphicsDeviceType.Direct3D12 || !UnityEngine.AMD.AMDUnityPlugin.IsLoaded())
+        {
+            return true;
+        }
+        UnityEngine.AMD.GraphicsDevice device = UnityEngine.AMD.GraphicsDevice.device ?? UnityEngine.AMD.GraphicsDevice.CreateGraphicsDevice();
+        return device == null || !device.IsFeatureAvailable(feature);
+#else
+        return false;
+#endif
+    }
+#endif
     private void OnEnable()
     {
         RenderPipelineManager.activeRenderPipelineCreated += OnRenderPipelineCreated;
         BasisDeviceManagement.OnBootModeChanged += OnBootModeChanged;
+        BasisLocalCameraDriver.InstanceExists += ApplyCameraSharpening;
     }
     private void OnDisable()
     {
         RenderPipelineManager.activeRenderPipelineCreated -= OnRenderPipelineCreated;
         BasisDeviceManagement.OnBootModeChanged -= OnBootModeChanged;
+        BasisLocalCameraDriver.InstanceExists -= ApplyCameraSharpening;
     }
     private void OnRenderPipelineCreated()
     {
@@ -77,6 +123,11 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
         if (matchedSettingName == BasisSettingsDefaults.UpscalerQuality.BindingKey)
         {
             requestedQuality = optionValue;
+            ApplyUpscaler(requestedUpscalerId);
+            return;
+        }
+        if (matchedSettingName == BasisSettingsDefaults.UpscalerSharpness.BindingKey || matchedSettingName == BasisSettingsDefaults.DlssModel.BindingKey)
+        {
             ApplyUpscaler(requestedUpscalerId);
             return;
         }
@@ -184,6 +235,7 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
     {
         requestedUpscalerId = upscalerId ?? string.Empty;
         bool temporal = false;
+        bool sharpenOnCamera = false;
 #if ENABLE_UPSCALER_FRAMEWORK
         if (RenderPipelineManager.currentPipeline is UniversalRenderPipeline pipeline)
         {
@@ -195,25 +247,35 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
             pipeline.SetUpscaler(upscaler != null ? requestedUpscalerId : string.Empty);
             if (upscaler != null)
             {
-                ApplyUpscalerQuality(pipeline.GetUpscalerOptions(requestedUpscalerId), requestedQuality ?? BasisSettingsDefaults.UpscalerQuality.RawValue);
+                ApplyUpscalerOptions(pipeline.GetUpscalerOptions(requestedUpscalerId), requestedQuality ?? BasisSettingsDefaults.UpscalerQuality.RawValue);
             }
             temporal = upscaler != null && upscaler.isTemporal;
+            sharpenOnCamera = temporal && !upscaler.supportsSharpening;
         }
 #endif
+        cameraSharpening = sharpenOnCamera ? UpscalerSharpness : 0f;
+        ApplyCameraSharpening();
         if (temporal != TemporalUpscalerActive)
         {
             TemporalUpscalerActive = temporal;
             TemporalUpscalerChanged?.Invoke();
         }
     }
+    private static void ApplyCameraSharpening()
+    {
+        if (BasisLocalCameraDriver.HasInstance && BasisLocalCameraDriver.Instance != null && BasisLocalCameraDriver.Instance.CameraData != null)
+        {
+            BasisLocalCameraDriver.Instance.CameraData.taaSettings.contrastAdaptiveSharpening = cameraSharpening;
+        }
+    }
 #if ENABLE_UPSCALER_FRAMEWORK
-    private static void ApplyUpscalerQuality(UpscalerOptions options, string quality)
+    private static void ApplyUpscalerOptions(UpscalerOptions options, string quality)
     {
         if (options == null)
         {
             return;
         }
-        int tier = 1;
+        int tier = 0;
         for (int index = 0; index < UpscalerQualityOptions.Length; index++)
         {
             if (string.Equals(UpscalerQualityOptions[index], quality, StringComparison.OrdinalIgnoreCase))
@@ -226,11 +288,13 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
         {
             tier = 0;
         }
+        float sharpness = UpscalerSharpness;
         options.resolutionMode = UpscalerResolutionMode.QualityMode;
 #if ENABLE_NVIDIA && BASIS_HAS_NVIDIA
         if (options is DLSSOptions dlss)
         {
             dlss.dlssQualityMode = DlssQualityTiers[tier];
+            ApplyDlssModel(dlss, BasisSettingsDefaults.DlssModel.RawValue);
             return;
         }
 #endif
@@ -238,6 +302,8 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
         if (options is FSR2Options fsr2)
         {
             fsr2.fsr2QualityMode = Fsr2QualityTiers[tier];
+            fsr2.enableSharpening = sharpness > 0f;
+            fsr2.sharpness = sharpness;
             if (tier == 0)
             {
                 options.resolutionMode = UpscalerResolutionMode.CustomScaling;
@@ -247,14 +313,50 @@ public class SMModuleAntialiasingURP : BasisSettingsBase
         if (options is FSR3Options fsr3)
         {
             fsr3.fsr3QualityMode = Fsr3QualityTiers[tier];
+            fsr3.enableSharpening = sharpness > 0f;
+            fsr3.sharpness = sharpness;
             return;
         }
         if (options is FSR4Options fsr4)
         {
             fsr4.fsr4QualityMode = Fsr4QualityTiers[tier];
+            fsr4.enableSharpening = sharpness > 0f;
+            fsr4.sharpness = sharpness;
         }
 #endif
     }
+#if ENABLE_NVIDIA && BASIS_HAS_NVIDIA
+    private static void ApplyDlssModel(DLSSOptions dlss, string model)
+    {
+        UnityEngine.NVIDIA.DLSSPreset preset = UnityEngine.NVIDIA.DLSSPreset.Preset_Default;
+        UnityEngine.NVIDIA.DLSSPreset ultraPerformancePreset = UnityEngine.NVIDIA.DLSSPreset.Preset_Default;
+        switch (model?.ToLowerInvariant())
+        {
+            case "default":
+                break;
+            case "k":
+                preset = ultraPerformancePreset = UnityEngine.NVIDIA.DLSSPreset.Preset_K;
+                break;
+            case "m":
+                preset = ultraPerformancePreset = UnityEngine.NVIDIA.DLSSPreset.Preset_M;
+                break;
+            case "l":
+                preset = ultraPerformancePreset = UnityEngine.NVIDIA.DLSSPreset.Preset_L;
+                break;
+            default:
+                if (IsRtx40OrNewer(SystemInfo.graphicsDeviceName))
+                {
+                    preset = ultraPerformancePreset = UnityEngine.NVIDIA.DLSSPreset.Preset_L;
+                }
+                break;
+        }
+        dlss.dlssRenderPresetDLAA = preset;
+        dlss.dlssRenderPresetQuality = preset;
+        dlss.dlssRenderPresetBalanced = preset;
+        dlss.dlssRenderPresetPerformance = preset;
+        dlss.dlssRenderPresetUltraPerformance = ultraPerformancePreset;
+    }
+#endif
 #else
     private static UpscalingFilterSelection LegacyUpscalingFilter(string upscalerId)
     {

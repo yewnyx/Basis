@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
@@ -28,17 +29,18 @@ using UnityEngine.Jobs;
 /// A destroyed bone is skipped by the transform job and keeps its last matrix until the next rebuild,
 /// exactly as the managed loop's null-skip did.
 /// </summary>
-public static class BasisAvatarProxyJobs
+[AutoStaticsCleanup]
+public static partial class BasisAvatarProxyJobs
 {
     private static Transform[] bones;
     private static float2[] shape;
     private static Matrix4x4[] matrices;
     private static int limbCount;
 
-    private static TransformAccessArray access;
-    private static NativeArray<Vector3> positions;
-    private static NativeArray<float2> shapeNative;
-    private static NativeArray<Matrix4x4> outMatrices;
+    [NoAutoStaticsCleanup] private static TransformAccessArray access;
+    [NoAutoStaticsCleanup] private static NativeArray<Vector3> positions;
+    [NoAutoStaticsCleanup] private static NativeArray<float2> shapeNative;
+    [NoAutoStaticsCleanup] private static NativeArray<Matrix4x4> outMatrices;
     private static JobHandle handle;
     private static bool scheduled;
     private static bool hooked;

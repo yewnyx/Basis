@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using Basis.Network.Core;
 using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.Networking.NetworkedAvatar;
@@ -69,7 +70,8 @@ namespace Basis.Scripts.Networking
     /// What deliberately did NOT move: avatar calibration. It is Animator/Transform/
     /// TransformAccessArray work end to end and is main-thread by construction.
     /// </remarks>
-    public static class BasisAvatarLoadThread
+    [AutoStaticsCleanup]
+    public static partial class BasisAvatarLoadThread
     {
         private readonly struct Job
         {
@@ -90,10 +92,10 @@ namespace Basis.Scripts.Networking
             }
         }
 
-        private static readonly BlockingCollection<Job> sJobs = new BlockingCollection<Job>();
-        private static readonly object sStartLock = new object();
+        [NoAutoStaticsCleanup] private static readonly BlockingCollection<Job> sJobs = new BlockingCollection<Job>();
+        [NoAutoStaticsCleanup] private static readonly object sStartLock = new object();
         private static Thread sThread;
-        private static CancellationTokenSource sStop;
+        [NoAutoStaticsCleanup] private static CancellationTokenSource sStop;
         private static volatile bool sShutdown;
 
         /// <summary>

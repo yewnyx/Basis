@@ -18,6 +18,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 using UnityEditor;
 
@@ -37,6 +38,7 @@ using UnityEditor.XR.OpenXR;
 namespace UnityEngine.XR.OpenXR.Features
 {
 #if UNITY_EDITOR
+    [AutoStaticsCleanup]
     [OpenXRFeature(UiName = "Fix No Visible Area Mesh",
         BuildTargetGroups = new[] { BuildTargetGroup.Standalone, BuildTargetGroup.WSA, BuildTargetGroup.Android },
         Company = "Stress Level Zero",
@@ -45,7 +47,7 @@ namespace UnityEngine.XR.OpenXR.Features
         Version = "0.0.1",
         FeatureId = featureId)]
 #endif
-    public class FixNoVisibleAreaMesh : OpenXRFeature
+    public partial class FixNoVisibleAreaMesh : OpenXRFeature
     {
         public const string featureId = "com.stresslevelzero.fixnovisiblemesh";
 
@@ -163,12 +165,12 @@ namespace UnityEngine.XR.OpenXR.Features
 
         internal delegate int Type_xrGetInstProcAddr(ulong instance, string name, out IntPtr function);
         static Type_xrGetInstProcAddr d_xrGetInstProcAddr;
-        static Type_xrGetInstProcAddr d_OriginalGetInstanceProcAddr;
+        [NoAutoStaticsCleanup] static Type_xrGetInstProcAddr d_OriginalGetInstanceProcAddr;
 
         internal delegate int Type_xrGetVisibilityMaskKHR(ulong session, UInt32 viewType, UInt32 viewIndex, UInt32 maskType, ref XrVisibilityMaskKHR visMaskPtr);
-        static Type_xrGetVisibilityMaskKHR d_OriginalXrGetVisibilityMaskKHR;
-        static readonly Type_xrGetInstProcAddr d_HookXrGetInstProcAddr = HookXrGetInstProcAddr;
-        static readonly Type_xrGetVisibilityMaskKHR d_OverrideXrGetVisibilityMaskKHR = OverrideXrGetVisibilityMaskKHR;
+        [NoAutoStaticsCleanup] static Type_xrGetVisibilityMaskKHR d_OriginalXrGetVisibilityMaskKHR;
+        [NoAutoStaticsCleanup] static readonly Type_xrGetInstProcAddr d_HookXrGetInstProcAddr = HookXrGetInstProcAddr;
+        [NoAutoStaticsCleanup] static readonly Type_xrGetVisibilityMaskKHR d_OverrideXrGetVisibilityMaskKHR = OverrideXrGetVisibilityMaskKHR;
 
         internal delegate int Type_xrLocateViews(ulong session, ref XrViewLocateInfo viewLocateInfo, ref XrViewState viewState, UInt32 viewCapacityInput, ref UInt32 viewCountOutput, ref XrView views);
         static Type_xrLocateViews d_xrLocateViews;

@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 #if BASIS_FRAMEWORK_EXISTS
 using System;
 using System.Runtime.InteropServices;
@@ -26,6 +27,7 @@ namespace Basis.Integration.MetaBodyTracking
     /// <see cref="BasisMetaBodyTrackerSource"/>'s job.
     /// </summary>
 #if UNITY_EDITOR
+    [AutoStaticsCleanup]
     [OpenXRFeature(UiName = "Basis Meta Body Tracking",
         BuildTargetGroups = new[] { BuildTargetGroup.Standalone, BuildTargetGroup.Android },
         Company = "Basis",
@@ -34,7 +36,7 @@ namespace Basis.Integration.MetaBodyTracking
         Version = "1.0.0",
         FeatureId = FeatureIdString)]
 #endif
-    public class BasisMetaBodyTrackingFeature : OpenXRFeature
+    public partial class BasisMetaBodyTrackingFeature : OpenXRFeature
     {
         public const string FeatureIdString = "com.basis.openxr.feature.metabodytracking";
 
@@ -100,7 +102,7 @@ namespace Basis.Integration.MetaBodyTracking
 
         private static float s_SuggestedHeight;
 
-        private static IntPtr s_JointBuffer;
+        [NoAutoStaticsCleanup] private static IntPtr s_JointBuffer;
         private static int s_JointCapacity;
         private static int s_JointStride;
         private static uint s_LocatedJointCount;
@@ -187,8 +189,8 @@ namespace Basis.Integration.MetaBodyTracking
         private delegate int Type_xrResetBodyTrackingCalibrationMETA(ulong bodyTracker);
 
         private static Type_xrGetInstanceProcAddr d_getProc;
-        private static Type_xrGetInstanceProcAddr d_originalGetProc;
-        private static Type_xrWaitFrame d_originalWaitFrame;
+        [NoAutoStaticsCleanup] private static Type_xrGetInstanceProcAddr d_originalGetProc;
+        [NoAutoStaticsCleanup] private static Type_xrWaitFrame d_originalWaitFrame;
         private static Type_xrCreateBodyTrackerFB d_createBodyTracker;
         private static Type_xrDestroyBodyTrackerFB d_destroyBodyTracker;
         private static Type_xrLocateBodyJointsFB d_locateBodyJoints;
@@ -196,8 +198,8 @@ namespace Basis.Integration.MetaBodyTracking
         private static Type_xrSuggestBodyTrackingCalibrationOverrideMETA d_suggestCalibration;
         private static Type_xrResetBodyTrackingCalibrationMETA d_resetCalibration;
 
-        private static readonly Type_xrGetInstanceProcAddr s_getProcHook = HookGetProc;
-        private static readonly Type_xrWaitFrame s_waitFrameHook = HookWaitFrame;
+        [NoAutoStaticsCleanup] private static readonly Type_xrGetInstanceProcAddr s_getProcHook = HookGetProc;
+        [NoAutoStaticsCleanup] private static readonly Type_xrWaitFrame s_waitFrameHook = HookWaitFrame;
 
         // ---- Instance and session lifecycle ----
 

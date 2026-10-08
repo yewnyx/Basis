@@ -1,18 +1,20 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using UnityEngine;
-public static class BasisLogManager
+[AutoStaticsCleanup]
+public static partial class BasisLogManager
 {
-    private static BlockingCollection<(string logString, string stackTrace, LogType type)> logQueue;
+    [NoAutoStaticsCleanup] private static BlockingCollection<(string logString, string stackTrace, LogType type)> logQueue;
     private static Thread logProcessingThread;
     private static readonly Queue<string> logEntries = new Queue<string>();
     private static readonly Queue<string> errorEntries = new Queue<string>();
     private static readonly Queue<string> warningEntries = new Queue<string>();
     private static readonly Queue<string> normalEntries = new Queue<string>();
-    private static readonly object logLock = new object();
+    [NoAutoStaticsCleanup] private static readonly object logLock = new object();
     public static bool LogChanged { get; set; }
 
     public static void Start()

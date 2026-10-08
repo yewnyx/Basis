@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,7 +12,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using static BasisSerialization;
 using static BundledContentHolder;
-public static class BasisLoadHandler
+[AutoStaticsCleanup]
+public static partial class BasisLoadHandler
 {
     public static bool IsInitialized = false;
     public static ConcurrentDictionary<string, BasisTrackedBundleWrapper> LoadedBundles = new ConcurrentDictionary<string, BasisTrackedBundleWrapper>();

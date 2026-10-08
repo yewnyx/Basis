@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using Basis.BasisUI;
 using Basis.Network.Core;
 using Basis.Scripts.Common;
@@ -24,7 +25,8 @@ namespace Basis.Scripts.Networking
     /// URL format:  <c>scheme://host[:port][?password=xxx]</c>
     ///   Password must be in the query string — URL fragments are stripped by some OSes.
     /// </summary>
-    public static class BasisDeepLinkProvider
+    [AutoStaticsCleanup]
+    public static partial class BasisDeepLinkProvider
     {
         /// <summary>URL scheme registered with the OS. Change before building — not runtime-configurable.</summary>
         public const string DeepLinkScheme = "basisdemo";

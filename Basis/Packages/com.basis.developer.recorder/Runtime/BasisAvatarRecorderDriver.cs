@@ -1,8 +1,10 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using Basis.Scripts.BasisSdk.Players;
 using UnityEngine;
 
-public static class BasisAvatarRecorderDriver
+[AutoStaticsCleanup]
+public static partial class BasisAvatarRecorderDriver
 {
     public enum RecorderState
     {
@@ -24,7 +26,7 @@ public static class BasisAvatarRecorderDriver
     private static bool _autoStop;
     private static float _maxDurationSeconds;
 
-    private static HumanPoseHandler _poseHandler;
+    [NoAutoStaticsCleanup] private static HumanPoseHandler _poseHandler;
     private static Animator _boundAnimator;
     private static HumanPose _pose;
 
