@@ -9,3 +9,6 @@ desktop.ini
 [Oo]bj/
 [Bb]uild/
 [Ll]ogs/
+
+# Basis/.gitignore ignores every *.csproj; these are hand-written test projects.
+!Tests~/DotNet/**/*.csproj

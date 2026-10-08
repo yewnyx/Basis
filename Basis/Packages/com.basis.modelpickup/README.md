@@ -130,7 +130,7 @@ sender's imports 5 s apart.
 - **Library.** Each model is listed in the Library's Instantiated tab
   as a shared prop, with a remove button.
 
-## Layout
+## Layout and tests
 
 | Folder | Contents |
 |---|---|
@@ -138,9 +138,20 @@ sender's imports 5 s apart.
 | `Transport/` | Engine and framework glue: network identity, uplink, outbound queue, cache client, dialogs, back panel, gizmos, the follow pass (one Burst job over every pickup root). |
 | `Editor/` | Build step: puts TextMeshPro's "Distance Field" shader, which the back panel's labels look up by name, in Always Included Shaders. |
 | `Localization/` | Language tables for 16 languages, loaded through the Basis Localization Addressables group. |
+| `Tests/Editor/EngineFree/`, `Tests/Editor/Validation/` | NUnit tests that run under Unity and under `dotnet test`. |
 
 Engine-free files use only `System.*` and compile as netstandard2.1
-with C# 9.
+with C# 9. From this folder:
+
+```
+dotnet build "Tests~/DotNet/Core/Basis.ModelPickup.Core.csproj"
+dotnet test  "Tests~/DotNet/Tests/Basis.ModelPickup.Tests.csproj"
+```
+
+In Unity, run the `Basis.ModelPickup.Tests` assembly in the Test
+Runner (EditMode). `BasisModelShareWireCompatibilityTests` pins the
+wire against a `BinaryWriter` oracle; if it fails, the protocol
+changed.
 
 ## Not built yet
 
