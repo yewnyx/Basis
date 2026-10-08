@@ -199,6 +199,19 @@ public class ServerConfigurationDefaultsTests
     }
 
     [Fact]
+    public void Defaults_ModelCache_FitAClientHostedServer()
+    {
+        var cfg = new Configuration();
+        Assert.True(cfg.ModelCacheEnabled);
+        Assert.Equal(256, cfg.ModelCacheMaxMegabytes);
+        Assert.Equal(64, cfg.ModelCacheMinimumPerOwnerMegabytes);
+        // One 32 MiB model in 16 KiB chunks, with chunk framing, the chunk-array backbone, a 4 KiB
+        // header and a transform, must fit one sharer's floor or the largest models stop being cached.
+        Assert.True(cfg.ModelCacheMinimumPerOwnerMegabytes * 1048576L >= 33_626_161);
+        Assert.True(cfg.ModelCacheMaxMegabytes >= cfg.ModelCacheMinimumPerOwnerMegabytes);
+    }
+
+    [Fact]
     public void DefaultServerPort_MatchesParserDefaultPort()
     {
         Assert.Equal(LNLConnectionTargetParser.DefaultPort, new Configuration().SetPort);
@@ -1015,6 +1028,18 @@ public class ConfigXmlDocsTests
         Assert.Contains("===== Networking / listener =====", xml);
         Assert.Contains("Maximum number of simultaneously connected peers", xml);
         Assert.Contains("<PeerLimit>65535</PeerLimit>", xml);
+    }
+
+    [Fact]
+    public void Serialize_DocumentsEveryModelCacheSetting()
+    {
+        XDocument doc = XDocument.Parse(SerializeWithDocs(typeof(Configuration), new Configuration()));
+        foreach (string field in new[] { "ModelCacheEnabled", "ModelCacheMaxMegabytes", "ModelCacheMinimumPerOwnerMegabytes" })
+        {
+            XElement element = doc.Root!.Element(field)!;
+            Assert.NotNull(element);
+            Assert.IsType<XComment>(element.PreviousNode);
+        }
     }
 
     [Fact]
